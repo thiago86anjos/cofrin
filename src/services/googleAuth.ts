@@ -18,24 +18,28 @@ export function useGoogleAuth(onLogin?: () => void) {
   });
 
   useEffect(() => {
+    let mounted = true;
+
     if (response?.type === "success") {
       const { id_token } = response.params;
 
       console.log("Google Response Params:", response.params);
-
 
       const credential = GoogleAuthProvider.credential(id_token);
 
       signInWithCredential(auth, credential)
         .then(() => {
           console.log("Login Google OK!");
-
-          if (onLogin) onLogin(); // 👈 AGORA o callback funciona!
+          if (mounted && onLogin) onLogin();
         })
         .catch((err) => {
-          console.error("Erro no login Google:", err);
+          if (mounted) console.error("Erro no login Google:", err);
         });
     }
+
+    return () => {
+      mounted = false;
+    };
   }, [response]);
 
   return { request, promptAsync };

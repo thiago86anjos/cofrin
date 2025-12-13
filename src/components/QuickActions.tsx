@@ -1,28 +1,30 @@
-import React from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
-import { palette } from "../theme";
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
+import { Chip, useTheme } from 'react-native-paper';
 
-export default function QuickActions({ actions = [] }: any) {
+type Action = { key?: string | number; label: string; onPress: () => void; icon?: string };
+
+export default function QuickActions({ actions = [] }: { actions?: Action[] }) {
+  const theme = useTheme();
+
   return (
     <View style={styles.container}>
-      {actions.map((a: any) => (
-        <Pressable key={a.key} onPress={a.onPress} style={styles.btn}>
-          <Text style={styles.btnText}>{a.label}</Text>
-        </Pressable>
+      {actions.map((a, idx) => (
+        <Chip
+          key={a.key ?? idx}
+          onPress={a.onPress}
+          icon={a.icon}
+          style={[styles.chip, { backgroundColor: theme.colors.surface }]}
+          accessibilityLabel={a.label}
+        >
+          {a.label}
+        </Chip>
       ))}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flexDirection: "row", gap: 8 },
-  btn: {
-    backgroundColor: palette.white,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: palette.border,
-  },
-  btnText: { color: palette.text, fontWeight: "700" },
+  container: { flexDirection: 'row' },
+  chip: { marginRight: 8 },
 });
