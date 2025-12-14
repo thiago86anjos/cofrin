@@ -4,6 +4,7 @@ import { useAuth } from "../contexts/authContext";
 import { useAppTheme } from "../contexts/themeContext";
 import { useTransactions } from "../hooks/useFirebaseTransactions";
 import { useAccounts } from "../hooks/useAccounts";
+import { useCreditCards } from "../hooks/useCreditCards";
 import { useTransactionRefresh } from "../contexts/transactionRefreshContext";
 import { useEffect, useMemo, useCallback } from "react";
 import AppHeader from "../components/AppHeader";
@@ -42,6 +43,9 @@ export default function Home() {
   // Hook de contas do Firebase
   const { accounts, refresh: refreshAccounts } = useAccounts();
 
+  // Hook de cartões de crédito do Firebase
+  const { activeCards, refresh: refreshCreditCards } = useCreditCards();
+
   // Calcular saldo total das contas e formatar para o componente
   const { totalAccountsBalance, formattedAccounts } = useMemo(() => {
     const total = accounts
@@ -68,11 +72,21 @@ export default function Home() {
     }
   };
 
+  // Navegar para cartões de crédito
+  const handleCreditCardPress = (card: any) => {
+    navigation.navigate('Cartões');
+  };
+
+  const handleAddCreditCard = () => {
+    navigation.navigate('Cartões');
+  };
+
   // Refresh quando refreshKey mudar
   useEffect(() => {
     if (refreshKey > 0) {
       refresh();
       refreshAccounts();
+      refreshCreditCards();
     }
   }, [refreshKey]);
 
@@ -81,15 +95,9 @@ export default function Home() {
     useCallback(() => {
       refresh();
       refreshAccounts();
+      refreshCreditCards();
     }, [])
   );
-
-  // Dados de exemplo dos cartões de crédito
-  const creditCards = [
-    { id: '1', name: 'Nubank', currentBill: 1250.00, dueDate: 15, color: '#8b5cf6' },
-    { id: '2', name: 'Inter', currentBill: 890.50, dueDate: 10, color: '#f59e0b' },
-    { id: '3', name: 'C6 Bank', currentBill: 0, dueDate: 20, color: '#1f1f1f' },
-  ];
 
   return (
     <MainLayout>
@@ -115,7 +123,11 @@ export default function Home() {
           </View>
           <View style={{ width: isNarrow ? '100%' : 12, height: isNarrow ? 12 : 'auto' }} />
           <View style={{ flex: 1 }}>
-            <CreditCardsCard cards={creditCards} />
+            <CreditCardsCard 
+              cards={activeCards} 
+              onCardPress={handleCreditCardPress}
+              onAddPress={handleAddCreditCard}
+            />
           </View>
         </View>
 

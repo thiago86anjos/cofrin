@@ -5,6 +5,7 @@ import { useAppTheme } from "../contexts/themeContext";
 import { spacing, borderRadius, getShadow } from "../theme";
 import { useCreditCards } from "../hooks/useCreditCards";
 import { useAccounts } from "../hooks/useAccounts";
+import { CreditCard } from "../types/firebase";
 import { formatCurrencyBRL } from "../utils/format";
 
 interface CardBrandOption {
@@ -40,13 +41,28 @@ export default function CreditCards({ navigation }: any) {
   const [showAccountPicker, setShowAccountPicker] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Estado para modal de edição
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingCard, setEditingCard] = useState<CreditCard | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editBrand, setEditBrand] = useState('nubank');
+  const [editLimit, setEditLimit] = useState('');
+  const [editCurrentUsed, setEditCurrentUsed] = useState('');
+  const [editClosingDay, setEditClosingDay] = useState('');
+  const [editDueDay, setEditDueDay] = useState('');
+  const [editAccountId, setEditAccountId] = useState('');
+  const [editAccountName, setEditAccountName] = useState('');
+  const [showEditAccountPicker, setShowEditAccountPicker] = useState(false);
+
   // Hooks do Firebase
   const { 
     activeCards, 
     totalLimit,
     loading, 
-    createCreditCard, 
-    archiveCreditCard 
+    createCreditCard,
+    updateCreditCard,
+    archiveCreditCard,
+    deleteCreditCard,
   } = useCreditCards();
   
   const { activeAccounts } = useAccounts();
@@ -61,6 +77,22 @@ export default function CreditCards({ navigation }: any) {
   }
 
   async function handleCreate() {
+    // Verificar se há contas cadastradas
+    if (activeAccounts.length === 0) {
+      Alert.alert(
+        'Conta necessária',
+        'Para cadastrar um cartão de crédito, você precisa ter pelo menos uma conta cadastrada para pagamento da fatura.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { 
+            text: 'Criar conta', 
+            onPress: () => navigation.navigate('ConfigureAccounts'),
+          },
+        ]
+      );
+      return;
+    }
+
     if (!name.trim()) return;
     
     const closingDayNum = parseInt(closingDay) || 1;
@@ -73,16 +105,22 @@ export default function CreditCards({ navigation }: any) {
     
     setSaving(true);
     try {
-      const result = await createCreditCard({
+      const cardData: any = {
         name: name.trim(),
         brand: selectedBrand,
         color: CARD_BRANDS.find(b => b.id === selectedBrand)?.color || '#6B7280',
         limit: parseValue(limit),
         closingDay: closingDayNum,
         dueDay: dueDayNum,
-        paymentAccountId: selectedAccountId || undefined,
         isArchived: false,
-      });
+      };
+      
+      // Só adiciona paymentAccountId se tiver valor
+      if (selectedAccountId) {
+        cardData.paymentAccountId = selectedAccountId;
+      }
+
+      const result = await createCreditCard(cardData);
 
       if (result) {
         setName('');
@@ -116,6 +154,120 @@ export default function CreditCards({ navigation }: any) {
             const result = await archiveCreditCard(cardId);
             if (!result) {
               Alert.alert('Erro', 'Não foi possível arquivar o cartão');
+            }
+          }
+        },
+      ]
+    );
+  }
+
+  // Abrir modal de edição
+  function openEditModal(card: CreditCard) {
+    const account = activeAccounts.find(a => a.id === card.paymentAccountId);
+    setEditingCard(card);
+    setEditName(card.name);
+    setEditBrand(card.brand || 'outro');
+    setEditLimit(card.limit.toString().replace('.', ','));
+    setEditCurrentUsed((card.currentUsed || 0).toString().replace('.', ','));
+    setEditClosingDay(card.closingDay.toString());
+    setEditDueDay(card.dueDay.toString());
+    setEditAccountId(card.paymentAccountId || '');
+    setEditAccountName(account?.name || '');
+    setEditModalVisible(true);
+  }
+
+  // Salvar edição
+  async function handleSaveEdit() {
+    if (!editingCard || !editName.trim()) return;
+
+    const closingDayNum = parseInt(editClosingDay) || 1;
+    const dueDayNum = parseInt(editDueDay) || 10;
+    
+    if (closingDayNum < 1 || closingDayNum > 31 || dueDayNum < 1 || dueDayNum > 31) {
+      Alert.alert('Erro', 'Os dias devem estar entre 1 e 31');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const updateData: any = {
+        name: editName.trim(),
+        brand: editBrand,
+        color: CARD_BRANDS.find(b => b.id === editBrand)?.color || '#6B7280',
+        limit: parseValue(editLimit),
+        currentUsed: parseValue(editCurrentUsed),
+        closingDay: closingDayNum,
+        dueDay: dueDayNum,
+      };
+      
+      // Só adiciona paymentAccountId se tiver valor, senão remove
+      if (editAccountId) {
+        updateData.paymentAccountId = editAccountId;
+      } else {
+        updateData.paymentAccountId = null; // Remove do documento
+      }
+
+      const result = await updateCreditCard(editingCard.id, updateData);
+
+      if (result) {
+        setEditModalVisible(false);
+        setEditingCard(null);
+        Alert.alert('Sucesso', 'Cartão atualizado com sucesso!');
+      } else {
+        Alert.alert('Erro', 'Não foi possível atualizar o cartão');
+      }
+    } catch (error) {
+      Alert.alert('Erro', 'Ocorreu um erro ao atualizar o cartão');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Arquivar cartão do modal
+  async function handleArchiveFromModal() {
+    if (!editingCard) return;
+    
+    Alert.alert(
+      'Arquivar cartão?',
+      `O cartão "${editingCard.name}" será arquivado e não aparecerá mais na lista.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Arquivar', 
+          onPress: async () => {
+            const result = await archiveCreditCard(editingCard.id);
+            if (result) {
+              setEditModalVisible(false);
+              setEditingCard(null);
+            } else {
+              Alert.alert('Erro', 'Não foi possível arquivar o cartão');
+            }
+          }
+        },
+      ]
+    );
+  }
+
+  // Excluir cartão do modal
+  async function handleDeleteFromModal() {
+    if (!editingCard) return;
+    
+    Alert.alert(
+      'Excluir permanentemente?',
+      `O cartão "${editingCard.name}" será excluído e não poderá ser recuperado. Lançamentos associados NÃO serão excluídos.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Excluir', 
+          style: 'destructive',
+          onPress: async () => {
+            const result = await deleteCreditCard(editingCard.id);
+            if (result) {
+              setEditModalVisible(false);
+              setEditingCard(null);
+              Alert.alert('Sucesso', 'Cartão excluído com sucesso!');
+            } else {
+              Alert.alert('Erro', 'Não foi possível excluir o cartão');
             }
           }
         },
@@ -174,7 +326,7 @@ export default function CreditCards({ navigation }: any) {
               SEUS CARTÕES
             </Text>
             <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
-              Segure para arquivar
+              Toque para editar
             </Text>
             <View style={[styles.card, { backgroundColor: colors.card }, getShadow(colors)]}>
               {activeCards.map((card, index) => {
@@ -184,11 +336,13 @@ export default function CreditCards({ navigation }: any) {
                 return (
                   <Pressable
                     key={card.id}
+                    onPress={() => openEditModal(card)}
                     onLongPress={() => handleArchive(card.id, card.name)}
                     delayLongPress={500}
-                    style={[
+                    style={({ pressed }) => [
                       styles.cardItem,
                       index < activeCards.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border },
+                      pressed && { opacity: 0.7 },
                     ]}
                   >
                     <View style={[styles.iconCircle, { backgroundColor: cardColor + '20' }]}>
@@ -218,6 +372,7 @@ export default function CreditCards({ navigation }: any) {
                         Disponível: {formatCurrencyBRL(available)}
                       </Text>
                     </View>
+                    <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />
                   </Pressable>
                 );
               })}
@@ -270,7 +425,7 @@ export default function CreditCards({ navigation }: any) {
                       ]}
                     >
                       <MaterialCommunityIcons 
-                        name={brand.icon} 
+                        name={brand.icon as any} 
                         size={24} 
                         color={selectedBrand === brand.id ? brand.color : colors.textMuted} 
                       />
@@ -410,6 +565,244 @@ export default function CreditCards({ navigation }: any) {
                 </Pressable>
               ))
             )}
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Modal de Edição do Cartão */}
+      <Modal
+        visible={editModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.editModalContent, { backgroundColor: colors.card }]}>
+            {/* Header do Modal */}
+            <View style={[styles.editModalHeader, { borderBottomColor: colors.border }]}>
+              <Pressable onPress={() => setEditModalVisible(false)} hitSlop={12}>
+                <MaterialCommunityIcons name="close" size={24} color={colors.text} />
+              </Pressable>
+              <Text style={[styles.editModalTitle, { color: colors.text }]}>Editar Cartão</Text>
+              <Pressable onPress={handleSaveEdit} disabled={saving} hitSlop={12}>
+                <MaterialCommunityIcons 
+                  name="check" 
+                  size={24} 
+                  color={saving ? colors.textMuted : colors.primary} 
+                />
+              </Pressable>
+            </View>
+
+            <ScrollView style={styles.editModalBody}>
+              {/* Nome */}
+              <View style={styles.formGroup}>
+                <Text style={[styles.label, { color: colors.text }]}>Nome do cartão</Text>
+                <View style={[styles.inputContainer, { borderColor: colors.border }]}>
+                  <TextInput
+                    value={editName}
+                    onChangeText={setEditName}
+                    placeholder="Nome do cartão"
+                    placeholderTextColor={colors.textMuted}
+                    style={[styles.input, { color: colors.text }]}
+                  />
+                </View>
+              </View>
+
+              {/* Banco/Bandeira */}
+              <View style={styles.formGroup}>
+                <Text style={[styles.label, { color: colors.text }]}>Banco/Bandeira</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={styles.brandGrid}>
+                    {CARD_BRANDS.map((brand) => (
+                      <Pressable
+                        key={brand.id}
+                        onPress={() => setEditBrand(brand.id)}
+                        style={[
+                          styles.brandOptionSmall,
+                          { borderColor: editBrand === brand.id ? brand.color : colors.border },
+                          editBrand === brand.id && { backgroundColor: brand.color + '15' },
+                        ]}
+                      >
+                        <MaterialCommunityIcons 
+                          name={brand.icon as any} 
+                          size={18} 
+                          color={editBrand === brand.id ? brand.color : colors.textMuted} 
+                        />
+                        <Text 
+                          style={[
+                            styles.brandLabelSmall, 
+                            { color: editBrand === brand.id ? brand.color : colors.textMuted },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {brand.name}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+
+              {/* Limite e Usado */}
+              <View style={styles.rowFormGroup}>
+                <View style={[styles.formGroup, { flex: 1 }]}>
+                  <Text style={[styles.label, { color: colors.text }]}>Limite</Text>
+                  <View style={[styles.inputContainer, { borderColor: colors.border }]}>
+                    <Text style={[styles.currency, { color: colors.textMuted }]}>R$</Text>
+                    <TextInput
+                      value={editLimit}
+                      onChangeText={setEditLimit}
+                      placeholder="0,00"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="numeric"
+                      style={[styles.input, { color: colors.text }]}
+                    />
+                  </View>
+                </View>
+                <View style={[styles.formGroup, { flex: 1 }]}>
+                  <Text style={[styles.label, { color: colors.text }]}>Usado</Text>
+                  <View style={[styles.inputContainer, { borderColor: colors.border }]}>
+                    <Text style={[styles.currency, { color: colors.textMuted }]}>R$</Text>
+                    <TextInput
+                      value={editCurrentUsed}
+                      onChangeText={setEditCurrentUsed}
+                      placeholder="0,00"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="numeric"
+                      style={[styles.input, { color: colors.text }]}
+                    />
+                  </View>
+                </View>
+              </View>
+              <Text style={[styles.helpText, { color: colors.textMuted, marginHorizontal: spacing.md }]}>
+                Ajuste o valor usado se precisar corrigir
+              </Text>
+
+              {/* Datas */}
+              <View style={styles.rowFormGroup}>
+                <View style={[styles.formGroup, { flex: 1 }]}>
+                  <Text style={[styles.label, { color: colors.text }]}>Dia fechamento</Text>
+                  <View style={[styles.inputContainer, { borderColor: colors.border }]}>
+                    <TextInput
+                      value={editClosingDay}
+                      onChangeText={setEditClosingDay}
+                      placeholder="10"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="numeric"
+                      maxLength={2}
+                      style={[styles.input, { color: colors.text }]}
+                    />
+                  </View>
+                </View>
+                <View style={[styles.formGroup, { flex: 1 }]}>
+                  <Text style={[styles.label, { color: colors.text }]}>Dia vencimento</Text>
+                  <View style={[styles.inputContainer, { borderColor: colors.border }]}>
+                    <TextInput
+                      value={editDueDay}
+                      onChangeText={setEditDueDay}
+                      placeholder="17"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="numeric"
+                      maxLength={2}
+                      style={[styles.input, { color: colors.text }]}
+                    />
+                  </View>
+                </View>
+              </View>
+
+              {/* Conta de pagamento */}
+              <View style={styles.formGroup}>
+                <Text style={[styles.label, { color: colors.text }]}>Conta de pagamento</Text>
+                <Pressable 
+                  onPress={() => setShowEditAccountPicker(true)}
+                  style={[styles.selectButton, { borderColor: colors.border }]}
+                >
+                  <Text style={[
+                    styles.selectText, 
+                    { color: editAccountName ? colors.text : colors.textMuted }
+                  ]}>
+                    {editAccountName || 'Selecione a conta'}
+                  </Text>
+                  <MaterialCommunityIcons name="chevron-down" size={20} color={colors.textMuted} />
+                </Pressable>
+              </View>
+
+              {/* Ações */}
+              <View style={styles.modalActions}>
+                <Pressable
+                  onPress={handleArchiveFromModal}
+                  style={({ pressed }) => [
+                    styles.actionButton,
+                    { backgroundColor: colors.bg, borderColor: colors.border },
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <MaterialCommunityIcons name="archive-outline" size={20} color={colors.textMuted} />
+                  <Text style={[styles.actionButtonText, { color: colors.text }]}>Arquivar</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={handleDeleteFromModal}
+                  style={({ pressed }) => [
+                    styles.actionButton,
+                    styles.deleteButton,
+                    { borderColor: colors.expense },
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <MaterialCommunityIcons name="delete-outline" size={20} color={colors.expense} />
+                  <Text style={[styles.actionButtonText, { color: colors.expense }]}>Excluir</Text>
+                </Pressable>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de seleção de conta para edição */}
+      <Modal
+        visible={showEditAccountPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowEditAccountPicker(false)}
+      >
+        <Pressable 
+          style={styles.modalOverlay}
+          onPress={() => setShowEditAccountPicker(false)}
+        >
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Selecionar conta</Text>
+            <Pressable
+              onPress={() => {
+                setEditAccountId('');
+                setEditAccountName('');
+                setShowEditAccountPicker(false);
+              }}
+              style={[styles.modalOption, { borderBottomColor: colors.border }]}
+            >
+              <MaterialCommunityIcons name="close-circle-outline" size={20} color={colors.textMuted} />
+              <Text style={[styles.modalOptionText, { color: colors.textMuted }]}>Nenhuma conta</Text>
+              {editAccountId === '' && (
+                <MaterialCommunityIcons name="check" size={20} color={colors.primary} />
+              )}
+            </Pressable>
+            {activeAccounts.map((account) => (
+              <Pressable
+                key={account.id}
+                onPress={() => {
+                  setEditAccountId(account.id);
+                  setEditAccountName(account.name);
+                  setShowEditAccountPicker(false);
+                }}
+                style={[styles.modalOption, { borderBottomColor: colors.border }]}
+              >
+                <MaterialCommunityIcons name="bank" size={20} color={colors.primary} />
+                <Text style={[styles.modalOptionText, { color: colors.text }]}>{account.name}</Text>
+                {editAccountId === account.id && (
+                  <MaterialCommunityIcons name="check" size={20} color={colors.primary} />
+                )}
+              </Pressable>
+            ))}
           </View>
         </Pressable>
       </Modal>
@@ -645,5 +1038,69 @@ const styles = StyleSheet.create({
   },
   modalOptionText: {
     fontSize: 16,
+    flex: 1,
+  },
+  // Estilos do modal de edição
+  editModalContent: {
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    maxHeight: '90%',
+  },
+  editModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.md,
+    borderBottomWidth: 1,
+  },
+  editModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  editModalBody: {
+    padding: spacing.md,
+    paddingTop: 0,
+  },
+  brandOptionSmall: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderRadius: borderRadius.md,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    minWidth: 60,
+    maxWidth: 70,
+  },
+  brandLabelSmall: {
+    fontSize: 9,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  helpText: {
+    fontSize: 11,
+    marginTop: spacing.xs,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    padding: spacing.md,
+    paddingBottom: spacing.xl,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    gap: spacing.xs,
+  },
+  deleteButton: {
+    backgroundColor: 'transparent',
+  },
+  actionButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

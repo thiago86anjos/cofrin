@@ -4,19 +4,13 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppTheme } from '../../contexts/themeContext';
 import { spacing, borderRadius, getShadow } from '../../theme';
 import { formatCurrencyBRL } from '../../utils/format';
-
-interface CreditCard {
-  id: string;
-  name: string;
-  currentBill: number;
-  dueDate: number; // dia do vencimento
-  icon?: string;
-  color?: string;
-}
+import { CreditCard } from '../../types/firebase';
 
 interface Props {
   cards?: CreditCard[];
+  totalBills?: number;
   onCardPress?: (card: CreditCard) => void;
+  onAddPress?: () => void;
 }
 
 // Nome dos meses em português
@@ -26,19 +20,27 @@ const MONTHS = [
 ];
 
 // Cores para os cartões baseado no nome
-const getCardColor = (name: string): string => {
+const getCardColor = (name: string, customColor?: string): string => {
+  if (customColor) return customColor;
   const colors = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#06b6d4', '#ef4444'];
   const index = name.charCodeAt(0) % colors.length;
   return colors[index];
 };
 
-export default function CreditCardsCard({ cards = [], onCardPress }: Props) {
+export default function CreditCardsCard({ cards = [], totalBills = 0, onCardPress, onAddPress }: Props) {
   const { colors } = useAppTheme();
   const currentMonth = MONTHS[new Date().getMonth()];
 
+  // Calcular totais
+  const totalLimit = cards.reduce((sum, card) => sum + card.limit, 0);
+  const totalUsed = cards.reduce((sum, card) => sum + (card.currentUsed || 0), 0);
+  const availableLimit = totalLimit - totalUsed;
+
   // Componente de item do cartão
   const CardRow = ({ card }: { card: CreditCard }) => {
-    const cardColor = card.color || getCardColor(card.name);
+    const cardColor = getCardColor(card.name, card.color);
+    const used = card.currentUsed || 0;
+    const usagePercent = card.limit > 0 ? (used / card.limit) * 100 : 0;
     
     return (
       <Pressable
@@ -51,23 +53,40 @@ export default function CreditCardsCard({ cards = [], onCardPress }: Props) {
         <View style={[styles.cardIcon, { backgroundColor: `${cardColor}15` }]}>
           <MaterialCommunityIcons
             name={(card.icon as any) || 'credit-card'}
-            size={22}
+            size={20}
             color={cardColor}
           />
         </View>
 
         <View style={styles.cardInfo}>
-          <Text style={[styles.cardName, { color: colors.text }]}>{card.name}</Text>
-          <Text style={[styles.cardDue, { color: colors.textMuted }]}>
-            Vence dia {card.dueDate}
+          <Text style={[styles.cardName, { color: colors.text }]} numberOfLines={1}>
+            {card.name}
           </Text>
+          <View style={styles.cardMeta}>
+            <Text style={[styles.cardDue, { color: colors.textMuted }]}>
+              Fecha {card.closingDay} • Vence {card.dueDay}
+            </Text>
+          </View>
         </View>
 
         <View style={styles.cardBill}>
-          <Text style={[styles.billLabel, { color: colors.textMuted }]}>Fatura</Text>
-          <Text style={[styles.billValue, { color: card.currentBill > 0 ? colors.expense : colors.text }]}>
-            {formatCurrencyBRL(card.currentBill)}
+          <Text style={[
+            styles.billValue, 
+            { color: used > 0 ? colors.expense : colors.income }
+          ]}>
+            {formatCurrencyBRL(used)}
           </Text>
+          <View style={styles.usageBar}>
+            <View 
+              style={[
+                styles.usageFill, 
+                { 
+                  width: `${Math.min(usagePercent, 100)}%`,
+                  backgroundColor: usagePercent > 80 ? colors.expense : usagePercent > 50 ? colors.warning : colors.income,
+                }
+              ]} 
+            />
+          </View>
         </View>
       </Pressable>
     );
@@ -79,21 +98,54 @@ export default function CreditCardsCard({ cards = [], onCardPress }: Props) {
       <View style={styles.header}>
         <View style={styles.titleSection}>
           <Text style={[styles.title, { color: colors.text }]}>
-            Faturas de {currentMonth}
+            Cartões de Crédito
+          </Text>
+          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+            {cards.length > 0 ? `${cards.length} cartão${cards.length > 1 ? 'ões' : ''}` : 'Nenhum cartão'}
           </Text>
         </View>
 
-        <View style={[styles.iconContainer, { backgroundColor: colors.primaryBg }]}>
+        <Pressable 
+          onPress={onAddPress}
+          style={({ pressed }) => [
+            styles.iconContainer, 
+            { backgroundColor: colors.primaryBg },
+            pressed && { opacity: 0.7 }
+          ]}
+        >
           <MaterialCommunityIcons
-            name="credit-card-multiple"
+            name="plus"
             size={20}
             color={colors.primary}
           />
-        </View>
+        </Pressable>
       </View>
 
-      {/* Subtítulo */}
-      <Text style={[styles.subtitle, { color: colors.textMuted }]}>Cartões ativos</Text>
+      {/* Resumo de limite */}
+      {cards.length > 0 && (
+        <View style={[styles.summaryRow, { borderColor: colors.border }]}>
+          <View style={styles.summaryItem}>
+            <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>Limite total</Text>
+            <Text style={[styles.summaryValue, { color: colors.text }]}>
+              {formatCurrencyBRL(totalLimit)}
+            </Text>
+          </View>
+          <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
+          <View style={styles.summaryItem}>
+            <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>Disponível</Text>
+            <Text style={[styles.summaryValue, { color: colors.income }]}>
+              {formatCurrencyBRL(availableLimit)}
+            </Text>
+          </View>
+          <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
+          <View style={styles.summaryItem}>
+            <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>Utilizado</Text>
+            <Text style={[styles.summaryValue, { color: colors.expense }]}>
+              {formatCurrencyBRL(totalUsed)}
+            </Text>
+          </View>
+        </View>
+      )}
 
       {/* Lista de cartões */}
       {cards.length > 0 ? (
@@ -103,16 +155,23 @@ export default function CreditCardsCard({ cards = [], onCardPress }: Props) {
           ))}
         </View>
       ) : (
-        <View style={[styles.emptyContainer, { backgroundColor: colors.grayLight }]}>
+        <Pressable 
+          onPress={onAddPress}
+          style={({ pressed }) => [
+            styles.emptyContainer, 
+            { backgroundColor: colors.grayLight },
+            pressed && { opacity: 0.7 }
+          ]}
+        >
           <MaterialCommunityIcons
-            name="credit-card-off-outline"
-            size={48}
-            color={colors.border}
+            name="credit-card-plus-outline"
+            size={40}
+            color={colors.primary}
           />
           <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-            Nenhum cartão cadastrado
+            Adicionar cartão de crédito
           </Text>
-        </View>
+        </Pressable>
       )}
     </View>
   );
@@ -128,8 +187,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
   },
   titleSection: {
     flex: 1,
@@ -138,6 +197,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  subtitle: {
+    fontSize: 12,
+    marginTop: 2,
+  },
   iconContainer: {
     width: 36,
     height: 36,
@@ -145,9 +208,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  subtitle: {
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.sm,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+  },
+  summaryItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  summaryDivider: {
+    width: 1,
+    height: 28,
+  },
+  summaryLabel: {
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  summaryValue: {
     fontSize: 13,
-    marginBottom: spacing.md,
+    fontWeight: '600',
+    marginTop: 2,
   },
   cardsList: {
     gap: spacing.xs,
@@ -161,8 +246,8 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   cardIcon: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: borderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -171,31 +256,45 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cardName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '500',
   },
-  cardDue: {
-    fontSize: 12,
+  cardMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginTop: 2,
+  },
+  cardDue: {
+    fontSize: 11,
   },
   cardBill: {
     alignItems: 'flex-end',
-  },
-  billLabel: {
-    fontSize: 11,
+    minWidth: 80,
   },
   billValue: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
   },
+  usageBar: {
+    width: 60,
+    height: 4,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 2,
+    marginTop: 4,
+    overflow: 'hidden',
+  },
+  usageFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
   emptyContainer: {
-    height: 120,
+    height: 100,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: borderRadius.md,
   },
   emptyText: {
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
     fontSize: 13,
   },
 });
