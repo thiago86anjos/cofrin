@@ -24,6 +24,7 @@ interface UseTransactionsOptions {
 export function useTransactions(options: UseTransactionsOptions = {}) {
   const { user } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [carryOverBalance, setCarryOverBalance] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +34,7 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
   const loadTransactions = useCallback(async () => {
     if (!user?.uid) {
       setTransactions([]);
+      setCarryOverBalance(0);
       setLoading(false);
       return;
     }
@@ -42,6 +44,8 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
       setError(null);
 
       let data: Transaction[];
+      let targetMonth = month;
+      let targetYear = year;
 
       if (accountId) {
         // Buscar por conta
@@ -66,14 +70,28 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
       } else {
         // Buscar mês atual
         const now = new Date();
+        targetMonth = now.getMonth() + 1;
+        targetYear = now.getFullYear();
         data = await transactionService.getTransactionsByMonth(
           user.uid,
-          now.getMonth() + 1,
-          now.getFullYear()
+          targetMonth,
+          targetYear
         );
       }
 
       setTransactions(data);
+
+      // Carregar saldo acumulado dos meses anteriores (apenas se tiver mês/ano definido)
+      if (targetMonth && targetYear) {
+        const carryOver = await transactionService.getCarryOverBalance(
+          user.uid,
+          targetMonth,
+          targetYear
+        );
+        setCarryOverBalance(carryOver);
+      } else {
+        setCarryOverBalance(0);
+      }
     } catch (err) {
       console.error('Erro ao carregar transações:', err);
       setError('Erro ao carregar transações');
@@ -166,7 +184,7 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
   const expenseTransactions = transactions.filter(t => t.type === 'expense');
   const transferTransactions = transactions.filter(t => t.type === 'transfer');
 
-  // Calcular totais
+  // Calcular totais do mês atual
   const totalIncome = incomeTransactions
     .filter(t => t.status !== 'cancelled')
     .reduce((sum, t) => sum + t.amount, 0);
@@ -175,7 +193,11 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
     .filter(t => t.status !== 'cancelled')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const balance = totalIncome - totalExpense;
+  // Saldo do mês (sem considerar histórico)
+  const monthBalance = totalIncome - totalExpense;
+  
+  // Saldo total (com histórico acumulado dos meses anteriores)
+  const balance = carryOverBalance + monthBalance;
 
   return {
     transactions,
@@ -184,7 +206,9 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
     transferTransactions,
     totalIncome,
     totalExpense,
-    balance,
+    monthBalance,      // Saldo apenas deste mês
+    carryOverBalance,  // Saldo acumulado de meses anteriores
+    balance,           // Saldo total (histórico + mês atual)
     loading,
     error,
     refresh: loadTransactions,

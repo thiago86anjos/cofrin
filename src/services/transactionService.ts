@@ -501,3 +501,49 @@ export async function getExpensesByCategory(
 
   return byCategory;
 }
+
+// ==========================================
+// SALDO HISTÓRICO
+// ==========================================
+
+// Buscar saldo acumulado até antes de um mês específico
+// Isso retorna o saldo de todos os meses anteriores ao mês/ano especificado
+export async function getCarryOverBalance(
+  userId: string,
+  beforeMonth: number,
+  beforeYear: number
+): Promise<number> {
+  // Buscar TODAS as transações do usuário
+  const q = query(
+    transactionsRef,
+    where('userId', '==', userId)
+  );
+
+  const snapshot = await getDocs(q);
+  const transactions = snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data(),
+  })) as Transaction[];
+
+  let carryOver = 0;
+
+  for (const t of transactions) {
+    if (t.status === 'cancelled') continue;
+    
+    // Verificar se a transação é de um mês ANTERIOR ao mês especificado
+    const isBeforeMonth = 
+      t.year < beforeYear || 
+      (t.year === beforeYear && t.month < beforeMonth);
+    
+    if (isBeforeMonth) {
+      if (t.type === 'income') {
+        carryOver += t.amount;
+      } else if (t.type === 'expense') {
+        carryOver -= t.amount;
+      }
+      // Transferências não afetam o saldo total (apenas movem entre contas)
+    }
+  }
+
+  return carryOver;
+}

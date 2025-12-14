@@ -36,6 +36,8 @@ export default function Launches() {
     transactions, 
     totalIncome, 
     totalExpense, 
+    monthBalance,
+    carryOverBalance,
     balance,
     loading, 
     refresh,
@@ -282,6 +284,18 @@ export default function Launches() {
 
         {/* Summary Bar - Fixo acima do footer */}
         <View style={[styles.summaryBar, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+          {/* Saldo anterior (se existir) */}
+          {carryOverBalance !== 0 && (
+            <>
+              <View style={styles.summaryItem}>
+                <Text style={[styles.summaryValue, { color: carryOverBalance >= 0 ? colors.textSecondary : expenseColor, fontSize: 13 }]}>
+                  {formatCurrencyBRL(carryOverBalance)}
+                </Text>
+                <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>anterior</Text>
+              </View>
+              <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
+            </>
+          )}
           <View style={styles.summaryItem}>
             <Text style={[styles.summaryValue, { color: incomeColor }]}>{formatCurrencyBRL(totalIncome)}</Text>
             <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>entradas</Text>
