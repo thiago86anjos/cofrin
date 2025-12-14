@@ -74,11 +74,11 @@ export default function Home() {
 
   // Navegar para cartões de crédito
   const handleCreditCardPress = (card: any) => {
-    navigation.navigate('Cartões');
+    navigation.navigate('CreditCards');
   };
 
   const handleAddCreditCard = () => {
-    navigation.navigate('Cartões');
+    navigation.navigate('CreditCards');
   };
 
   // Refresh quando refreshKey mudar
@@ -119,6 +119,7 @@ export default function Home() {
               balance={totalAccountsBalance} 
               accounts={formattedAccounts} 
               onAccountPress={handleAccountPress}
+              onAddPress={() => navigation.navigate('ConfigureAccounts')}
             />
           </View>
           <View style={{ width: isNarrow ? '100%' : 12, height: isNarrow ? 12 : 'auto' }} />

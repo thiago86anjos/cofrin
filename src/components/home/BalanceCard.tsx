@@ -17,6 +17,7 @@ interface Props {
   balance?: number; 
   accounts?: Account[];
   onAccountPress?: (account: Account) => void;
+  onAddPress?: () => void;
 }
 
 // Get avatar background color based on account name
@@ -26,7 +27,7 @@ const getAvatarColor = (name: string): string => {
   return colors[index];
 };
 
-export default function BalanceCard({ balance = 0, accounts = [], onAccountPress }: Props) {
+export default function BalanceCard({ balance = 0, accounts = [], onAccountPress, onAddPress }: Props) {
   const { colors } = useAppTheme();
 
   // Account item component
@@ -69,17 +70,24 @@ export default function BalanceCard({ balance = 0, accounts = [], onAccountPress
           </Text>
         </View>
         
-        <View style={[styles.balanceIcon, { backgroundColor: colors.primaryBg }]}>
+        <Pressable 
+          onPress={onAddPress}
+          style={({ pressed }) => [
+            styles.balanceIcon, 
+            { backgroundColor: colors.primaryBg },
+            pressed && { opacity: 0.7 }
+          ]}
+        >
           <MaterialCommunityIcons 
-            name="wallet-outline" 
+            name={accounts.length > 0 ? "wallet-outline" : "plus"} 
             size={24} 
             color={colors.primary} 
           />
-        </View>
+        </Pressable>
       </View>
 
       {/* Accounts section */}
-      {accounts.length > 0 && (
+      {accounts.length > 0 ? (
         <>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           
@@ -91,6 +99,24 @@ export default function BalanceCard({ balance = 0, accounts = [], onAccountPress
             ))}
           </View>
         </>
+      ) : (
+        <Pressable 
+          onPress={onAddPress}
+          style={({ pressed }) => [
+            styles.emptyContainer, 
+            { backgroundColor: colors.grayLight },
+            pressed && { opacity: 0.7 }
+          ]}
+        >
+          <MaterialCommunityIcons
+            name="wallet-plus-outline"
+            size={40}
+            color={colors.primary}
+          />
+          <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+            Adicionar conta
+          </Text>
+        </Pressable>
       )}
     </View>
   );
@@ -166,5 +192,16 @@ const styles = StyleSheet.create({
   },
   accountBalance: {
     fontWeight: '700',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.lg,
+    marginTop: spacing.md,
+    borderRadius: borderRadius.md,
+  },
+  emptyText: {
+    marginTop: spacing.sm,
+    fontSize: 14,
   },
 });
