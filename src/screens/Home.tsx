@@ -1,6 +1,9 @@
 import { View, StyleSheet, ScrollView, useWindowDimensions } from "react-native";
 import { useAuth } from "../contexts/authContext";
 import { useAppTheme } from "../contexts/themeContext";
+import { useTransactions } from "../hooks/useFirebaseTransactions";
+import { useTransactionRefresh } from "../contexts/transactionRefreshContext";
+import { useEffect } from "react";
 import AppHeader from "../components/AppHeader";
 import MainLayout from "../components/MainLayout";
 import HomeOverview from "../components/home/HomeOverview";
@@ -12,8 +15,32 @@ export default function Home() {
   const { user } = useAuth();
   const { colors } = useAppTheme();
   const { width } = useWindowDimensions();
+  const { refreshKey, triggerRefresh } = useTransactionRefresh();
   const isNarrow = width < 700;
   const emailPrefix = user?.email?.split("@")?.[0] || user?.displayName || "Usuário";
+
+  // Mês atual para buscar transações
+  const today = new Date();
+  const currentMonth = today.getMonth() + 1;
+  const currentYear = today.getFullYear();
+
+  // Hook do Firebase - totalIncome e totalExpense já consideram apenas status === 'completed'
+  const { 
+    totalIncome, 
+    totalExpense,
+    balance,
+    refresh 
+  } = useTransactions({ 
+    month: currentMonth, 
+    year: currentYear 
+  });
+
+  // Refresh quando refreshKey mudar
+  useEffect(() => {
+    if (refreshKey > 0) {
+      refresh();
+    }
+  }, [refreshKey]);
 
   // Dados de exemplo dos cartões de crédito
   const creditCards = [
@@ -30,9 +57,9 @@ export default function Home() {
           <View style={{ width: "100%", maxWidth: 980, paddingHorizontal: 12 }}>
         <HomeOverview
           username={emailPrefix}
-          revenue={'R$ 20.358,44'}
-          expenses={'R$ 11.820,15'}
-          actions={[{ key: 'despesa', label: 'DESPESA' }, { key: 'receita', label: 'RECEITA' }, { key: 'transf', label: 'TRANSF.' }]}
+          revenue={totalIncome}
+          expenses={totalExpense}
+          onSaveTransaction={triggerRefresh}
         />
 
         <View style={{ height: 12 }} />

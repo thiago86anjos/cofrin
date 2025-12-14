@@ -3,23 +3,22 @@ import { View, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
 import { Text, Snackbar } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AddTransactionModal from '../../components/transactions/AddTransactionModal';
-import { useTransactionsState } from '../../state/useTransactions';
 import { formatCurrencyBRL } from '../../utils/format';
 import { useAppTheme } from '../../contexts/themeContext';
 import { spacing, borderRadius, getShadow } from '../../theme';
 
 interface Props {
   username?: string;
-  revenue?: number | string;
-  expenses?: number | string;
-  onCreateTransaction?: (payload: any) => void;
+  revenue?: number;
+  expenses?: number;
+  onSaveTransaction?: () => void;
 }
 
 export default function HomeOverview({ 
   username = 'Usuário', 
   revenue = 0, 
   expenses = 0, 
-  onCreateTransaction 
+  onSaveTransaction 
 }: Props) {
   const { colors } = useAppTheme();
   const { width } = useWindowDimensions();
@@ -27,7 +26,6 @@ export default function HomeOverview({
 
   const [modalVisible, setModalVisible] = useState(false);
   const [modalType, setModalType] = useState<'despesa' | 'receita' | 'transfer'>('despesa');
-  const [items, setItems] = useTransactionsState();
   const [snackbarVisible, setSnackbarVisible] = useState(false);
 
   const openModal = (type: 'despesa' | 'receita' | 'transfer') => {
@@ -35,29 +33,9 @@ export default function HomeOverview({
     setModalVisible(true);
   };
 
-  const handleSave = (payload: any) => {
+  const handleSave = () => {
     setModalVisible(false);
-
-    const tx = {
-      id: String(Date.now()),
-      date: payload?.date instanceof Date 
-        ? payload.date.toISOString() 
-        : new Date().toISOString(),
-      title: payload.description || 
-        (payload.type === 'despesa' ? 'Despesa' : payload.type === 'receita' ? 'Receita' : 'Transferência'),
-      account: payload.account || 'Conta',
-      category: payload.category,
-      amount: payload.amount,
-      type: payload.type === 'despesa' ? 'paid' : payload.type === 'receita' ? 'received' : 'transfer',
-    };
-
-    try {
-      setItems((s: any[]) => [tx, ...s]);
-    } catch {
-      onCreateTransaction?.(payload);
-    }
-
-    onCreateTransaction?.(payload);
+    onSaveTransaction?.();
     setSnackbarVisible(true);
   };
 
