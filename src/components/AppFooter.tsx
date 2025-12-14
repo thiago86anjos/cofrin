@@ -19,6 +19,9 @@ export default function AppFooter({ onHome, onAdd, onLaunches, onGoals, onReport
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
 
+  // Cor fixa para ícones inativos - cinza escuro para boa legibilidade
+  const inactiveIconColor = '#64748b';
+
   const IconButton = ({ icon, onPress, isActive }: { icon: string; onPress: () => void; isActive?: boolean }) => (
     <Pressable
       onPress={onPress}
@@ -31,7 +34,7 @@ export default function AppFooter({ onHome, onAdd, onLaunches, onGoals, onReport
       <MaterialCommunityIcons 
         name={icon as any} 
         size={24} 
-        color={isActive ? colors.primary : colors.textMuted} 
+        color={isActive ? colors.primary : inactiveIconColor} 
       />
     </Pressable>
   );

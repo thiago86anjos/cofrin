@@ -114,7 +114,7 @@ const tealTheme: ThemeColors = {
   
   text: '#134e4a',
   textSecondary: '#0f766e',
-  textMuted: '#5eead4',
+  textMuted: '#64748b',
   textInverse: '#ffffff',
   
   primary: '#0d9488',
@@ -133,8 +133,8 @@ const tealTheme: ThemeColors = {
   expense: '#ef4444',
   
   border: '#99f6e4',
-  gray: '#5eead4',
-  grayLight: '#f0fdfa',
+  gray: '#64748b',
+  grayLight: '#f1f5f9',
 };
 
 const themes: Record<ThemeMode, ThemeColors> = {
