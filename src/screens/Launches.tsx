@@ -16,8 +16,8 @@ import MainLayout from '../components/MainLayout';
 import { spacing, borderRadius, getShadow } from '../theme';
 import type { Transaction, TransactionStatus } from '../types/firebase';
 import {
-  generateBillsForMonth,
-  CreditCardBillWithTransactions
+    generateBillsForMonth,
+    CreditCardBillWithTransactions
 } from '../services/creditCardBillService';
 
 // Tipos dos parâmetros de navegação
@@ -112,14 +112,11 @@ export default function Launches() {
         activeCards
       );
 
-      // If an account filter is active, include only bills related to that account.
-      // A bill is related if it was paid from that account (paidFromAccountId) or
-      // if any transaction in the bill references the accountId.
+      // Se há filtro de conta ativo, mostrar apenas faturas de cartões
+      // cuja conta de pagamento seja a conta filtrada
       if (filterAccountId) {
         const filtered = bills.filter((bill) => {
-          if ((bill as any).paidFromAccountId && (bill as any).paidFromAccountId === filterAccountId) return true;
-          if (bill.transactions && bill.transactions.some((tx) => tx.accountId === filterAccountId || tx.toAccountId === filterAccountId)) return true;
-          return false;
+          return bill.creditCard?.paymentAccountId === filterAccountId;
         });
         setCreditCardBills(filtered);
       } else {
