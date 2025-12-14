@@ -14,17 +14,17 @@ interface CustomAlertProps {
   title: string;
   message?: string;
   buttons: AlertButton[];
-  onDismiss: () => void;
+  onClose: () => void;
 }
 
-export default function CustomAlert({ visible, title, message, buttons, onDismiss }: CustomAlertProps) {
+export default function CustomAlert({ visible, title, message, buttons, onClose }: CustomAlertProps) {
   const { colors } = useAppTheme();
 
   const handleButtonPress = (button: AlertButton) => {
     if (button.onPress) {
       button.onPress();
     }
-    onDismiss();
+    onClose();
   };
 
   const getButtonColor = (style?: string) => {
@@ -43,11 +43,11 @@ export default function CustomAlert({ visible, title, message, buttons, onDismis
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={onDismiss}
+      onRequestClose={onClose}
     >
       <Pressable 
         style={styles.overlay}
-        onPress={onDismiss}
+        onPress={onClose}
       >
         <Pressable 
           style={[styles.container, { backgroundColor: colors.card }, getShadow(colors, 'lg')]}

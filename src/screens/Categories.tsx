@@ -1,18 +1,23 @@
 import { useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, Platform, ScrollView, Alert } from "react-native";
+import { View, Text, TextInput, Pressable, StyleSheet, Platform, ScrollView } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppTheme } from "../contexts/themeContext";
 import { spacing, borderRadius, getShadow } from "../theme";
 import { useCategories } from "../hooks/useCategories";
-import { CategoryType, CATEGORY_ICONS } from "../types/firebase";
+import { CategoryType, CATEGORY_ICONS, Category } from "../types/firebase";
+import { useCustomAlert } from "../hooks";
+import EditCategoryModal from "../components/EditCategoryModal";
+import CustomAlert from "../components/CustomAlert";
 
 export default function Categories({ navigation }: any) {
   const { colors } = useAppTheme();
+  const { alertState, showAlert, hideAlert } = useCustomAlert();
   
   const [categoryType, setCategoryType] = useState<CategoryType>('expense');
   const [name, setName] = useState('');
   const [selectedIcon, setSelectedIcon] = useState<string>('food');
   const [saving, setSaving] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
   // Hook de categorias do Firebase
   const { 
@@ -20,6 +25,7 @@ export default function Categories({ navigation }: any) {
     incomeCategories, 
     loading, 
     createCategory,
+    updateCategory,
     deleteCategory,
   } = useCategories();
 
@@ -36,19 +42,32 @@ export default function Categories({ navigation }: any) {
 
       if (result) {
         setName('');
-        Alert.alert('Sucesso', 'Categoria criada com sucesso!');
+        showAlert('Sucesso', 'Categoria criada com sucesso!');
       } else {
-        Alert.alert('Erro', 'Não foi possível criar a categoria');
+        showAlert('Erro', 'Não foi possível criar a categoria');
       }
     } catch (error) {
-      Alert.alert('Erro', 'Ocorreu um erro ao criar a categoria');
+      showAlert('Erro', 'Ocorreu um erro ao criar a categoria');
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleDelete(categoryId: string, categoryName: string) {
-    Alert.alert(
+  async function handleSave(categoryId: string, name: string, icon: string) {
+    const result = await updateCategory(categoryId, { name, icon });
+    if (result) {
+      showAlert('Sucesso', 'Categoria atualizada com sucesso!');
+    } else {
+      showAlert('Erro', 'Não foi possível atualizar a categoria');
+    }
+  }
+
+  function handleDelete(categoryId: string, categoryName: string) {
+    // Fechar a modal de edição primeiro
+    setEditingCategory(null);
+    
+    // Mostrar alerta de confirmação
+    showAlert(
       'Excluir categoria',
       `Deseja realmente excluir a categoria "${categoryName}"?`,
       [
@@ -58,8 +77,10 @@ export default function Categories({ navigation }: any) {
           style: 'destructive',
           onPress: async () => {
             const result = await deleteCategory(categoryId);
-            if (!result) {
-              Alert.alert('Erro', 'Não foi possível excluir a categoria');
+            if (result) {
+              showAlert('Sucesso', 'Categoria excluída com sucesso!');
+            } else {
+              showAlert('Erro', 'Não foi possível excluir a categoria');
             }
           }
         },
@@ -151,7 +172,7 @@ export default function Categories({ navigation }: any) {
               {categoryType === 'expense' ? 'CATEGORIAS DE DESPESA' : 'CATEGORIAS DE RECEITA'}
             </Text>
             <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
-              Segure para excluir
+              Toque para editar
             </Text>
             <View style={[styles.card, { backgroundColor: colors.card }, getShadow(colors)]}>
               <View style={styles.categoriesGrid}>
@@ -159,8 +180,7 @@ export default function Categories({ navigation }: any) {
                   <Pressable 
                     key={cat.id} 
                     style={styles.categoryChip}
-                    onLongPress={() => handleDelete(cat.id, cat.name)}
-                    delayLongPress={500}
+                    onPress={() => setEditingCategory(cat)}
                   >
                     <View style={[
                       styles.categoryIcon, 
@@ -281,6 +301,16 @@ export default function Categories({ navigation }: any) {
           </View>
         </View>
       </ScrollView>
+
+      <EditCategoryModal
+        visible={editingCategory !== null}
+        category={editingCategory}
+        onClose={() => setEditingCategory(null)}
+        onSave={handleSave}
+        onDelete={handleDelete}
+      />
+
+      <CustomAlert {...alertState} onClose={hideAlert} />
     </View>
   );
 }
