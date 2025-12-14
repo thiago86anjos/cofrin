@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Modal, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useCustomAlert } from "../hooks/useCustomAlert";
+import CustomAlert from "../components/CustomAlert";
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useAppTheme } from '../contexts/themeContext';
 import { useAuth } from '../contexts/authContext';
@@ -26,6 +28,7 @@ interface RouteParams {
 }
 
 export default function CreditCardBillDetails() {
+  const { alertState, showAlert, hideAlert } = useCustomAlert();
   const { colors } = useAppTheme();
   const { user } = useAuth();
   const navigation = useNavigation();
@@ -59,7 +62,7 @@ export default function CreditCardBillDetails() {
       setBill(billData);
     } catch (error) {
       console.error('Erro ao carregar fatura:', error);
-      Alert.alert('Erro', 'Não foi possível carregar os detalhes da fatura');
+      showAlert('Erro', 'Não foi possível carregar os detalhes da fatura', [{ text: 'OK' }]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -115,9 +118,10 @@ export default function CreditCardBillDetails() {
   // Abrir modal de pagamento
   const handlePayBill = () => {
     if (!bill?.creditCard?.paymentAccountId) {
-      Alert.alert(
+      showAlert(
         'Conta não configurada',
-        'Este cartão não tem uma conta de pagamento configurada. Edite o cartão para definir uma conta.'
+        'Este cartão não tem uma conta de pagamento configurada. Edite o cartão para definir uma conta.',
+        [{ text: 'OK' }]
       );
       return;
     }
@@ -138,7 +142,7 @@ export default function CreditCardBillDetails() {
     
     const accountName = selectedAccountName || 'conta selecionada';
     
-    Alert.alert(
+    showAlert(
       'Confirmar Pagamento',
       `Você está pagando a fatura de ${formatCurrencyBRL(summary.total)} na conta ${accountName}`,
       [
@@ -155,12 +159,12 @@ export default function CreditCardBillDetails() {
                 summary.total
               );
               
-              Alert.alert('Sucesso', 'Fatura paga com sucesso!');
+              showAlert('Sucesso', 'Fatura paga com sucesso!', [{ text: 'OK' }]);
               setPayModalVisible(false);
               loadBillDetails(); // Recarregar dados
             } catch (error) {
               console.error('Erro ao pagar fatura:', error);
-              Alert.alert('Erro', 'Não foi possível pagar a fatura');
+              showAlert('Erro', 'Não foi possível pagar a fatura', [{ text: 'OK' }]);
             } finally {
               setPaying(false);
             }
@@ -248,7 +252,7 @@ export default function CreditCardBillDetails() {
             <Pressable
               style={[styles.unpayButton, { borderColor: colors.border }]}
               onPress={() => {
-                Alert.alert(
+                showAlert(
                   'Desfazer pagamento',
                   'Tem certeza que deseja desfazer o pagamento desta fatura? O débito será estornado na conta usada.',
                   [
@@ -259,11 +263,11 @@ export default function CreditCardBillDetails() {
                         setUnpaying(true);
                         try {
                           await unpayBill(bill.id);
-                          Alert.alert('Sucesso', 'Pagamento desfeito com sucesso');
+                          showAlert('Sucesso', 'Pagamento desfeito com sucesso', [{ text: 'OK' }]);
                           loadBillDetails();
                         } catch (err) {
                           console.error('Erro ao desfazer pagamento:', err);
-                          Alert.alert('Erro', 'Não foi possível desfazer o pagamento');
+                          showAlert('Erro', 'Não foi possível desfazer o pagamento', [{ text: 'OK' }]);
                         } finally {
                           setUnpaying(false);
                         }
@@ -405,6 +409,13 @@ export default function CreditCardBillDetails() {
           </View>
         </Pressable>
       </Modal>
+      <CustomAlert
+        visible={alertState.visible}
+        title={alertState.title}
+        message={alertState.message}
+        buttons={alertState.buttons}
+        onDismiss={hideAlert}
+      />
     </MainLayout>
   );
 }

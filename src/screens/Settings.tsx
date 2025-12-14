@@ -1,8 +1,10 @@
-import { View, Text, Pressable, StyleSheet, ScrollView, Platform, Alert } from "react-native";
+import { View, Text, Pressable, StyleSheet, ScrollView, Platform } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppTheme } from "../contexts/themeContext";
 import { useAuth } from "../contexts/authContext";
 import { logout } from "../services/auth";
+import { useCustomAlert } from "../hooks/useCustomAlert";
+import CustomAlert from "../components/CustomAlert";
 import { spacing, borderRadius, getShadow } from "../theme";
 
 interface MenuItem {
@@ -16,6 +18,7 @@ interface MenuItem {
 export default function Settings({ navigation }: any) {
   const { colors } = useAppTheme();
   const { user } = useAuth();
+  const { alertState, showAlert, hideAlert } = useCustomAlert();
 
   const userName = user?.displayName || user?.email?.split('@')[0] || 'Usuário';
   const userEmail = user?.email || '';
@@ -34,7 +37,7 @@ export default function Settings({ navigation }: any) {
   ];
 
   function handleLogout() {
-    Alert.alert(
+    showAlert(
       "Sair da conta",
       "Tem certeza que deseja sair?",
       [
@@ -162,6 +165,7 @@ export default function Settings({ navigation }: any) {
           Cofrin v1.0.0
         </Text>
       </View>
+      <CustomAlert {...alertState} onClose={hideAlert} />
     </ScrollView>
   );
 }

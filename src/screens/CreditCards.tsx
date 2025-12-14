@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Modal, Alert, Platform } from "react-native";
+import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Modal, Platform } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppTheme } from "../contexts/themeContext";
+import { useCustomAlert } from "../hooks/useCustomAlert";
+import CustomAlert from "../components/CustomAlert";
 import { useAuth } from "../contexts/authContext";
 import { spacing, borderRadius, getShadow } from "../theme";
 import { useCreditCards } from "../hooks/useCreditCards";
@@ -14,6 +16,7 @@ import { updateCreditCard as updateCreditCardService } from "../services/creditC
 export default function CreditCards({ navigation }: any) {
   const { colors } = useAppTheme();
   const { user } = useAuth();
+  const { alertState, showAlert, hideAlert } = useCustomAlert();
   
   const [name, setName] = useState('');
   const [limit, setLimit] = useState('');
@@ -60,7 +63,7 @@ export default function CreditCards({ navigation }: any) {
   async function handleCreate() {
     // Verificar se há contas cadastradas
     if (activeAccounts.length === 0) {
-      Alert.alert(
+      showAlert(
         'Conta necessária',
         'Para cadastrar um cartão de crédito, você precisa ter pelo menos uma conta cadastrada para pagamento da fatura.',
         [
@@ -80,7 +83,7 @@ export default function CreditCards({ navigation }: any) {
     const dueDayNum = parseInt(dueDay) || 10;
     
     if (closingDayNum < 1 || closingDayNum > 31 || dueDayNum < 1 || dueDayNum > 31) {
-      Alert.alert('Erro', 'Os dias devem estar entre 1 e 31');
+      showAlert('Erro', 'Os dias devem estar entre 1 e 31', [{ text: 'OK', style: 'default' }]);
       return;
     }
     
@@ -110,19 +113,19 @@ export default function CreditCards({ navigation }: any) {
         setDueDay('');
         setSelectedAccountId('');
         setSelectedAccountName('');
-        Alert.alert('Sucesso', 'Cartão cadastrado com sucesso!');
+        showAlert('Sucesso', 'Cartão cadastrado com sucesso!', [{ text: 'OK', style: 'default' }]);
       } else {
-        Alert.alert('Erro', 'Não foi possível cadastrar o cartão');
+        showAlert('Erro', 'Não foi possível cadastrar o cartão', [{ text: 'OK', style: 'default' }]);
       }
     } catch (error) {
-      Alert.alert('Erro', 'Ocorreu um erro ao cadastrar o cartão');
+      showAlert('Erro', 'Ocorreu um erro ao cadastrar o cartão', [{ text: 'OK', style: 'default' }]);
     } finally {
       setSaving(false);
     }
   }
 
   async function handleArchive(cardId: string, cardName: string) {
-    Alert.alert(
+    showAlert(
       'Arquivar cartão',
       `Deseja arquivar o cartão "${cardName}"? Ele não aparecerá mais na lista, mas você pode restaurá-lo depois.`,
       [
@@ -133,7 +136,7 @@ export default function CreditCards({ navigation }: any) {
           onPress: async () => {
             const result = await archiveCreditCard(cardId);
             if (!result) {
-              Alert.alert('Erro', 'Não foi possível arquivar o cartão');
+              showAlert('Erro', 'Não foi possível arquivar o cartão', [{ text: 'OK', style: 'default' }]);
             }
           }
         },
@@ -162,7 +165,7 @@ export default function CreditCards({ navigation }: any) {
     const dueDayNum = parseInt(editDueDay) || 10;
     
     if (closingDayNum < 1 || closingDayNum > 31 || dueDayNum < 1 || dueDayNum > 31) {
-      Alert.alert('Erro', 'Os dias devem estar entre 1 e 31');
+      showAlert('Erro', 'Os dias devem estar entre 1 e 31', [{ text: 'OK', style: 'default' }]);
       return;
     }
 
@@ -187,12 +190,12 @@ export default function CreditCards({ navigation }: any) {
       if (result) {
         setEditModalVisible(false);
         setEditingCard(null);
-        Alert.alert('Sucesso', 'Cartão atualizado com sucesso!');
+        showAlert('Sucesso', 'Cartão atualizado com sucesso!', [{ text: 'OK', style: 'default' }]);
       } else {
-        Alert.alert('Erro', 'Não foi possível atualizar o cartão');
+        showAlert('Erro', 'Não foi possível atualizar o cartão', [{ text: 'OK', style: 'default' }]);
       }
     } catch (error) {
-      Alert.alert('Erro', 'Ocorreu um erro ao atualizar o cartão');
+      showAlert('Erro', 'Ocorreu um erro ao atualizar o cartão', [{ text: 'OK', style: 'default' }]);
     } finally {
       setSaving(false);
     }
@@ -205,11 +208,11 @@ export default function CreditCards({ navigation }: any) {
     const count = await countTransactionsByCreditCard(user.uid, editingCard.id);
     
     if (count === 0) {
-      Alert.alert('Aviso', 'Este cartão não possui lançamentos para excluir.');
+      showAlert('Aviso', 'Este cartão não possui lançamentos para excluir.', [{ text: 'OK', style: 'default' }]);
       return;
     }
     
-    Alert.alert(
+    showAlert(
       'Resetar cartão?',
       `Esta ação irá excluir ${count} lançamento${count > 1 ? 's' : ''} deste cartão e zerar o valor usado. Esta ação NÃO pode ser desfeita!`,
       [
@@ -224,23 +227,24 @@ export default function CreditCards({ navigation }: any) {
               const { deleted, error } = await deleteTransactionsByCreditCard(user.uid, editingCard.id);
               
               if (error) {
-                Alert.alert('Erro', error);
+                showAlert('Erro', error, [{ text: 'OK', style: 'default' }]);
                 return;
               }
               
               // Zerar o valor usado do cartão
               await updateCreditCardService(editingCard.id, { currentUsed: 0 });
               
-              Alert.alert(
+              showAlert(
                 'Cartão resetado', 
-                `${deleted} lançamento${deleted > 1 ? 's' : ''} excluído${deleted > 1 ? 's' : ''}. Fatura zerada.`
+                `${deleted} lançamento${deleted > 1 ? 's' : ''} excluído${deleted > 1 ? 's' : ''}. Fatura zerada.`,
+                [{ text: 'OK', style: 'default' }]
               );
               
               // Fechar modal e atualizar lista
               setEditModalVisible(false);
               setEditingCard(null);
             } catch (err) {
-              Alert.alert('Erro', 'Ocorreu um erro ao resetar o cartão');
+              showAlert('Erro', 'Ocorreu um erro ao resetar o cartão', [{ text: 'OK', style: 'default' }]);
             } finally {
               setSaving(false);
             }
@@ -254,7 +258,7 @@ export default function CreditCards({ navigation }: any) {
   async function handleArchiveFromModal() {
     if (!editingCard) return;
     
-    Alert.alert(
+    showAlert(
       'Arquivar cartão?',
       `O cartão "${editingCard.name}" será arquivado e não aparecerá mais na lista.`,
       [
@@ -267,7 +271,7 @@ export default function CreditCards({ navigation }: any) {
               setEditModalVisible(false);
               setEditingCard(null);
             } else {
-              Alert.alert('Erro', 'Não foi possível arquivar o cartão');
+              showAlert('Erro', 'Não foi possível arquivar o cartão', [{ text: 'OK', style: 'default' }]);
             }
           }
         },
@@ -279,7 +283,7 @@ export default function CreditCards({ navigation }: any) {
   async function handleDeleteFromModal() {
     if (!editingCard) return;
     
-    Alert.alert(
+    showAlert(
       'Excluir permanentemente?',
       `O cartão "${editingCard.name}" será excluído e não poderá ser recuperado. Lançamentos associados NÃO serão excluídos.`,
       [
@@ -292,9 +296,9 @@ export default function CreditCards({ navigation }: any) {
             if (result) {
               setEditModalVisible(false);
               setEditingCard(null);
-              Alert.alert('Sucesso', 'Cartão excluído com sucesso!');
+              showAlert('Sucesso', 'Cartão excluído com sucesso!', [{ text: 'OK', style: 'default' }]);
             } else {
-              Alert.alert('Erro', 'Não foi possível excluir o cartão');
+              showAlert('Erro', 'Não foi possível excluir o cartão', [{ text: 'OK', style: 'default' }]);
             }
           }
         },
@@ -762,6 +766,13 @@ export default function CreditCards({ navigation }: any) {
           </View>
         </Pressable>
       </Modal>
+      <CustomAlert
+        visible={alertState.visible}
+        title={alertState.title}
+        message={alertState.message}
+        buttons={alertState.buttons}
+        onDismiss={hideAlert}
+      />
     </View>
   );
 }

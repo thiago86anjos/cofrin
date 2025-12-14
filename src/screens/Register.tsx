@@ -4,7 +4,6 @@ import {
     Text,
     TextInput,
     Pressable,
-    Alert,
     ActivityIndicator,
     StyleSheet,
     Platform,
@@ -12,6 +11,8 @@ import {
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { register, sendPasswordReset } from "../services/auth";
+import { useCustomAlert } from "../hooks/useCustomAlert";
+import CustomAlert from "../components/CustomAlert";
 import { useGoogleAuth } from "../services/googleAuth";
 import { palette, spacing, borderRadius } from "../theme";
 
@@ -27,6 +28,7 @@ export default function Register({ navigation }: any) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { alertState, showAlert, hideAlert } = useCustomAlert();
   const [showPasswordHelper, setShowPasswordHelper] = useState(false);
   const [showResetForm, setShowResetForm] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
@@ -63,7 +65,7 @@ export default function Register({ navigation }: any) {
     setLoading(true);
     try {
       await register(email.trim(), password);
-      Alert.alert("Conta criada com sucesso!");
+      showAlert("Conta criada com sucesso!");
       navigation.goBack();
     } catch (err: any) {
       const code: string = err?.code || "";
@@ -272,6 +274,7 @@ export default function Register({ navigation }: any) {
           </Text>
         </Pressable>
       </View>
+      <CustomAlert {...alertState} onClose={hideAlert} />
     </ScrollView>
   );
 }

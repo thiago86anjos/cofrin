@@ -56,9 +56,9 @@ export default function CustomAlert({ visible, title, message, buttons, onDismis
           {/* Ícone */}
           <View style={[styles.iconContainer, { backgroundColor: colors.primaryBg }]}>
             <MaterialCommunityIcons 
-              name={buttons.some(b => b.style === 'destructive') ? "alert-circle" : "information"}
+              name={buttons?.some(b => b.style === 'destructive') ? "alert-circle" : "information"}
               size={32} 
-              color={buttons.some(b => b.style === 'destructive') ? colors.danger : colors.primary}
+              color={buttons?.some(b => b.style === 'destructive') ? colors.danger : colors.primary}
             />
           </View>
 
@@ -76,7 +76,7 @@ export default function CustomAlert({ visible, title, message, buttons, onDismis
 
           {/* Botões */}
           <View style={styles.buttonsContainer}>
-            {buttons.map((button, index) => (
+            {buttons?.map((button, index) => (
               <Pressable
                 key={index}
                 onPress={() => handleButtonPress(button)}

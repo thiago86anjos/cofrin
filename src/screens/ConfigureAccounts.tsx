@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, Platform, ScrollView, Alert, Modal } from "react-native";
+import { View, Text, TextInput, Pressable, StyleSheet, Platform, ScrollView, Modal } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppTheme } from "../contexts/themeContext";
 import { useAuth } from "../contexts/authContext";
 import { spacing, borderRadius, getShadow } from "../theme";
 import { useAccounts } from "../hooks/useAccounts";
+import { useCustomAlert } from "../hooks/useCustomAlert";
+import CustomAlert from "../components/CustomAlert";
 import { AccountType, ACCOUNT_TYPE_LABELS, Account } from "../types/firebase";
 import { formatCurrencyBRL } from "../utils/format";
 import { createBalanceAdjustment, deleteTransactionsByAccount, countTransactionsByAccount } from "../services/transactionService";
@@ -31,6 +33,7 @@ const ACCOUNT_ICONS = [
 export default function ConfigureAccounts({ navigation }: any) {
   const { colors } = useAppTheme();
   const { user } = useAuth();
+  const { alertState, showAlert, hideAlert } = useCustomAlert();
   
   const [name, setName] = useState('');
   const [selectedType, setSelectedType] = useState<AccountType>('checking');
@@ -87,12 +90,12 @@ export default function ConfigureAccounts({ navigation }: any) {
         setSelectedType('checking');
         setSelectedIcon('bank');
         setIncludeInTotal(true);
-        Alert.alert('Sucesso', 'Conta criada com sucesso!');
+        showAlert('Sucesso', 'Conta criada com sucesso!', [{ text: 'OK', style: 'default' }]);
       } else {
-        Alert.alert('Erro', 'Não foi possível criar a conta');
+        showAlert('Erro', 'Não foi possível criar a conta', [{ text: 'OK', style: 'default' }]);
       }
     } catch (error) {
-      Alert.alert('Erro', 'Ocorreu um erro ao criar a conta');
+      showAlert('Erro', 'Ocorreu um erro ao criar a conta', [{ text: 'OK', style: 'default' }]);
     } finally {
       setSaving(false);
     }
@@ -144,18 +147,19 @@ export default function ConfigureAccounts({ navigation }: any) {
         
         if (balanceChanged) {
           const diff = newBalance - oldBalance;
-          Alert.alert(
+          showAlert(
             'Conta atualizada', 
-            `Ajuste de saldo registrado: ${diff >= 0 ? '+' : ''}${formatCurrencyBRL(diff)}`
+            `Ajuste de saldo registrado: ${diff >= 0 ? '+' : ''}${formatCurrencyBRL(diff)}`,
+            [{ text: 'OK', style: 'default' }]
           );
         } else {
-          Alert.alert('Sucesso', 'Conta atualizada com sucesso!');
+          showAlert('Sucesso', 'Conta atualizada com sucesso!', [{ text: 'OK', style: 'default' }]);
         }
       } else {
-        Alert.alert('Erro', 'Não foi possível atualizar a conta');
+        showAlert('Erro', 'Não foi possível atualizar a conta', [{ text: 'OK', style: 'default' }]);
       }
     } catch (error) {
-      Alert.alert('Erro', 'Ocorreu um erro ao atualizar a conta');
+      showAlert('Erro', 'Ocorreu um erro ao atualizar a conta', [{ text: 'OK', style: 'default' }]);
     } finally {
       setSaving(false);
     }
@@ -169,11 +173,11 @@ export default function ConfigureAccounts({ navigation }: any) {
     const count = await countTransactionsByAccount(user.uid, editingAccount.id);
     
     if (count === 0) {
-      Alert.alert('Aviso', 'Esta conta não possui lançamentos para excluir.');
+      showAlert('Aviso', 'Esta conta não possui lançamentos para excluir.', [{ text: 'OK', style: 'default' }]);
       return;
     }
     
-    Alert.alert(
+    showAlert(
       'Resetar conta?',
       `Esta ação irá excluir ${count} lançamento${count > 1 ? 's' : ''} desta conta e zerar o saldo. Esta ação NÃO pode ser desfeita!`,
       [
@@ -188,7 +192,7 @@ export default function ConfigureAccounts({ navigation }: any) {
               const { deleted, error } = await deleteTransactionsByAccount(user.uid, editingAccount.id);
               
               if (error) {
-                Alert.alert('Erro', error);
+                showAlert('Erro', error, [{ text: 'OK', style: 'default' }]);
                 return;
               }
               
@@ -198,16 +202,17 @@ export default function ConfigureAccounts({ navigation }: any) {
               // Atualizar estado local
               setEditBalance('0');
               
-              Alert.alert(
+              showAlert(
                 'Conta resetada', 
-                `${deleted} lançamento${deleted > 1 ? 's' : ''} excluído${deleted > 1 ? 's' : ''}. Saldo zerado.`
+                `${deleted} lançamento${deleted > 1 ? 's' : ''} excluído${deleted > 1 ? 's' : ''}. Saldo zerado.`,
+                [{ text: 'OK', style: 'default' }]
               );
               
               // Fechar modal e atualizar lista
               setEditModalVisible(false);
               setEditingAccount(null);
             } catch (err) {
-              Alert.alert('Erro', 'Ocorreu um erro ao resetar a conta');
+              showAlert('Erro', 'Ocorreu um erro ao resetar a conta', [{ text: 'OK', style: 'default' }]);
             } finally {
               setSaving(false);
             }
@@ -221,7 +226,7 @@ export default function ConfigureAccounts({ navigation }: any) {
   async function handleArchiveFromModal() {
     if (!editingAccount) return;
     
-    Alert.alert(
+    showAlert(
       'Arquivar conta?',
       `A conta "${editingAccount.name}" será arquivada e não aparecerá mais na lista.`,
       [
@@ -234,7 +239,7 @@ export default function ConfigureAccounts({ navigation }: any) {
               setEditModalVisible(false);
               setEditingAccount(null);
             } else {
-              Alert.alert('Erro', 'Não foi possível arquivar a conta');
+              showAlert('Erro', 'Não foi possível arquivar a conta', [{ text: 'OK', style: 'default' }]);
             }
           }
         },
@@ -246,7 +251,7 @@ export default function ConfigureAccounts({ navigation }: any) {
   async function handleDeleteFromModal() {
     if (!editingAccount) return;
     
-    Alert.alert(
+    showAlert(
       'Excluir permanentemente?',
       `A conta "${editingAccount.name}" será excluída e não poderá ser recuperada. Lançamentos associados NÃO serão excluídos.`,
       [
@@ -259,9 +264,9 @@ export default function ConfigureAccounts({ navigation }: any) {
             if (result) {
               setEditModalVisible(false);
               setEditingAccount(null);
-              Alert.alert('Sucesso', 'Conta excluída com sucesso!');
+              showAlert('Sucesso', 'Conta excluída com sucesso!', [{ text: 'OK', style: 'default' }]);
             } else {
-              Alert.alert('Erro', 'Não foi possível excluir a conta');
+              showAlert('Erro', 'Não foi possível excluir a conta', [{ text: 'OK', style: 'default' }]);
             }
           }
         },
@@ -270,7 +275,7 @@ export default function ConfigureAccounts({ navigation }: any) {
   }
 
   async function handleArchive(accountId: string, accountName: string) {
-    Alert.alert(
+    showAlert(
       'O que deseja fazer?',
       `Conta: "${accountName}"`,
       [
@@ -280,7 +285,7 @@ export default function ConfigureAccounts({ navigation }: any) {
           onPress: async () => {
             const result = await archiveAccount(accountId);
             if (!result) {
-              Alert.alert('Erro', 'Não foi possível arquivar a conta');
+              showAlert('Erro', 'Não foi possível arquivar a conta', [{ text: 'OK', style: 'default' }]);
             }
           }
         },
@@ -294,7 +299,7 @@ export default function ConfigureAccounts({ navigation }: any) {
   }
 
   async function confirmDelete(accountId: string, accountName: string) {
-    Alert.alert(
+    showAlert(
       'Excluir permanentemente?',
       `A conta "${accountName}" será excluída e não poderá ser recuperada. Lançamentos associados NÃO serão excluídos.`,
       [
@@ -305,9 +310,9 @@ export default function ConfigureAccounts({ navigation }: any) {
           onPress: async () => {
             const result = await deleteAccount(accountId);
             if (result) {
-              Alert.alert('Sucesso', 'Conta excluída com sucesso!');
+              showAlert('Sucesso', 'Conta excluída com sucesso!', [{ text: 'OK', style: 'default' }]);
             } else {
-              Alert.alert('Erro', 'Não foi possível excluir a conta');
+              showAlert('Erro', 'Não foi possível excluir a conta', [{ text: 'OK', style: 'default' }]);
             }
           }
         },
@@ -731,6 +736,13 @@ export default function ConfigureAccounts({ navigation }: any) {
           </View>
         </View>
       </Modal>
+      <CustomAlert
+        visible={alertState.visible}
+        title={alertState.title}
+        message={alertState.message}
+        buttons={alertState.buttons}
+        onDismiss={hideAlert}
+      />
     </View>
   );
 }

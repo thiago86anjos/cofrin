@@ -1,7 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, RefreshControl, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl, Modal } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import { useCustomAlert } from "../hooks/useCustomAlert";
+import CustomAlert from "../components/CustomAlert";
 import TransactionsList, { TransactionListItem } from '../components/transactions/TransactionsList';
 import CreditCardBillItem from '../components/transactions/CreditCardBillItem';
 import AddTransactionModal, { EditableTransaction } from '../components/transactions/AddTransactionModal';
@@ -33,6 +35,7 @@ const MONTHS = [
 ];
 
 export default function Launches() {
+  const { alertState, showAlert, hideAlert } = useCustomAlert();
   const { colors } = useAppTheme();
   const { refreshKey, triggerRefresh } = useTransactionRefresh();
   const { user } = useAuth();
@@ -294,7 +297,7 @@ export default function Launches() {
     if (result) {
       triggerRefresh();
     } else {
-      Alert.alert('Erro', 'Não foi possível atualizar o status');
+      showAlert('Erro', 'Não foi possível atualizar o status');
     }
     
     setStatusModalVisible(false);
@@ -310,7 +313,7 @@ export default function Launches() {
       setEditingTransaction(null);
       triggerRefresh();
     } else {
-      Alert.alert('Erro', 'Não foi possível excluir o lançamento');
+      showAlert('Erro', 'Não foi possível excluir o lançamento');
     }
   };
 
@@ -321,9 +324,9 @@ export default function Launches() {
       setEditModalVisible(false);
       setEditingTransaction(null);
       triggerRefresh();
-      Alert.alert('Sucesso', `${count} lançamento(s) excluído(s)`);
+      showAlert('Sucesso', `${count} lançamento(s) excluído(s)`);
     } else {
-      Alert.alert('Erro', 'Não foi possível excluir a série de lançamentos');
+      showAlert('Erro', 'Não foi possível excluir a série de lançamentos');
     }
   };
 
@@ -646,6 +649,13 @@ export default function Launches() {
         onDelete={handleDeleteTransaction}
         onDeleteSeries={handleDeleteSeries}
         editTransaction={editingTransaction}
+      />
+      <CustomAlert
+        visible={alertState.visible}
+        title={alertState.title}
+        message={alertState.message}
+        buttons={alertState.buttons}
+        onDismiss={hideAlert}
       />
     </MainLayout>
   );
