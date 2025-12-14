@@ -41,10 +41,15 @@ export default function Launches() {
     };
   }, []);
 
+  // Cores específicas para o resumo
+  const incomeColor = '#10b981';  // Verde claro
+  const expenseColor = '#dc2626'; // Vermelho
+  const balanceColor = colors.primary; // Cor primária do tema
+
   return (
     <MainLayout>
       <View style={[styles.root, { backgroundColor: colors.bg }]}>
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <AppHeader />
           <View style={styles.content}>
             <View style={styles.maxWidth}>
@@ -62,26 +67,24 @@ export default function Launches() {
                   <TransactionsList items={items} />
                 </View>
               )}
-              
-              <View style={{ height: 48 }} />
             </View>
           </View>
         </ScrollView>
 
-        {/* Summary Bar */}
-        <View style={[styles.summaryBar, { backgroundColor: colors.card }, getShadow(colors, 'lg')]}>
+        {/* Summary Bar - Fixo acima do footer */}
+        <View style={[styles.summaryBar, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
           <View style={styles.summaryItem}>
-            <Text style={[styles.summaryValue, { color: colors.income }]}>{formatCurrencyBRL(totals.income)}</Text>
+            <Text style={[styles.summaryValue, { color: incomeColor }]}>{formatCurrencyBRL(totals.income)}</Text>
             <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>entradas</Text>
           </View>
           <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
           <View style={styles.summaryItem}>
-            <Text style={[styles.summaryValue, { color: colors.expense }]}>{formatCurrencyBRL(-totals.expenses)}</Text>
+            <Text style={[styles.summaryValue, { color: expenseColor }]}>{formatCurrencyBRL(-totals.expenses)}</Text>
             <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>saídas</Text>
           </View>
           <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
           <View style={styles.summaryItem}>
-            <Text style={[styles.summaryValue, { color: colors.primary }]}>{formatCurrencyBRL(totals.balance)}</Text>
+            <Text style={[styles.summaryValue, { color: balanceColor }]}>{formatCurrencyBRL(totals.balance)}</Text>
             <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>saldo</Text>
           </View>
         </View>
@@ -94,8 +97,11 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
+  scrollView: {
+    flex: 1,
+  },
   scrollContent: {
-    paddingBottom: 140,
+    paddingBottom: spacing.md,
   },
   content: {
     alignItems: 'center',
@@ -129,12 +135,9 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   summaryBar: {
-    position: 'absolute',
-    left: spacing.md,
-    right: spacing.md,
-    bottom: 90,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
+    borderTopWidth: 1,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
   },

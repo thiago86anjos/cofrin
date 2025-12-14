@@ -15,8 +15,19 @@ interface Props {
 
 function TransactionItemComponent({ icon = '◻', title, account, amount, type, onPress }: Props) {
   const { colors } = useAppTheme();
-  const isReceived = amount >= 0 || type === 'received';
-  const color = isReceived ? colors.income : colors.expense;
+  
+  // Cores específicas para cada tipo de transação
+  const incomeColor = '#10b981';  // Verde claro
+  const expenseColor = '#dc2626'; // Vermelho
+  const transferColor = '#64748b'; // Cinza
+  
+  const getColor = () => {
+    if (type === 'transfer') return transferColor;
+    if (type === 'paid' || amount < 0) return expenseColor;
+    return incomeColor;
+  };
+  
+  const color = getColor();
   const initial = title.charAt(0).toUpperCase();
 
   return (

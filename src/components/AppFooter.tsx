@@ -2,7 +2,7 @@ import { View, StyleSheet, Pressable, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppTheme } from '../contexts/themeContext';
-import { spacing, borderRadius, getShadow } from '../theme';
+import { spacing, getShadow } from '../theme';
 
 type Props = {
   onHome: () => void;
@@ -99,8 +99,6 @@ const styles = StyleSheet.create({
   container: {
     paddingTop: spacing.sm,
     paddingHorizontal: spacing.md,
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
   },
   row: {
     height: FOOTER_HEIGHT,
