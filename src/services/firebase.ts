@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDMCRqSKJBy4WfWKIWoq0-qIQaUx0otECc",
@@ -14,3 +15,16 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
+export const db = getFirestore(app);
+
+// Nomes das coleções
+export const COLLECTIONS = {
+  USERS: 'users',
+  CATEGORIES: 'categories',
+  ACCOUNTS: 'accounts',
+  CREDIT_CARDS: 'creditCards',
+  TRANSACTIONS: 'transactions',
+  CREDIT_CARD_BILLS: 'creditCardBills',
+  GOALS: 'goals',
+  USER_PREFERENCES: 'userPreferences',
+} as const;

@@ -1,47 +1,10 @@
 import { useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, Platform, ScrollView } from "react-native";
+import { View, Text, TextInput, Pressable, StyleSheet, Platform, ScrollView, Alert } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppTheme } from "../contexts/themeContext";
 import { spacing, borderRadius, getShadow } from "../theme";
-
-type CategoryType = 'expense' | 'income';
-
-interface CategoryIcon {
-  id: string;
-  name: string;
-}
-
-const EXPENSE_ICONS: CategoryIcon[] = [
-  { id: 'food', name: 'Alimentação' },
-  { id: 'bus', name: 'Transporte' },
-  { id: 'home', name: 'Moradia' },
-  { id: 'hospital-box', name: 'Saúde' },
-  { id: 'school', name: 'Educação' },
-  { id: 'shopping', name: 'Compras' },
-  { id: 'gamepad-variant', name: 'Lazer' },
-  { id: 'dumbbell', name: 'Fitness' },
-  { id: 'paw', name: 'Pets' },
-  { id: 'car', name: 'Carro' },
-  { id: 'cellphone', name: 'Telefone' },
-  { id: 'wifi', name: 'Internet' },
-  { id: 'lightning-bolt', name: 'Energia' },
-  { id: 'water', name: 'Água' },
-  { id: 'gas-station', name: 'Combustível' },
-  { id: 'pill', name: 'Farmácia' },
-  { id: 'gift', name: 'Presentes' },
-  { id: 'dots-horizontal', name: 'Outros' },
-];
-
-const INCOME_ICONS: CategoryIcon[] = [
-  { id: 'briefcase', name: 'Salário' },
-  { id: 'cash-multiple', name: 'Freelance' },
-  { id: 'chart-line', name: 'Investimentos' },
-  { id: 'hand-coin', name: 'Dividendos' },
-  { id: 'gift', name: 'Presente' },
-  { id: 'sale', name: 'Vendas' },
-  { id: 'cash-refund', name: 'Reembolso' },
-  { id: 'dots-horizontal', name: 'Outros' },
-];
+import { useCategories } from "../hooks/useCategories";
+import { CategoryType, CATEGORY_ICONS } from "../types/firebase";
 
 export default function Categories({ navigation }: any) {
   const { colors } = useAppTheme();
@@ -49,34 +12,63 @@ export default function Categories({ navigation }: any) {
   const [categoryType, setCategoryType] = useState<CategoryType>('expense');
   const [name, setName] = useState('');
   const [selectedIcon, setSelectedIcon] = useState<string>('food');
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  // Mock de categorias existentes
-  const [categories] = useState({
-    expense: [
-      { id: '1', name: 'Alimentação', icon: 'food' },
-      { id: '2', name: 'Transporte', icon: 'bus' },
-      { id: '3', name: 'Lazer', icon: 'gamepad-variant' },
-    ],
-    income: [
-      { id: '4', name: 'Salário', icon: 'briefcase' },
-      { id: '5', name: 'Freelance', icon: 'cash-multiple' },
-    ],
-  });
+  // Hook de categorias do Firebase
+  const { 
+    expenseCategories, 
+    incomeCategories, 
+    loading, 
+    createCategory,
+    deleteCategory,
+  } = useCategories();
 
   async function handleCreate() {
     if (!name.trim()) return;
     
-    setLoading(true);
-    // TODO: Implementar criação no Firebase
-    setTimeout(() => {
-      setLoading(false);
-      setName('');
-    }, 500);
+    setSaving(true);
+    try {
+      const result = await createCategory({
+        name: name.trim(),
+        icon: selectedIcon,
+        type: categoryType,
+      });
+
+      if (result) {
+        setName('');
+        Alert.alert('Sucesso', 'Categoria criada com sucesso!');
+      } else {
+        Alert.alert('Erro', 'Não foi possível criar a categoria');
+      }
+    } catch (error) {
+      Alert.alert('Erro', 'Ocorreu um erro ao criar a categoria');
+    } finally {
+      setSaving(false);
+    }
   }
 
-  const icons = categoryType === 'expense' ? EXPENSE_ICONS : INCOME_ICONS;
-  const currentCategories = categories[categoryType];
+  async function handleDelete(categoryId: string, categoryName: string) {
+    Alert.alert(
+      'Excluir categoria',
+      `Deseja realmente excluir a categoria "${categoryName}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Excluir', 
+          style: 'destructive',
+          onPress: async () => {
+            const result = await deleteCategory(categoryId);
+            if (!result) {
+              Alert.alert('Erro', 'Não foi possível excluir a categoria');
+            }
+          }
+        },
+      ]
+    );
+  }
+
+  const icons = CATEGORY_ICONS[categoryType];
+  const currentCategories = categoryType === 'expense' ? expenseCategories : incomeCategories;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -149,15 +141,27 @@ export default function Categories({ navigation }: any) {
         </View>
 
         {/* Categorias existentes */}
-        {currentCategories.length > 0 && (
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <Text style={[styles.loadingText, { color: colors.textMuted }]}>Carregando categorias...</Text>
+          </View>
+        ) : currentCategories.length > 0 ? (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
               {categoryType === 'expense' ? 'CATEGORIAS DE DESPESA' : 'CATEGORIAS DE RECEITA'}
             </Text>
+            <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
+              Segure para excluir
+            </Text>
             <View style={[styles.card, { backgroundColor: colors.card }, getShadow(colors)]}>
               <View style={styles.categoriesGrid}>
                 {currentCategories.map((cat) => (
-                  <View key={cat.id} style={styles.categoryChip}>
+                  <Pressable 
+                    key={cat.id} 
+                    style={styles.categoryChip}
+                    onLongPress={() => handleDelete(cat.id, cat.name)}
+                    delayLongPress={500}
+                  >
                     <View style={[
                       styles.categoryIcon, 
                       { backgroundColor: (categoryType === 'expense' ? colors.expense : colors.income) + '20' }
@@ -169,9 +173,18 @@ export default function Categories({ navigation }: any) {
                       />
                     </View>
                     <Text style={[styles.categoryName, { color: colors.text }]}>{cat.name}</Text>
-                  </View>
+                  </Pressable>
                 ))}
               </View>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.section}>
+            <View style={[styles.emptyCard, { backgroundColor: colors.card }, getShadow(colors)]}>
+              <MaterialCommunityIcons name="tag-off-outline" size={48} color={colors.textMuted} />
+              <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+                Nenhuma categoria de {categoryType === 'expense' ? 'despesa' : 'receita'} cadastrada
+              </Text>
             </View>
           </View>
         )}
@@ -202,24 +215,24 @@ export default function Categories({ navigation }: any) {
               <View style={styles.iconGrid}>
                 {icons.map((icon) => (
                   <Pressable
-                    key={icon.id}
-                    onPress={() => setSelectedIcon(icon.id)}
+                    key={icon}
+                    onPress={() => setSelectedIcon(icon)}
                     style={[
                       styles.iconOption,
                       { 
-                        borderColor: selectedIcon === icon.id 
+                        borderColor: selectedIcon === icon 
                           ? (categoryType === 'expense' ? colors.expense : colors.income) 
                           : colors.border,
                       },
-                      selectedIcon === icon.id && { 
+                      selectedIcon === icon && { 
                         backgroundColor: (categoryType === 'expense' ? colors.expense : colors.income) + '15' 
                       },
                     ]}
                   >
                     <MaterialCommunityIcons 
-                      name={icon.id as any} 
+                      name={icon as any} 
                       size={22} 
-                      color={selectedIcon === icon.id 
+                      color={selectedIcon === icon 
                         ? (categoryType === 'expense' ? colors.expense : colors.income) 
                         : colors.textMuted
                       } 
@@ -252,17 +265,17 @@ export default function Categories({ navigation }: any) {
             {/* Botão */}
             <Pressable
               onPress={handleCreate}
-              disabled={loading || !name.trim()}
+              disabled={saving || !name.trim()}
               style={({ pressed }) => [
                 styles.createButton,
                 { backgroundColor: categoryType === 'expense' ? colors.expense : colors.income },
                 pressed && { opacity: 0.9 },
-                (loading || !name.trim()) && { opacity: 0.6 },
+                (saving || !name.trim()) && { opacity: 0.6 },
               ]}
             >
               <MaterialCommunityIcons name="plus" size={20} color="#fff" />
               <Text style={styles.createButtonText}>
-                {loading ? 'Criando...' : 'Criar categoria'}
+                {saving ? 'Criando...' : 'Criar categoria'}
               </Text>
             </Pressable>
           </View>
@@ -322,8 +335,31 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 0.5,
+    marginBottom: spacing.xs,
+    marginLeft: spacing.xs,
+  },
+  sectionHint: {
+    fontSize: 11,
     marginBottom: spacing.sm,
     marginLeft: spacing.xs,
+  },
+  loadingContainer: {
+    padding: spacing.xl,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+  },
+  emptyCard: {
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    marginTop: spacing.sm,
+    textAlign: 'center',
   },
   card: {
     borderRadius: borderRadius.lg,
