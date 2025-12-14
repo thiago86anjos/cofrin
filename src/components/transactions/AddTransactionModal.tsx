@@ -590,8 +590,10 @@ export default function AddTransactionModal({
                     onPress={() => setActivePicker('recurrence')}
                   />
                 </View>
+              </ScrollView>
 
-                {/* Botão Salvar */}
+              {/* Botão Salvar - fixo no fundo */}
+              <View style={[styles.buttonContainer, { backgroundColor: colors.bg }]}>
                 <Pressable
                   onPress={handleSave}
                   style={({ pressed }) => [
@@ -603,7 +605,7 @@ export default function AddTransactionModal({
                   <MaterialCommunityIcons name="check" size={20} color="#fff" />
                   <Text style={styles.saveButtonText}>Confirmar</Text>
                 </Pressable>
-              </ScrollView>
+              </View>
             </View>
           </View>
         )}
@@ -636,9 +638,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   header: {
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
-    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    paddingHorizontal: spacing.md,
   },
   closeButton: {
     position: 'absolute',
@@ -647,15 +649,15 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: '#fff',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   typeSelector: {
     flexDirection: 'row',
     gap: spacing.sm,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.sm,
   },
   typeChip: {
     flexDirection: 'row',
@@ -678,26 +680,26 @@ const styles = StyleSheet.create({
     color: '#1f2937',
   },
   amountInput: {
-    fontSize: 36,
+    fontSize: 32,
     fontWeight: '700',
     color: '#fff',
     textAlign: 'center',
-    paddingVertical: spacing.sm,
+    paddingVertical: 0,
   },
   form: {
     flex: 1,
   },
   formContent: {
-    padding: spacing.md,
-    paddingBottom: spacing.xl,
-    gap: spacing.md,
+    padding: spacing.sm,
+    paddingBottom: spacing.md,
+    gap: spacing.sm,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    gap: spacing.md,
+    padding: spacing.sm,
+    gap: spacing.sm,
   },
   inputWrapper: {
     flex: 1,
@@ -713,8 +715,8 @@ const styles = StyleSheet.create({
   selectField: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.md,
-    gap: spacing.md,
+    padding: spacing.sm,
+    gap: spacing.sm,
   },
   fieldIcon: {
     width: 40,
@@ -738,6 +740,10 @@ const styles = StyleSheet.create({
     height: 1,
     marginLeft: 68,
   },
+  buttonContainer: {
+    padding: spacing.sm,
+    paddingBottom: spacing.md,
+  },
   saveButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -745,7 +751,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md + 2,
     borderRadius: borderRadius.lg,
     gap: spacing.sm,
-    marginTop: spacing.sm,
     ...Platform.select({
       web: {
         boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.15)',
