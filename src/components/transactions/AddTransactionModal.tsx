@@ -8,8 +8,7 @@ import {
     Modal,
     Dimensions,
     Text,
-    TextInput,
-    Alert,
+    TextInput
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -21,6 +20,8 @@ import { useCategories } from '../../hooks/useCategories';
 import { useAccounts } from '../../hooks/useAccounts';
 import { useCreditCards } from '../../hooks/useCreditCards';
 import { useTransactions } from '../../hooks/useFirebaseTransactions';
+import { useCustomAlert } from '../../hooks/useCustomAlert';
+import CustomAlert from '../CustomAlert';
 import { TransactionType, RecurrenceType, CreateTransactionInput } from '../../types/firebase';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -156,6 +157,9 @@ export default function AddTransactionModal({
   
   // Date picker state for custom calendar
   const [tempDate, setTempDate] = useState(new Date());
+  
+  // Custom alert hook
+  const { alertState, showAlert, hideAlert } = useCustomAlert();
   
   // Calcular valor por parcela
   const installmentValue = React.useMemo(() => {
@@ -328,17 +332,17 @@ export default function AddTransactionModal({
   const handleSave = useCallback(async () => {
     const parsed = parseCurrency(amount);
     if (parsed <= 0) {
-      Alert.alert('Erro', 'O valor deve ser maior que zero');
+      showAlert('Erro', 'O valor deve ser maior que zero', [{ text: 'OK', style: 'default' }]);
       return;
     }
 
     if (!accountId && !useCreditCard) {
-      Alert.alert('Erro', 'Selecione uma conta');
+      showAlert('Erro', 'Selecione uma conta', [{ text: 'OK', style: 'default' }]);
       return;
     }
 
     if (type === 'transfer' && !toAccountId) {
-      Alert.alert('Erro', 'Selecione a conta de destino');
+      showAlert('Erro', 'Selecione a conta de destino', [{ text: 'OK', style: 'default' }]);
       return;
     }
 
@@ -346,9 +350,10 @@ export default function AddTransactionModal({
     if ((type === 'transfer' || (type === 'despesa' && !useCreditCard)) && accountId) {
       const sourceAccount = activeAccounts.find(a => a.id === accountId);
       if (sourceAccount && sourceAccount.balance < parsed) {
-        Alert.alert(
+        showAlert(
           'Saldo insuficiente', 
-          `Você não tem saldo suficiente na conta "${sourceAccount.name}".\n\nSaldo disponível: R$ ${sourceAccount.balance.toFixed(2).replace('.', ',')}\nValor da ${type === 'transfer' ? 'transferência' : 'despesa'}: R$ ${parsed.toFixed(2).replace('.', ',')}`
+          `Você não tem saldo suficiente na conta "${sourceAccount.name}".\n\nSaldo disponível: R$ ${sourceAccount.balance.toFixed(2).replace('.', ',')}\nValor da ${type === 'transfer' ? 'transferência' : 'despesa'}: R$ ${parsed.toFixed(2).replace('.', ',')}`,
+          [{ text: 'OK', style: 'default' }]
         );
         return;
       }
@@ -436,7 +441,7 @@ export default function AddTransactionModal({
         const transactionData = buildTransactionData(date);
         success = await updateTransaction(editTransaction.id, transactionData);
         if (success) {
-          Alert.alert('Sucesso', 'Lançamento atualizado!');
+          showAlert('Sucesso', 'Lançamento atualizado!', [{ text: 'OK', style: 'default' }]);
         }
       } else {
         // Create new transaction(s)
@@ -456,12 +461,12 @@ export default function AddTransactionModal({
         if (success) {
           if (totalToCreate > 1) {
             const valuePerInstallment = formatCurrency(Math.round((parsed / totalToCreate) * 100).toString());
-            Alert.alert('Sucesso', `${createdCount} lançamentos criados!\n${totalToCreate}x de ${valuePerInstallment}`);
+            showAlert('Sucesso', `${createdCount} lançamentos criados!\n${totalToCreate}x de ${valuePerInstallment}`, [{ text: 'OK', style: 'default' }]);
           } else {
-            Alert.alert('Sucesso', 'Lançamento salvo!');
+            showAlert('Sucesso', 'Lançamento salvo!', [{ text: 'OK', style: 'default' }]);
           }
         } else if (createdCount > 0) {
-          Alert.alert('Aviso', `Apenas ${createdCount} de ${totalToCreate} lançamentos foram criados.`);
+          showAlert('Aviso', `Apenas ${createdCount} de ${totalToCreate} lançamentos foram criados.`, [{ text: 'OK', style: 'default' }]);
           success = true; // Considerar parcialmente bem sucedido
         }
       }
@@ -470,11 +475,11 @@ export default function AddTransactionModal({
         onSave?.();
         onClose();
       } else {
-        Alert.alert('Erro', `Não foi possível ${isEditMode ? 'atualizar' : 'salvar'} o lançamento`);
+        showAlert('Erro', `Não foi possível ${isEditMode ? 'atualizar' : 'salvar'} o lançamento`, [{ text: 'OK', style: 'default' }]);
       }
     } catch (error) {
       console.error('Erro ao salvar:', error);
-      Alert.alert('Erro', 'Ocorreu um erro ao salvar');
+      showAlert('Erro', 'Ocorreu um erro ao salvar', [{ text: 'OK', style: 'default' }]);
     } finally {
       setSaving(false);
     }
@@ -1190,7 +1195,7 @@ export default function AddTransactionModal({
                       onPress={() => {
                         // Verificar se faz parte de uma série
                         if (editTransaction.seriesId && onDeleteSeries) {
-                          Alert.alert(
+                          showAlert(
                             'Excluir lançamento',
                             'Este lançamento faz parte de uma série. O que deseja fazer?',
                             [
@@ -1214,7 +1219,7 @@ export default function AddTransactionModal({
                           );
                         } else {
                           // Transação única - confirmar normalmente
-                          Alert.alert(
+                          showAlert(
                             'Excluir lançamento',
                             'Tem certeza que deseja excluir este lançamento?',
                             [
@@ -1265,6 +1270,15 @@ export default function AddTransactionModal({
           )}
         </View>
       </Modal>
+      
+      {/* Custom Alert */}
+      <CustomAlert
+        visible={alertState.visible}
+        title={alertState.title}
+        message={alertState.message}
+        buttons={alertState.buttons}
+        onDismiss={hideAlert}
+      />
     </>
   );
 }
