@@ -660,3 +660,106 @@ export async function countTransactionsByAccount(
   const snapshot = await getDocs(q);
   return snapshot.docs.length;
 }
+
+// ==========================================
+// CARTÃO DE CRÉDITO - AJUSTE E RESET
+// ==========================================
+
+// Criar transação de ajuste de uso do cartão de crédito
+export async function createCreditCardAdjustment(
+  userId: string,
+  creditCardId: string,
+  creditCardName: string,
+  oldUsed: number,
+  newUsed: number
+): Promise<Transaction | null> {
+  const difference = newUsed - oldUsed;
+  
+  if (difference === 0) return null; // Sem mudança
+  
+  const now = Timestamp.now();
+  const currentDate = new Date();
+  const month = currentDate.getMonth() + 1;
+  const year = currentDate.getFullYear();
+
+  // Se aumentou o uso, é uma despesa; se diminuiu, é um estorno/ajuste
+  const adjustmentType: TransactionType = difference > 0 ? 'expense' : 'income';
+  const amount = Math.abs(difference);
+
+  const docRef = await addDoc(transactionsRef, {
+    userId,
+    type: adjustmentType,
+    amount,
+    description: `Ajuste de fatura${difference > 0 ? ' (débito)' : ' (estorno)'}`,
+    date: now,
+    month,
+    year,
+    creditCardId,
+    creditCardName,
+    recurrence: 'none',
+    status: 'completed',
+    isAdjustment: true,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  return {
+    id: docRef.id,
+    userId,
+    type: adjustmentType,
+    amount,
+    description: `Ajuste de fatura${difference > 0 ? ' (débito)' : ' (estorno)'}`,
+    date: now,
+    month,
+    year,
+    creditCardId,
+    creditCardName,
+    recurrence: 'none',
+    status: 'completed',
+    createdAt: now,
+    updatedAt: now,
+  } as Transaction;
+}
+
+// Deletar todas as transações de um cartão de crédito
+export async function deleteTransactionsByCreditCard(
+  userId: string,
+  creditCardId: string
+): Promise<{ deleted: number; error?: string }> {
+  try {
+    const q = query(
+      transactionsRef,
+      where('userId', '==', userId),
+      where('creditCardId', '==', creditCardId)
+    );
+
+    const snapshot = await getDocs(q);
+    
+    if (snapshot.empty) {
+      return { deleted: 0 };
+    }
+
+    const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+    await Promise.all(deletePromises);
+
+    return { deleted: snapshot.docs.length };
+  } catch (error) {
+    console.error('Erro ao deletar transações do cartão:', error);
+    return { deleted: 0, error: 'Erro ao deletar transações' };
+  }
+}
+
+// Contar transações de um cartão de crédito
+export async function countTransactionsByCreditCard(
+  userId: string,
+  creditCardId: string
+): Promise<number> {
+  const q = query(
+    transactionsRef,
+    where('userId', '==', userId),
+    where('creditCardId', '==', creditCardId)
+  );
+
+  const snapshot = await getDocs(q);
+  return snapshot.docs.length;
+}

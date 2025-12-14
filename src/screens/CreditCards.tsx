@@ -2,11 +2,14 @@ import { useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet, Platform, ScrollView, Modal, Alert } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppTheme } from "../contexts/themeContext";
+import { useAuth } from "../contexts/authContext";
 import { spacing, borderRadius, getShadow } from "../theme";
 import { useCreditCards } from "../hooks/useCreditCards";
 import { useAccounts } from "../hooks/useAccounts";
 import { CreditCard } from "../types/firebase";
 import { formatCurrencyBRL } from "../utils/format";
+import { createCreditCardAdjustment, deleteTransactionsByCreditCard, countTransactionsByCreditCard } from "../services/transactionService";
+import { updateCreditCard as updateCreditCardService } from "../services/creditCardService";
 
 interface CardBrandOption {
   id: string;
@@ -30,6 +33,7 @@ const CARD_BRANDS: CardBrandOption[] = [
 
 export default function CreditCards({ navigation }: any) {
   const { colors } = useAppTheme();
+  const { user } = useAuth();
   
   const [name, setName] = useState('');
   const [selectedBrand, setSelectedBrand] = useState<string>('nubank');
@@ -178,7 +182,7 @@ export default function CreditCards({ navigation }: any) {
 
   // Salvar edição
   async function handleSaveEdit() {
-    if (!editingCard || !editName.trim()) return;
+    if (!editingCard || !editName.trim() || !user?.uid) return;
 
     const closingDayNum = parseInt(editClosingDay) || 1;
     const dueDayNum = parseInt(editDueDay) || 10;
@@ -190,12 +194,27 @@ export default function CreditCards({ navigation }: any) {
 
     setSaving(true);
     try {
+      const newCurrentUsed = parseValue(editCurrentUsed);
+      const oldCurrentUsed = editingCard.currentUsed || 0;
+      const usedChanged = newCurrentUsed !== oldCurrentUsed;
+
+      // Se o valor usado mudou, criar transação de ajuste
+      if (usedChanged) {
+        await createCreditCardAdjustment(
+          user.uid,
+          editingCard.id,
+          editName.trim(),
+          oldCurrentUsed,
+          newCurrentUsed
+        );
+      }
+
       const updateData: any = {
         name: editName.trim(),
         brand: editBrand,
         color: CARD_BRANDS.find(b => b.id === editBrand)?.color || '#6B7280',
         limit: parseValue(editLimit),
-        currentUsed: parseValue(editCurrentUsed),
+        currentUsed: newCurrentUsed,
         closingDay: closingDayNum,
         dueDay: dueDayNum,
       };
@@ -212,7 +231,16 @@ export default function CreditCards({ navigation }: any) {
       if (result) {
         setEditModalVisible(false);
         setEditingCard(null);
-        Alert.alert('Sucesso', 'Cartão atualizado com sucesso!');
+        
+        if (usedChanged) {
+          const diff = newCurrentUsed - oldCurrentUsed;
+          Alert.alert(
+            'Cartão atualizado', 
+            `Ajuste de fatura registrado: ${diff >= 0 ? '+' : ''}${formatCurrencyBRL(diff)}`
+          );
+        } else {
+          Alert.alert('Sucesso', 'Cartão atualizado com sucesso!');
+        }
       } else {
         Alert.alert('Erro', 'Não foi possível atualizar o cartão');
       }
@@ -221,6 +249,61 @@ export default function CreditCards({ navigation }: any) {
     } finally {
       setSaving(false);
     }
+  }
+
+  // Resetar cartão (deletar todas as transações)
+  async function handleResetCard() {
+    if (!editingCard || !user?.uid) return;
+    
+    const count = await countTransactionsByCreditCard(user.uid, editingCard.id);
+    
+    if (count === 0) {
+      Alert.alert('Aviso', 'Este cartão não possui lançamentos para excluir.');
+      return;
+    }
+    
+    Alert.alert(
+      'Resetar cartão?',
+      `Esta ação irá excluir ${count} lançamento${count > 1 ? 's' : ''} deste cartão e zerar o valor usado. Esta ação NÃO pode ser desfeita!`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Resetar', 
+          style: 'destructive',
+          onPress: async () => {
+            setSaving(true);
+            try {
+              // Deletar todas as transações
+              const { deleted, error } = await deleteTransactionsByCreditCard(user.uid, editingCard.id);
+              
+              if (error) {
+                Alert.alert('Erro', error);
+                return;
+              }
+              
+              // Zerar o valor usado do cartão
+              await updateCreditCardService(editingCard.id, { currentUsed: 0 });
+              
+              // Atualizar estado local
+              setEditCurrentUsed('0');
+              
+              Alert.alert(
+                'Cartão resetado', 
+                `${deleted} lançamento${deleted > 1 ? 's' : ''} excluído${deleted > 1 ? 's' : ''}. Fatura zerada.`
+              );
+              
+              // Fechar modal e atualizar lista
+              setEditModalVisible(false);
+              setEditingCard(null);
+            } catch (err) {
+              Alert.alert('Erro', 'Ocorreu um erro ao resetar o cartão');
+            } finally {
+              setSaving(false);
+            }
+          }
+        },
+      ]
+    );
   }
 
   // Arquivar cartão do modal
@@ -232,7 +315,7 @@ export default function CreditCards({ navigation }: any) {
       `O cartão "${editingCard.name}" será arquivado e não aparecerá mais na lista.`,
       [
         { text: 'Cancelar', style: 'cancel' },
-        { 
+        {
           text: 'Arquivar', 
           onPress: async () => {
             const result = await archiveCreditCard(editingCard.id);
@@ -728,31 +811,52 @@ export default function CreditCards({ navigation }: any) {
               </View>
 
               {/* Ações */}
-              <View style={styles.modalActions}>
+              <View style={styles.modalActionsColumn}>
+                {/* Botão de Resetar */}
                 <Pressable
-                  onPress={handleArchiveFromModal}
+                  onPress={handleResetCard}
                   style={({ pressed }) => [
-                    styles.actionButton,
-                    { backgroundColor: colors.bg, borderColor: colors.border },
+                    styles.resetButton,
+                    { backgroundColor: colors.warning + '15', borderColor: colors.warning },
                     pressed && { opacity: 0.7 },
                   ]}
                 >
-                  <MaterialCommunityIcons name="archive-outline" size={20} color={colors.textMuted} />
-                  <Text style={[styles.actionButtonText, { color: colors.text }]}>Arquivar</Text>
+                  <MaterialCommunityIcons name="refresh" size={20} color={colors.warning} />
+                  <View style={styles.resetButtonText}>
+                    <Text style={[styles.actionButtonText, { color: colors.warning }]}>Resetar cartão</Text>
+                    <Text style={[styles.resetHint, { color: colors.textMuted }]}>
+                      Exclui todos os lançamentos e zera a fatura
+                    </Text>
+                  </View>
                 </Pressable>
 
-                <Pressable
-                  onPress={handleDeleteFromModal}
-                  style={({ pressed }) => [
-                    styles.actionButton,
-                    styles.deleteButton,
-                    { borderColor: colors.expense },
-                    pressed && { opacity: 0.7 },
-                  ]}
-                >
-                  <MaterialCommunityIcons name="delete-outline" size={20} color={colors.expense} />
-                  <Text style={[styles.actionButtonText, { color: colors.expense }]}>Excluir</Text>
-                </Pressable>
+                {/* Botões de Arquivar e Excluir */}
+                <View style={styles.modalActions}>
+                  <Pressable
+                    onPress={handleArchiveFromModal}
+                    style={({ pressed }) => [
+                      styles.actionButton,
+                      { backgroundColor: colors.bg, borderColor: colors.border },
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    <MaterialCommunityIcons name="archive-outline" size={20} color={colors.textMuted} />
+                    <Text style={[styles.actionButtonText, { color: colors.text }]}>Arquivar</Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={handleDeleteFromModal}
+                    style={({ pressed }) => [
+                      styles.actionButton,
+                      styles.deleteButton,
+                      { borderColor: colors.expense },
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    <MaterialCommunityIcons name="delete-outline" size={20} color={colors.expense} />
+                    <Text style={[styles.actionButtonText, { color: colors.expense }]}>Excluir</Text>
+                  </Pressable>
+                </View>
               </View>
             </ScrollView>
           </View>
@@ -1080,11 +1184,29 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: spacing.xs,
   },
+  modalActionsColumn: {
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+  },
   modalActions: {
     flexDirection: 'row',
     gap: spacing.sm,
-    padding: spacing.md,
-    paddingBottom: spacing.xl,
+  },
+  resetButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    gap: spacing.sm,
+  },
+  resetButtonText: {
+    flex: 1,
+  },
+  resetHint: {
+    fontSize: 11,
+    marginTop: 2,
   },
   actionButton: {
     flex: 1,
