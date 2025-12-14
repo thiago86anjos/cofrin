@@ -1,7 +1,8 @@
 import { View, Text, StyleSheet, Pressable, Platform, StatusBar, ScrollView, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, NavigationProp, ParamListBase } from '@react-navigation/native';
-import { palette } from '../theme';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useAppTheme } from '../contexts/themeContext';
 import { useAuth } from '../contexts/authContext';
 
 interface HeaderProps {
@@ -12,6 +13,8 @@ export default function AppHeader(props?: any) {
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { colors } = useAppTheme();
+  
   const username = user?.email?.split('@')?.[0] || user?.displayName || 'Usuário';
   const initial = username?.charAt(0)?.toUpperCase() || 'U';
 
@@ -33,8 +36,8 @@ export default function AppHeader(props?: any) {
   const topInset = Platform.OS === 'android' ? (StatusBar.currentHeight || insets.top || 8) : insets.top;
 
   return (
-    <SafeAreaView style={{ backgroundColor: palette.blue }} edges={['top', 'left', 'right']}>
-      <View style={[styles.header, { paddingTop: topInset }] }>
+    <SafeAreaView style={{ backgroundColor: colors.bgHeader }} edges={['top', 'left', 'right']}>
+      <View style={[styles.header, { paddingTop: topInset, backgroundColor: colors.bgHeader }]}>
     
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.navContainer}>
@@ -44,20 +47,20 @@ export default function AppHeader(props?: any) {
             onPress={() => navigation.navigate(item.route as any)}
             style={[
               styles.navItem,
-              currentRoute === item.route ? styles.navItemActive : undefined,
+              currentRoute === item.route && [styles.navItemActive, { backgroundColor: colors.card, borderColor: colors.border }],
             ]}
             hitSlop={{ top: 6, bottom: 6, left: 10, right: 10 }}
             accessibilityRole="button"
             accessibilityLabel={`Navegar para ${item.label}`}
           >
-            <Text style={[styles.navText, currentRoute === item.route ? styles.navTextActive : undefined]}>{item.label}</Text>
+            <Text style={[styles.navText, currentRoute === item.route && { color: colors.primary }]}>{item.label}</Text>
           </Pressable>
         ))}
       </ScrollView>
 
       <Pressable onPress={() => navigation.navigate('Configurações')} style={styles.avatarArea} accessibilityRole="button" hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityLabel="Configurações">
-        <View style={styles.avatarCircle}>
-          <Text style={styles.avatarInitial}>{initial}</Text>
+        <View style={[styles.avatarCircle, { backgroundColor: colors.card }]}>
+          <MaterialCommunityIcons name="piggy-bank" size={20} color={colors.primary} />
         </View>
         {showAvatarName && <Text style={styles.avatarName} numberOfLines={1}>{username}</Text>}
       </Pressable>
@@ -71,13 +74,12 @@ const styles = StyleSheet.create({
     width: '100%',
     minHeight: 56,
     paddingHorizontal: 12,
-    backgroundColor: palette.blue,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   brandContainer: { paddingRight: 12 },
-  brand: { color: palette.white, fontWeight: '700', fontSize: 16 },
+  brand: { color: '#fff', fontWeight: '700', fontSize: 16 },
   navContainer: { flexDirection: 'row', alignItems: 'center', flex: 1, marginLeft: 12, paddingVertical: 8 },
   navItem: {
     paddingHorizontal: 14,
@@ -91,22 +93,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   navItemActive: {
-    backgroundColor: palette.white,
-    borderColor: palette.border,
+    // backgroundColor and borderColor set dynamically
   },
-  navText: { color: palette.white, fontWeight: '600', fontSize: 14 },
-  navTextActive: { color: palette.blue },
+  navText: { color: '#fff', fontWeight: '600', fontSize: 14 },
   avatarArea: { flexDirection: 'row', alignItems: 'center' },
   avatarCircle: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: palette.white,
     alignItems: 'center',
     justifyContent: 'center',
     borderColor: 'rgba(0,0,0,0.08)',
     borderWidth: 1,
   },
-  avatarInitial: { color: palette.blue, fontWeight: '700' },
-  avatarName: { color: palette.white, marginLeft: 8, maxWidth: 120 },
+  avatarInitial: { fontWeight: '700' },
+  avatarName: { color: '#fff', marginLeft: 8, maxWidth: 120 },
 });

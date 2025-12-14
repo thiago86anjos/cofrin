@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Card as PaperCard, useTheme } from 'react-native-paper';
 import { spacing, borderRadius, shadows } from '../theme';
 
@@ -20,7 +20,7 @@ export default function Card({ children, style, mode = 'elevated' }: CardProps) 
         style
       ]}
     >
-      {children}
+      <View>{children}</View>
     </PaperCard>
   );
 }

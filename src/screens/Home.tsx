@@ -1,6 +1,6 @@
 import { View, StyleSheet, ScrollView, useWindowDimensions } from "react-native";
 import { useAuth } from "../contexts/authContext";
-import { palette } from "../theme";
+import { useAppTheme } from "../contexts/themeContext";
 import AppHeader from "../components/AppHeader";
 import MainLayout from "../components/MainLayout";
 import HomeOverview from "../components/home/HomeOverview";
@@ -9,13 +9,14 @@ import TopExpensesCard from "../components/home/TopExpensesCard";
 
 export default function Home() {
   const { user } = useAuth();
+  const { colors } = useAppTheme();
   const { width } = useWindowDimensions();
   const isNarrow = width < 700;
   const emailPrefix = user?.email?.split("@")?.[0] || user?.displayName || "Usuário";
 
   return (
     <MainLayout>
-      <ScrollView style={{ backgroundColor: palette.bg }} contentContainerStyle={{ paddingBottom: 18 }}>
+      <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ paddingBottom: 18 }}>
         <AppHeader />
         <View style={{ alignItems: 'center', paddingVertical: 12 }}>
           <View style={{ width: "100%", maxWidth: 980, paddingHorizontal: 12 }}>
@@ -57,5 +58,5 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   avatarName: { fontSize: 16 },
-  subTitle: { fontSize: 14, color: palette.muted },
+  subTitle: { fontSize: 14, color: '#94a3b8' },
 });

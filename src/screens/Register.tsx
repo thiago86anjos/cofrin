@@ -1,17 +1,26 @@
 import { useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  Alert,
-  ActivityIndicator,
-  StyleSheet
+    View,
+    Text,
+    TextInput,
+    Pressable,
+    Alert,
+    ActivityIndicator,
+    StyleSheet,
+    Platform,
+    ScrollView,
 } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { register, sendPasswordReset } from "../services/auth";
 import { useGoogleAuth } from "../services/googleAuth";
-import { palette } from "../theme";
-import Card from "../components/Card";
+import { palette, spacing, borderRadius } from "../theme";
+
+// Mesma cor da tela de Login
+const REGISTER_COLORS = {
+  primary: '#0d9488',
+  primaryDark: '#0f766e',
+  primaryLight: '#14b8a6',
+};
 
 export default function Register({ navigation }: any) {
   const [email, setEmail] = useState("");
@@ -32,7 +41,6 @@ export default function Register({ navigation }: any) {
   }
 
   function isPasswordStrong(pw: string) {
-    // Minimum 6 chars, at least 1 uppercase and 1 lowercase
     const re = /^(?=.*[a-z])(?=.*[A-Z]).{6,}$/;
     return re.test(pw);
   }
@@ -106,103 +114,77 @@ export default function Register({ navigation }: any) {
     }
   }
 
+  async function handleGoogleRegister() {
+    setError(null);
+    if (!request) return;
+    promptAsync();
+  }
+
   return (
-    <View style={styles.container}>
-      <Card style={styles.card}>
-        <Text style={styles.title}>Criar Conta</Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      {/* Header com ícone */}
+      <View style={styles.header}>
+        <View style={styles.iconContainer}>
+          <MaterialCommunityIcons name="piggy-bank" size={56} color="#fff" />
+        </View>
+        <Text style={styles.appName}>Criar Conta</Text>
+        <Text style={styles.tagline}>
+          Comece a organizar suas finanças{'\n'}de forma simples e prática
+        </Text>
+      </View>
 
-        <TextInput
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          style={[styles.input, styles.inputMargin]}
-          editable={!loading}
-        />
+      {/* Card de Registro */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Preencha seus dados</Text>
 
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <View style={styles.inputContainer}>
+          <MaterialCommunityIcons name="email-outline" size={20} color={palette.textMuted} style={styles.inputIcon} />
+          <TextInput
+            placeholder="Email"
+            placeholderTextColor={palette.textMuted}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            style={styles.input}
+            editable={!loading}
+          />
+        </View>
+
+        <View style={styles.inputContainer}>
+          <MaterialCommunityIcons name="lock-outline" size={20} color={palette.textMuted} style={styles.inputIcon} />
           <TextInput
             placeholder="Senha"
+            placeholderTextColor={palette.textMuted}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
-            style={[styles.input, { flex: 1 }]}
+            style={styles.input}
             editable={!loading}
           />
           <Pressable
             onPress={() => setShowPasswordHelper((s) => !s)}
-            style={{ marginLeft: 8 }}
+            style={styles.infoButton}
             accessibilityLabel="Mostrar ajuda de senha"
           >
-            <Text style={{ color: "#6b7280", fontSize: 18 }}>ℹ</Text>
+            <MaterialCommunityIcons 
+              name={showPasswordHelper ? "information" : "information-outline"} 
+              size={20} 
+              color={REGISTER_COLORS.primary} 
+            />
           </Pressable>
         </View>
 
-        {showPasswordHelper ? (
-          <Text style={styles.helperText}>
-            Exemplo: SenhaSegura - mínimo 6 caracteres, incluindo letras maiúsculas e minúsculas
-          </Text>
-        ) : null}
-
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        <View style={{ height: 12 }} />
-
-        <Pressable
-          onPress={() => setShowResetForm((s) => { if(!s) setResetEmail(email); return !s; })}
-          style={styles.linkContainer}
-        >
-          <Text style={styles.linkText}>{showResetForm ? "Fechar" : "Esqueceu sua senha?"}</Text>
-        </Pressable>
-
-        {showResetForm ? (
-          <View style={{ marginTop: 12 }}>
-            <TextInput
-              placeholder="Coloque seu e-mail aqui"
-              value={resetEmail}
-              onChangeText={setResetEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              style={[styles.input, { marginBottom: 8 }]}
-            />
-            <Pressable
-              onPress={handleSendResetEmail}
-              style={({ pressed }) => [
-                styles.primaryButton,
-                pressed && styles.buttonPressed,
-                resetLoading && styles.buttonDisabled,
-              ]}
-              disabled={resetLoading}
-            >
-              {resetLoading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.primaryButtonText}>Enviar link</Text>
-              )}
-            </Pressable>
+        {showPasswordHelper && (
+          <View style={styles.helperBox}>
+            <MaterialCommunityIcons name="shield-check" size={16} color={REGISTER_COLORS.primary} />
+            <Text style={styles.helperText}>
+              Mínimo 6 caracteres, com letra maiúscula e minúscula
+            </Text>
           </View>
-        ) : null}
+        )}
 
-        {resetResult ? <Text style={styles.helperText}>{resetResult}</Text> : null}
-
-        <View style={{ height: 12 }} />
-
-        <Pressable
-          onPress={() => {
-            setError(null);
-            if (!request) return;
-            promptAsync();
-          }}
-          style={({ pressed }) => [
-            styles.ghostButton,
-            pressed && styles.buttonPressed,
-            !request && styles.buttonDisabled,
-          ]}
-          disabled={!request}
-        >
-          <Text style={styles.ghostButtonText}>Criar conta com Google</Text>
-        </Pressable>
+        {error && <Text style={styles.error}>{error}</Text>}
 
         <Pressable
           onPress={handleRegister}
@@ -216,89 +198,278 @@ export default function Register({ navigation }: any) {
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.primaryButtonText}>Criar conta</Text>
+            <View style={styles.buttonContent}>
+              <MaterialCommunityIcons name="account-plus" size={20} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.primaryButtonText}>Criar conta</Text>
+            </View>
           )}
         </Pressable>
-      </Card>
-    </View>
+
+        <Pressable
+          onPress={handleGoogleRegister}
+          style={({ pressed }) => [
+            styles.googleButton,
+            pressed && styles.buttonPressed,
+            !request && styles.buttonDisabled,
+          ]}
+          disabled={!request || loading}
+        >
+          <View style={styles.buttonContent}>
+            <MaterialCommunityIcons name="google" size={20} color={palette.text} style={{ marginRight: 8 }} />
+            <Text style={styles.googleButtonText}>Continuar com Google</Text>
+          </View>
+        </Pressable>
+
+        <Pressable
+          onPress={() => { setShowResetForm(!showResetForm); if (!showResetForm) setResetEmail(email); }}
+          style={styles.linkContainer}
+        >
+          <Text style={styles.linkText}>{showResetForm ? "Fechar" : "Esqueceu sua senha?"}</Text>
+        </Pressable>
+
+        {showResetForm && (
+          <View style={styles.resetContainer}>
+            <View style={styles.inputContainer}>
+              <MaterialCommunityIcons name="email-outline" size={20} color={palette.textMuted} style={styles.inputIcon} />
+              <TextInput
+                placeholder="Digite seu e-mail"
+                placeholderTextColor={palette.textMuted}
+                value={resetEmail}
+                onChangeText={setResetEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                style={styles.input}
+              />
+            </View>
+            <Pressable
+              onPress={handleSendResetEmail}
+              style={({ pressed }) => [
+                styles.resetButton,
+                pressed && styles.buttonPressed,
+                resetLoading && styles.buttonDisabled
+              ]}
+              disabled={resetLoading}
+            >
+              {resetLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.resetButtonText}>Enviar link de recuperação</Text>
+              )}
+            </Pressable>
+            {resetResult && <Text style={styles.resultText}>{resetResult}</Text>}
+          </View>
+        )}
+
+        <View style={styles.divider}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>ou</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        <Pressable onPress={() => navigation.goBack()} style={styles.loginButton}>
+          <Text style={styles.loginText}>
+            Já tem conta? <Text style={styles.loginTextBold}>Fazer login</Text>
+          </Text>
+        </Pressable>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    padding: 20,
-    backgroundColor: palette.bg,
+    backgroundColor: REGISTER_COLORS.primary,
+  },
+  contentContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: 40,
+  },
+  header: {
+    alignItems: 'center',
+    paddingTop: 50,
+    paddingBottom: 24,
+  },
+  iconContainer: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  appName: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: spacing.sm,
+  },
+  tagline: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.9)',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   card: {
-    padding: 18,
+    backgroundColor: '#fff',
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.15)',
+      },
+      default: {
+        elevation: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+      },
+    }),
   },
-  title: {
-    fontSize: 24,
-    marginBottom: 20,
-    textAlign: "center",
-    fontWeight: "600",
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
     color: palette.text,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: palette.grayLight,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.md,
+  },
+  inputIcon: {
+    marginRight: spacing.sm,
   },
   input: {
-    borderWidth: 1,
-    borderColor: palette.border,
-    padding: 12,
-    borderRadius: 8,
+    flex: 1,
+    paddingVertical: 14,
     fontSize: 16,
+    color: palette.text,
   },
-  inputMargin: {
-    marginBottom: 12,
+  infoButton: {
+    padding: 4,
+  },
+  helperBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0fdfa',
+    borderRadius: borderRadius.sm,
+    padding: spacing.sm,
+    marginBottom: spacing.md,
   },
   helperText: {
-    color: palette.muted,
+    color: REGISTER_COLORS.primaryDark,
     fontSize: 12,
-    marginTop: 8,
+    marginLeft: spacing.sm,
+    flex: 1,
   },
   primaryButton: {
-    backgroundColor: palette.blue,
-    padding: 14,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 12,
+    backgroundColor: REGISTER_COLORS.primary,
+    paddingVertical: 14,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.sm,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   primaryButtonText: {
-    color: "#fff",
-    fontWeight: "600",
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
   },
-  ghostButton: {
-    backgroundColor: "transparent",
+  googleButton: {
+    backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: palette.border,
-    padding: 12,
-    borderRadius: 8,
-    alignItems: "center",
+    paddingVertical: 12,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    marginTop: spacing.md,
   },
-  ghostButtonText: {
+  googleButtonText: {
     color: palette.text,
-    fontWeight: "600",
+    fontWeight: '600',
+    fontSize: 15,
   },
   buttonPressed: {
     opacity: 0.85,
+    transform: [{ scale: 0.98 }],
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   linkContainer: {
-    marginTop: 10,
-    alignItems: "center",
+    marginTop: spacing.md,
+    alignItems: 'center',
   },
   linkText: {
-    color: palette.blue,
-    fontWeight: "600",
+    color: REGISTER_COLORS.primary,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  resetContainer: {
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: palette.border,
+  },
+  resetButton: {
+    backgroundColor: REGISTER_COLORS.primaryLight,
+    paddingVertical: 12,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+  },
+  resetButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  resultText: {
+    color: palette.textSecondary,
+    fontSize: 13,
+    marginTop: spacing.sm,
+    textAlign: 'center',
   },
   error: {
-    color: "#dc2626",
-    marginTop: 8,
-    textAlign: "center",
+    color: palette.danger,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+    fontSize: 14,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: spacing.lg,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: palette.border,
+  },
+  dividerText: {
+    paddingHorizontal: spacing.md,
+    color: palette.textMuted,
+    fontSize: 13,
+  },
+  loginButton: {
+    alignItems: 'center',
+  },
+  loginText: {
+    color: palette.textSecondary,
+    fontSize: 14,
+  },
+  loginTextBold: {
+    color: REGISTER_COLORS.primary,
+    fontWeight: '700',
   },
 });
-
- 

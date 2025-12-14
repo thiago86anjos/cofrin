@@ -1,6 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
 import TransactionItem from './TransactionItem';
-import { palette } from '../../theme';
 import type { Transaction } from '../../state/transactionsState';
 
 interface Props { items: Transaction[] }
@@ -31,5 +30,5 @@ export default function TransactionsList({ items = [] }: Props) {
 }
 
 const styles = StyleSheet.create({
-  dateHeader: { color: palette.muted, marginVertical: 8, fontWeight: '700' },
+  dateHeader: { color: '#94a3b8', marginVertical: 8, fontWeight: '700' },
 });

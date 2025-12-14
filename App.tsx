@@ -1,5 +1,6 @@
 import RootNavigation from "./src/navigation";
 import { AuthProvider } from "./src/contexts/authContext";
+import { ThemeProvider } from "./src/contexts/themeContext";
 import { TransactionsProvider } from './src/state/transactionsContext';
 import { Provider as PaperProvider, DefaultTheme } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -46,13 +47,15 @@ export default function App() {
   return (
     <RecoilRootImpl>
       <SafeAreaProvider>
-        <PaperProvider theme={paperTheme}>
-          <TransactionsProvider>
-            <AuthProvider>
-              <RootNavigation />
-            </AuthProvider>
-          </TransactionsProvider>
-        </PaperProvider>
+        <ThemeProvider>
+          <PaperProvider theme={paperTheme}>
+            <TransactionsProvider>
+              <AuthProvider>
+                <RootNavigation />
+              </AuthProvider>
+            </TransactionsProvider>
+          </PaperProvider>
+        </ThemeProvider>
       </SafeAreaProvider>
     </RecoilRootImpl>
   );
