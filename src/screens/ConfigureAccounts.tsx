@@ -333,6 +333,16 @@ export default function ConfigureAccounts({ navigation }: any) {
   async function handleDeleteFromModal() {
     if (!editingAccount) return;
     
+    // Bloquear exclusão da conta padrão
+    if (editingAccount.isDefault) {
+      showAlert(
+        'Ação não permitida',
+        'A conta principal não pode ser excluída. Ela é essencial para o funcionamento do sistema.',
+        [{ text: 'OK', style: 'default' }]
+      );
+      return;
+    }
+    
     showAlert(
       'Excluir permanentemente?',
       `A conta "${editingAccount.name}" será excluída e não poderá ser recuperada. Os lançamentos associados a ela também serão excluídos.`,
@@ -801,18 +811,21 @@ export default function ConfigureAccounts({ navigation }: any) {
 
                 {/* Botões de Confirmar e Excluir */}
                 <View style={styles.modalActions}>
-                  <Pressable
-                    onPress={handleDeleteFromModal}
-                    style={({ pressed }) => [
-                      styles.actionButton,
-                      styles.deleteButton,
-                      { borderColor: colors.expense },
-                      pressed && { opacity: 0.7 },
-                    ]}
-                  >
-                    <MaterialCommunityIcons name="delete-outline" size={20} color={colors.expense} />
-                    <Text style={[styles.actionButtonText, { color: colors.expense }]}>Excluir</Text>
-                  </Pressable>
+                  {/* Botão Excluir - oculto para conta padrão */}
+                  {!editingAccount?.isDefault && (
+                    <Pressable
+                      onPress={handleDeleteFromModal}
+                      style={({ pressed }) => [
+                        styles.actionButton,
+                        styles.deleteButton,
+                        { borderColor: colors.expense },
+                        pressed && { opacity: 0.7 },
+                      ]}
+                    >
+                      <MaterialCommunityIcons name="delete-outline" size={20} color={colors.expense} />
+                      <Text style={[styles.actionButtonText, { color: colors.expense }]}>Excluir</Text>
+                    </Pressable>
+                  )}
 
                   <Pressable
                     onPress={handleSaveEdit}
