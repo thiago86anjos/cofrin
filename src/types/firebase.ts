@@ -131,6 +131,10 @@ export interface Transaction extends BaseDocument {
   notes?: string;
   tags?: string[];
   
+  // Aporte em meta financeira
+  goalId?: string;
+  goalName?: string;
+  
   // Para organização por período
   month: number; // 1-12
   year: number;

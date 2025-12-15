@@ -174,6 +174,7 @@ export default function Launches() {
         category: t.categoryName,
         categoryIcon: t.categoryIcon,
         status: t.status,
+        goalName: t.goalName, // Aporte em meta
       }));
   }, [transactions]) as Array<{
     id: string;
@@ -185,6 +186,7 @@ export default function Launches() {
     category?: string;
     categoryIcon?: string;
     status?: 'pending' | 'completed' | 'cancelled';
+    goalName?: string;
   }>;
 
   // Calcular totais separados por status (para previsão)

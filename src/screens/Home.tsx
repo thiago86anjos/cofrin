@@ -18,8 +18,9 @@ import GoalCard from "../components/home/GoalCard";
 import CreateGoalModal from "../components/CreateGoalModal";
 import AddToGoalModal from "../components/AddToGoalModal";
 import { ACCOUNT_TYPE_LABELS } from "../types/firebase";
+import { Timestamp } from "firebase/firestore";
 import * as goalService from "../services/goalService";
-import * as accountService from "../services/accountService";
+import * as transactionService from "../services/transactionService";
 
 export default function Home() {
   const { user } = useAuth();
@@ -92,22 +93,31 @@ export default function Home() {
     refreshGoal();
   };
 
-  // Adicionar valor à meta (debita da conta selecionada)
+  // Adicionar valor à meta (debita da conta selecionada e cria transação)
   const handleAddToGoal = async (amount: number, accountId: string) => {
-    if (!goal) return;
+    if (!goal || !user) return;
     
-    // Debitar da conta
     const account = accounts.find(acc => acc.id === accountId);
-    if (account) {
-      await accountService.updateAccount(accountId, {
-        balance: account.balance - amount,
-      });
-    }
+    if (!account) return;
+
+    // Criar transação de aporte em meta (expense da conta)
+    await transactionService.createTransaction(user.uid, {
+      type: 'expense',
+      amount: amount,
+      description: `Meta: ${goal.name}`,
+      date: Timestamp.now(),
+      accountId: accountId,
+      recurrence: 'none',
+      status: 'completed',
+      goalId: goal.id,
+      goalName: goal.name,
+    });
     
     // Adicionar à meta
     await goalService.addToGoalProgress(goal.id, amount);
     
     // Atualizar dados
+    refresh(); // Atualiza transações
     refreshGoal();
     refreshAccounts();
   };

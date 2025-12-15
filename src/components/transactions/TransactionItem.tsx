@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { StyleSheet, View, Text, Pressable } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { formatCurrencyBRL } from '../../utils/format';
@@ -14,6 +14,7 @@ interface Props {
   category?: string;
   categoryIcon?: string;
   status?: 'pending' | 'completed' | 'cancelled';
+  goalName?: string; // Se for aporte em meta
   onPress?: () => void;
   onEdit?: () => void;
   onStatusPress?: () => void;
@@ -28,6 +29,7 @@ function TransactionItemComponent({
   category,
   categoryIcon,
   status = 'completed',
+  goalName,
   onPress,
   onEdit,
   onStatusPress,
@@ -38,8 +40,10 @@ function TransactionItemComponent({
   const incomeColor = '#10b981';  // Verde claro
   const expenseColor = '#dc2626'; // Vermelho
   const transferColor = '#64748b'; // Cinza
+  const goalColor = colors.primary; // Cor da meta (teal)
   
   const getColor = () => {
+    if (goalName) return goalColor; // Aporte em meta usa cor primária
     if (type === 'transfer') return transferColor;
     if (type === 'paid' || amount < 0) return expenseColor;
     return incomeColor;
@@ -48,8 +52,10 @@ function TransactionItemComponent({
   const color = getColor();
   const initial = title.charAt(0).toUpperCase();
 
-  // Subtítulo: categoria + conta
-  const subtitle = [category, account].filter(Boolean).join(' • ');
+  // Subtítulo: categoria + conta (ou indicação de meta)
+  const subtitle = goalName 
+    ? `Meta • ${account || ''}`.replace(/ • $/, '')
+    : [category, account].filter(Boolean).join(' • ');
   
   // Cor e ícone do status
   const statusColor = status === 'completed' ? '#10b981' : colors.textMuted;
@@ -76,7 +82,9 @@ function TransactionItemComponent({
       </Pressable>
 
       <View style={[styles.avatar, { backgroundColor: color + '15' }]}>
-        {categoryIcon ? (
+        {goalName ? (
+          <MaterialCommunityIcons name="flag-checkered" size={20} color={color} />
+        ) : categoryIcon ? (
           <MaterialCommunityIcons name={categoryIcon as any} size={20} color={color} />
         ) : (
           <Text style={[styles.avatarLabel, { color }]}>{initial}</Text>

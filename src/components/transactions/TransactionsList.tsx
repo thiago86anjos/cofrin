@@ -13,6 +13,7 @@ export interface TransactionListItem {
   category?: string;
   categoryIcon?: string;
   status?: 'pending' | 'completed' | 'cancelled';
+  goalName?: string; // Se for aporte em meta
 }
 
 interface Props { 
@@ -49,6 +50,7 @@ export default function TransactionsList({ items = [], onEditItem, onStatusPress
               category={tx.category}
               categoryIcon={tx.categoryIcon}
               status={tx.status}
+              goalName={tx.goalName}
               onEdit={() => onEditItem?.(tx)}
               onStatusPress={() => onStatusPress?.(tx)}
             />
