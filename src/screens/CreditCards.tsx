@@ -59,7 +59,10 @@ export default function CreditCards({ navigation }: any) {
 
   // Converter string de valor para número
   function parseValue(value: string): number {
-    const cleaned = value.replace(/[^\d,.-]/g, '').replace(',', '.');
+    // Remove tudo exceto dígitos, vírgula e ponto
+    let cleaned = value.replace(/[^\d,.]/g, '');
+    // Remove pontos (separador de milhares) e substitui vírgula por ponto (separador decimal)
+    cleaned = cleaned.replace(/\./g, '').replace(',', '.');
     return parseFloat(cleaned) || 0;
   }
 
