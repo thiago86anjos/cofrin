@@ -115,6 +115,141 @@ export default function Reports() {
     1
   );
 
+  // Analisar saúde financeira
+  const getHealthStatus = () => {
+    if (!report) {
+      return {
+        status: 'attention' as const,
+        emoji: '🟡',
+        title: 'Sem dados suficientes',
+        subtitle: 'Registre suas movimentações para análise',
+        summary: 'Ainda não temos dados suficientes para avaliar sua saúde financeira este mês.',
+        highlights: [],
+        advice: null
+      };
+    }
+
+    const monthBalance = report.income - report.expense;
+    const hasIncome = report.income > 0;
+    const cardPercentage = report.debtPercentage;
+    const hasImproved = savingsEvolution.improved;
+    const currentBalance = report.balance;
+
+    // Calcular status baseado em múltiplos fatores
+    let status: 'good' | 'attention' | 'risk' = 'good';
+    let points = 0;
+
+    // Fator 1: Uso do cartão
+    if (hasIncome && cardPercentage > 40) points += 3;
+    else if (hasIncome && cardPercentage > 30) points += 2;
+    else if (hasIncome && cardPercentage <= 30) points -= 1;
+
+    // Fator 2: Saldo do mês
+    if (monthBalance < 0) points += 2;
+    else if (monthBalance > 0) points -= 1;
+
+    // Fator 3: Saldo total
+    if (currentBalance < 0) points += 2;
+
+    // Fator 4: Evolução
+    if (!hasImproved && savingsEvolution.difference < -500) points += 1;
+
+    // Definir status
+    if (points >= 4) status = 'risk';
+    else if (points >= 2) status = 'attention';
+    else status = 'good';
+
+    // Construir mensagens personalizadas
+    const highlights: Array<{ icon: string; text: string; color?: string }> = [];
+
+    // Highlight 1: Uso do cartão
+    if (hasIncome && cardPercentage > 0) {
+      const cardZone = cardPercentage <= 30 ? 'saudável' : cardPercentage <= 40 ? 'atenção' : 'risco';
+      const cardEmoji = cardPercentage <= 30 ? '🟢' : cardPercentage <= 40 ? '🟡' : '🔴';
+      highlights.push({
+        icon: 'credit-card',
+        text: `Uso do cartão: ${cardPercentage.toFixed(0)}% da renda ${cardEmoji} (zona ${cardZone})`,
+        color: cardPercentage <= 30 ? colors.income : cardPercentage <= 40 ? (colors.warning || '#F59E0B') : colors.expense
+      });
+    }
+
+    // Highlight 2: Saldo do mês
+    highlights.push({
+      icon: monthBalance >= 0 ? 'check-circle' : 'alert-circle',
+      text: `Saldo do mês: ${monthBalance >= 0 ? 'positivo' : 'negativo'} (${formatCurrencyBRL(monthBalance)})`,
+      color: monthBalance >= 0 ? colors.income : colors.expense
+    });
+
+    // Highlight 3: Evolução
+    highlights.push({
+      icon: hasImproved ? 'trending-up' : 'trending-down',
+      text: `${hasImproved ? 'Melhorou' : 'Diminuiu'} ${formatCurrencyBRL(Math.abs(savingsEvolution.difference))} vs mês anterior`,
+      color: hasImproved ? colors.income : colors.expense
+    });
+
+    // Mensagens por status
+    if (status === 'good') {
+      return {
+        status,
+        emoji: '🟢',
+        title: 'Boa',
+        subtitle: 'Sua situação financeira está equilibrada',
+        summary: monthBalance >= 0 
+          ? 'Você terminou o mês com saldo positivo e manteve seus gastos sob controle. Continue assim!'
+          : 'Você está mantendo um bom controle financeiro. Pequenos ajustes podem deixar seu saldo ainda mais positivo.',
+        highlights,
+        advice: 'Manter o uso do cartão abaixo de 30% da renda ajuda a preservar sua saúde financeira.'
+      };
+    }
+
+    if (status === 'attention') {
+      let summary = '';
+      
+      if (cardPercentage > 30 && monthBalance < 0) {
+        summary = 'Você terminou o mês com saldo negativo e o uso do cartão está acima do recomendado. Pequenos ajustes podem melhorar sua situação.';
+      } else if (cardPercentage > 30) {
+        summary = 'O uso do cartão está acima do recomendado. Considere reduzir um pouco para evitar comprometer demais sua renda.';
+      } else if (monthBalance < 0) {
+        summary = 'Você gastou mais do que recebeu este mês. Veja onde é possível economizar para equilibrar suas finanças.';
+      } else {
+        summary = 'Sua situação está estável, mas alguns pontos merecem atenção para manter o equilíbrio financeiro.';
+      }
+
+      return {
+        status,
+        emoji: '🟡',
+        title: 'Atenção',
+        subtitle: 'Alguns pontos merecem cuidado',
+        summary,
+        highlights,
+        advice: 'Revise seus gastos principais e veja onde é possível reduzir. Até 30% da renda no cartão é o ideal.'
+      };
+    }
+
+    // status === 'risk'
+    let summary = '';
+    
+    if (cardPercentage > 40 && monthBalance < 0) {
+      summary = 'Sua situação precisa de atenção urgente: saldo negativo e uso alto do cartão podem comprometer seu orçamento.';
+    } else if (cardPercentage > 40) {
+      summary = 'O uso do cartão está muito alto em relação à sua renda. Isso pode gerar dificuldades para pagar as faturas.';
+    } else if (currentBalance < 0) {
+      summary = 'Você está com saldo negativo. É importante revisar seus gastos e buscar formas de equilibrar as contas.';
+    } else {
+      summary = 'Alguns sinais indicam risco financeiro. É hora de revisar seu orçamento e fazer ajustes importantes.';
+    }
+
+    return {
+      status,
+      emoji: '🔴',
+      title: 'Risco',
+      subtitle: 'Situação que precisa de atenção',
+      summary,
+      highlights,
+      advice: 'Priorize reduzir o uso do cartão e cortar gastos não essenciais. Seu futuro financeiro agradece.'
+    };
+  };
+
   if (loading) {
     return (
       <MainLayout>
@@ -293,55 +428,94 @@ export default function Reports() {
               )}
             </View>
 
-            {/* Gráfico de evolução */}
+            {/* Saúde financeira do mês */}
             <View style={[styles.card, { backgroundColor: colors.card }, getShadow(colors)]}>
               <View style={styles.cardHeader}>
-                <View style={[styles.iconCircle, { backgroundColor: colors.successBg }]}>
-                  <MaterialCommunityIcons name="trending-up" size={24} color={colors.income} />
+                <View style={[styles.iconCircle, { 
+                  backgroundColor: getHealthStatus().status === 'good' 
+                    ? colors.successBg 
+                    : getHealthStatus().status === 'attention' 
+                    ? colors.warningBg || '#FEF3C7'
+                    : colors.dangerBg 
+                }]}>
+                  <MaterialCommunityIcons 
+                    name={
+                      getHealthStatus().status === 'good' 
+                        ? 'heart-pulse' 
+                        : getHealthStatus().status === 'attention'
+                        ? 'alert-circle'
+                        : 'alert'
+                    }
+                    size={24} 
+                    color={
+                      getHealthStatus().status === 'good' 
+                        ? colors.income 
+                        : getHealthStatus().status === 'attention'
+                        ? colors.warning || '#F59E0B'
+                        : colors.expense
+                    }
+                  />
                 </View>
-                <Text style={[styles.cardTitle, { color: colors.text }]}>Evolução de poupança</Text>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>Saúde financeira do mês</Text>
               </View>
               
-              <Text style={[styles.cardDescription, { color: colors.textMuted }]}>
-                Comparativo do saldo entre o mês anterior e o atual
+              {/* Status principal */}
+              <View style={[styles.healthStatusCard, { 
+                backgroundColor: getHealthStatus().status === 'good' 
+                  ? colors.successBg 
+                  : getHealthStatus().status === 'attention' 
+                  ? colors.warningBg || '#FEF3C7'
+                  : colors.dangerBg 
+              }]}>
+                <Text style={[styles.healthStatusEmoji]}>
+                  {getHealthStatus().emoji}
+                </Text>
+                <View style={styles.healthStatusTextContainer}>
+                  <Text style={[styles.healthStatusTitle, { 
+                    color: getHealthStatus().status === 'good' 
+                      ? colors.income 
+                      : getHealthStatus().status === 'attention'
+                      ? colors.warning || '#F59E0B'
+                      : colors.expense
+                  }]}>
+                    {getHealthStatus().title}
+                  </Text>
+                  <Text style={[styles.healthStatusSubtitle, { color: colors.textMuted }]}>
+                    {getHealthStatus().subtitle}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Resumo em texto */}
+              <Text style={[styles.healthSummary, { color: colors.text }]}>
+                {getHealthStatus().summary}
               </Text>
 
-              <View style={styles.evolutionChart}>
-                <ProgressBar
-                  label={`${monthNames[prevMonth - 1]} ${prevYear}`}
-                  value={savingsEvolution.previous}
-                  maxValue={maxBalance}
-                  color={colors.textMuted}
-                  colors={colors}
-                />
-                <ProgressBar
-                  label={`${monthNames[currentMonth - 1]} ${currentYear}`}
-                  value={savingsEvolution.current}
-                  maxValue={maxBalance}
-                  color={savingsEvolution.improved ? colors.income : colors.expense}
-                  colors={colors}
-                />
+              {/* Destaques rápidos */}
+              <View style={styles.healthHighlights}>
+                {getHealthStatus().highlights.map((highlight, index) => (
+                  <View key={index} style={styles.healthHighlightItem}>
+                    <MaterialCommunityIcons 
+                      name={highlight.icon} 
+                      size={16} 
+                      color={highlight.color || colors.textMuted} 
+                    />
+                    <Text style={[styles.healthHighlightText, { color: colors.text }]}>
+                      {highlight.text}
+                    </Text>
+                  </View>
+                ))}
               </View>
 
-              {/* Indicador de evolução */}
-              <View style={[
-                styles.evolutionIndicator, 
-                { backgroundColor: savingsEvolution.improved ? colors.successBg : colors.dangerBg }
-              ]}>
-                <MaterialCommunityIcons 
-                  name={savingsEvolution.improved ? 'trending-up' : 'trending-down'} 
-                  size={20} 
-                  color={savingsEvolution.improved ? colors.income : colors.expense} 
-                />
-                <Text style={[
-                  styles.evolutionText, 
-                  { color: savingsEvolution.improved ? colors.income : colors.expense }
-                ]}>
-                  {savingsEvolution.improved ? 'Você está guardando mais dinheiro!' : 'Seu saldo diminuiu em relação ao mês passado'}
-                  {' '}
-                  ({savingsEvolution.difference >= 0 ? '+' : ''}{formatCurrencyBRL(savingsEvolution.difference)})
-                </Text>
-              </View>
+              {/* Mensagem orientativa */}
+              {getHealthStatus().advice && (
+                <View style={[styles.healthAdvice, { backgroundColor: colors.primaryBg }]}>
+                  <MaterialCommunityIcons name="lightbulb-on" size={16} color={colors.primary} />
+                  <Text style={[styles.healthAdviceText, { color: colors.primary }]}>
+                    {getHealthStatus().advice}
+                  </Text>
+                </View>
+              )}
             </View>
 
             {/* Top categorias de gastos */}
@@ -661,5 +835,57 @@ const styles = StyleSheet.create({
   },
   categoryPercent: {
     fontSize: 11,
+  },
+  healthStatusCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.md,
+    gap: spacing.md,
+  },
+  healthStatusEmoji: {
+    fontSize: 32,
+  },
+  healthStatusTextContainer: {
+    flex: 1,
+  },
+  healthStatusTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  healthStatusSubtitle: {
+    fontSize: 13,
+  },
+  healthSummary: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: spacing.md,
+  },
+  healthHighlights: {
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  healthHighlightItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  healthHighlightText: {
+    fontSize: 13,
+    flex: 1,
+  },
+  healthAdvice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.sm,
+    borderRadius: borderRadius.sm,
+    gap: spacing.xs,
+  },
+  healthAdviceText: {
+    fontSize: 12,
+    flex: 1,
+    fontWeight: '500',
   },
 });
