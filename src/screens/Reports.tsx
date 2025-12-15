@@ -1,9 +1,10 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppTheme } from '../contexts/themeContext';
 import AppHeader from '../components/AppHeader';
 import MainLayout from '../components/MainLayout';
+import ExpensesByCategoryCard from '../components/ExpensesByCategoryCard';
 import { spacing, borderRadius, getShadow } from '../theme';
 import { formatCurrencyBRL } from '../utils/format';
 import { useMonthReport, useExpensesByCategory } from '../hooks/useFirebaseTransactions';
@@ -336,28 +337,6 @@ export default function Reports() {
               </View>
             </View>
 
-            {/* Balanço do mês */}
-            <View style={[styles.card, { backgroundColor: colors.card }, getShadow(colors)]}>
-              <View style={styles.cardHeader}>
-                <View style={[styles.iconCircle, { backgroundColor: colors.primaryBg }]}>
-                  <MaterialCommunityIcons name="scale-balance" size={24} color={colors.primary} />
-                </View>
-                <Text style={[styles.cardTitle, { color: colors.text }]}>Balanço do mês</Text>
-              </View>
-              
-              <View style={styles.balanceRow}>
-                <Text style={[styles.balanceLabel, { color: colors.textMuted }]}>
-                  Receitas - Despesas
-                </Text>
-                <Text style={[
-                  styles.balanceValue, 
-                  { color: (report?.balance || 0) >= 0 ? colors.income : colors.expense }
-                ]}>
-                  {formatCurrencyBRL(report?.balance || 0)}
-                </Text>
-              </View>
-            </View>
-
             {/* Compromisso futuro */}
             <View style={[styles.card, { backgroundColor: colors.card }, getShadow(colors)]}>
               <View style={styles.cardHeader}>
@@ -496,7 +475,7 @@ export default function Reports() {
                 {getHealthStatus().highlights.map((highlight, index) => (
                   <View key={index} style={styles.healthHighlightItem}>
                     <MaterialCommunityIcons 
-                      name={highlight.icon} 
+                      name={highlight.icon as any} 
                       size={16} 
                       color={highlight.color || colors.textMuted} 
                     />
@@ -519,52 +498,12 @@ export default function Reports() {
             </View>
 
             {/* Top categorias de gastos */}
-            {categoryExpenses.length > 0 && (
-              <View style={[styles.card, { backgroundColor: colors.card }, getShadow(colors)]}>
-                <View style={styles.cardHeader}>
-                  <View style={[styles.iconCircle, { backgroundColor: colors.dangerBg }]}>
-                    <MaterialCommunityIcons name="chart-pie" size={24} color={colors.expense} />
-                  </View>
-                  <Text style={[styles.cardTitle, { color: colors.text }]}>Gastos por categoria</Text>
-                </View>
-
-                <View style={styles.categoryList}>
-                  {categoryExpenses.slice(0, 5).map((cat, index) => {
-                    const percentage = report?.expense 
-                      ? ((cat.total / report.expense) * 100).toFixed(0) 
-                      : '0';
-                    
-                    return (
-                      <View key={cat.categoryId} style={styles.categoryItem}>
-                        <View style={styles.categoryLeft}>
-                          <View style={[styles.categoryRank, { backgroundColor: colors.primaryBg }]}>
-                            <Text style={[styles.categoryRankText, { color: colors.primary }]}>
-                              {index + 1}
-                            </Text>
-                          </View>
-                          <MaterialCommunityIcons 
-                            name={cat.categoryIcon as any} 
-                            size={20} 
-                            color={colors.text} 
-                          />
-                          <Text style={[styles.categoryName, { color: colors.text }]}>
-                            {cat.categoryName}
-                          </Text>
-                        </View>
-                        <View style={styles.categoryRight}>
-                          <Text style={[styles.categoryValue, { color: colors.expense }]}>
-                            {formatCurrencyBRL(cat.total)}
-                          </Text>
-                          <Text style={[styles.categoryPercent, { color: colors.textMuted }]}>
-                            {percentage}%
-                          </Text>
-                        </View>
-                      </View>
-                    );
-                  })}
-                </View>
-              </View>
-            )}
+            <ExpensesByCategoryCard 
+              expenses={categoryExpenses}
+              totalExpenses={report?.expense || 0}
+              maxItems={5}
+              showTitle={true}
+            />
 
           </View>
         </View>
@@ -796,45 +735,6 @@ const styles = StyleSheet.create({
   evolutionText: {
     fontSize: 13,
     flex: 1,
-  },
-  categoryList: {
-    gap: spacing.sm,
-  },
-  categoryItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  categoryLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    flex: 1,
-  },
-  categoryRank: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryRankText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  categoryName: {
-    fontSize: 14,
-    flex: 1,
-  },
-  categoryRight: {
-    alignItems: 'flex-end',
-  },
-  categoryValue: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  categoryPercent: {
-    fontSize: 11,
   },
   healthStatusCard: {
     flexDirection: 'row',

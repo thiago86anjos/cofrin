@@ -2,7 +2,7 @@ import { View, StyleSheet, ScrollView, useWindowDimensions } from "react-native"
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../contexts/authContext";
 import { useAppTheme } from "../contexts/themeContext";
-import { useTransactions } from "../hooks/useFirebaseTransactions";
+import { useTransactions, useExpensesByCategory } from "../hooks/useFirebaseTransactions";
 import { useAccounts } from "../hooks/useAccounts";
 import { useCreditCards } from "../hooks/useCreditCards";
 import { useTransactionRefresh } from "../contexts/transactionRefreshContext";
@@ -11,7 +11,7 @@ import AppHeader from "../components/AppHeader";
 import MainLayout from "../components/MainLayout";
 import HomeOverview from "../components/home/HomeOverview";
 import BalanceCard from "../components/home/BalanceCard";
-import TopExpensesCard from "../components/home/TopExpensesCard";
+import ExpensesByCategoryCard from "../components/ExpensesByCategoryCard";
 import CreditCardsCard from "../components/home/CreditCardsCard";
 import { ACCOUNT_TYPE_LABELS } from "../types/firebase";
 
@@ -45,6 +45,9 @@ export default function Home() {
 
   // Hook de cartões de crédito do Firebase
   const { activeCards, refresh: refreshCreditCards } = useCreditCards();
+
+  // Hook de gastos por categoria
+  const { expenses: categoryExpenses } = useExpensesByCategory(currentMonth, currentYear);
 
   // Calcular saldo total das contas e formatar para o componente
   const { totalAccountsBalance, formattedAccounts } = useMemo(() => {
@@ -140,8 +143,11 @@ export default function Home() {
         <View style={{ height: 12 }} />
         <View style={{ flexDirection: isNarrow ? 'column' : 'row' }}>
           <View style={{ flex: 1 }}>
-            <TopExpensesCard 
-              onDetailsPress={() => navigation.navigate('Relatórios')}
+            <ExpensesByCategoryCard 
+              expenses={categoryExpenses}
+              totalExpenses={totalExpense}
+              maxItems={3}
+              showTitle={true}
             />
           </View>
           {!isNarrow && <View style={{ flex: 1 }} />}
