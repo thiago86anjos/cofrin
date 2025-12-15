@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/authContext';
+import { useTransactionRefresh } from '../contexts/transactionRefreshContext';
 import {
     Category,
     CreateCategoryInput,
@@ -14,6 +15,7 @@ import * as categoryService from '../services/categoryService';
 
 export function useCategories(type?: CategoryType) {
   const { user } = useAuth();
+  const { refreshKey } = useTransactionRefresh();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,10 +48,10 @@ export function useCategories(type?: CategoryType) {
     }
   }, [user?.uid, type]);
 
-  // Carregar ao montar
+  // Carregar ao montar e quando refreshKey mudar
   useEffect(() => {
     loadCategories();
-  }, [loadCategories]);
+  }, [loadCategories, refreshKey]);
 
   // Criar categoria
   const createCategory = async (data: CreateCategoryInput): Promise<Category | null> => {

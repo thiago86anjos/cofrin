@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/authContext';
+import { useTransactionRefresh } from '../contexts/transactionRefreshContext';
 import * as goalService from '../services/goalService';
 import { Goal } from '../types/firebase';
 
 export function useGoal() {
   const { user } = useAuth();
+  const { refreshKey } = useTransactionRefresh();
   const [goal, setGoal] = useState<Goal | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +33,7 @@ export function useGoal() {
 
   useEffect(() => {
     fetchGoal();
-  }, [user?.uid]);
+  }, [user?.uid, refreshKey]);
 
   const refresh = () => {
     fetchGoal();

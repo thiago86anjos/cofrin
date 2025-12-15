@@ -302,7 +302,7 @@ export default function AddTransactionModal({
         }
       }
     }
-  }, [visible, initialType, editTransaction, refreshCategories, refreshAccounts, refreshCreditCards, refreshKey]); // Removido activeAccounts e categories
+  }, [visible, initialType, refreshCategories, refreshAccounts, refreshCreditCards, refreshKey]); // Removido editTransaction para permitir edição de tipo
 
   // Sync tempDate when opening date picker
   useEffect(() => {
@@ -401,7 +401,7 @@ export default function AddTransactionModal({
         : undefined;
 
       // Build base transaction data without undefined fields
-      const buildTransactionData = (transactionDate: Date): CreateTransactionInput => {
+      const buildTransactionData = (transactionDate: Date, amountPerTransaction?: number): CreateTransactionInput => {
         // Status baseado na data: futuro = pendente, passado/hoje = concluído
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -411,7 +411,7 @@ export default function AddTransactionModal({
 
         const data: CreateTransactionInput = {
           type: firebaseType,
-          amount: parsed,
+          amount: amountPerTransaction ?? parsed,
           description: description.trim() || categoryName,
           date: Timestamp.fromDate(transactionDate),
           recurrence,
@@ -444,20 +444,51 @@ export default function AddTransactionModal({
       let success = false;
       
       if (isEditMode && editTransaction) {
-        // Update existing transaction (não cria repetições na edição)
-        const transactionData = buildTransactionData(date);
-        success = await updateTransaction(editTransaction.id, transactionData);
-        if (success) {
-          showAlert('Sucesso', 'Lançamento atualizado!', [{ text: 'OK', style: 'default' }]);
+        // Verificar se está tentando adicionar recorrência a uma transação existente
+        const addingRecurrence = editTransaction.recurrence === 'none' && recurrence !== 'none' && repetitions > 1;
+        
+        if (addingRecurrence) {
+          // Criar novas transações recorrentes a partir desta
+          const totalToCreate = repetitions;
+          const amountPerInstallment = parsed / totalToCreate;
+          let createdCount = 0;
+
+          for (let i = 0; i < totalToCreate; i++) {
+            const transactionDate = getNextDate(date, i);
+            const transactionData = buildTransactionData(transactionDate, amountPerInstallment);
+            const result = await createTransaction(transactionData);
+            if (result) {
+              createdCount++;
+            }
+          }
+
+          // Deletar a transação original
+          if (createdCount > 0 && onDelete) {
+            onDelete(editTransaction.id);
+          }
+
+          success = createdCount === totalToCreate;
+          if (success) {
+            const valuePerInstallment = formatCurrency(Math.round(amountPerInstallment * 100).toString());
+            showAlert('Sucesso', `${createdCount} lançamentos criados!\n${totalToCreate}x de ${valuePerInstallment}`, [{ text: 'OK', style: 'default' }]);
+          }
+        } else {
+          // Update existing transaction normalmente (sem adicionar recorrência)
+          const transactionData = buildTransactionData(date);
+          success = await updateTransaction(editTransaction.id, transactionData);
+          if (success) {
+            showAlert('Sucesso', 'Lançamento atualizado!', [{ text: 'OK', style: 'default' }]);
+          }
         }
       } else {
         // Create new transaction(s)
         const totalToCreate = recurrence === 'none' ? 1 : repetitions;
+        const amountPerInstallment = recurrence === 'none' ? parsed : parsed / totalToCreate;
         let createdCount = 0;
 
         for (let i = 0; i < totalToCreate; i++) {
           const transactionDate = getNextDate(date, i);
-          const transactionData = buildTransactionData(transactionDate);
+          const transactionData = buildTransactionData(transactionDate, amountPerInstallment);
           const result = await createTransaction(transactionData);
           if (result) {
             createdCount++;
@@ -467,7 +498,7 @@ export default function AddTransactionModal({
         success = createdCount === totalToCreate;
         if (success) {
           if (totalToCreate > 1) {
-            const valuePerInstallment = formatCurrency(Math.round((parsed / totalToCreate) * 100).toString());
+            const valuePerInstallment = formatCurrency(Math.round(amountPerInstallment * 100).toString());
             showAlert('Sucesso', `${createdCount} lançamentos criados!\n${totalToCreate}x de ${valuePerInstallment}`, [{ text: 'OK', style: 'default' }]);
           } else {
             showAlert('Sucesso', 'Lançamento salvo!', [{ text: 'OK', style: 'default' }]);

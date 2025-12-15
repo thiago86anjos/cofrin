@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/authContext';
+import { useTransactionRefresh } from '../contexts/transactionRefreshContext';
 import {
     CreditCard,
     CreateCreditCardInput,
@@ -15,6 +16,7 @@ import { deleteTransactionsByCreditCard } from '../services/transactionService';
 
 export function useCreditCards(includeArchived: boolean = false) {
   const { user } = useAuth();
+  const { refreshKey } = useTransactionRefresh();
   const [creditCards, setCreditCards] = useState<CreditCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,10 +46,10 @@ export function useCreditCards(includeArchived: boolean = false) {
     }
   }, [user?.uid, includeArchived]);
 
-  // Carregar ao montar
+  // Carregar ao montar e quando refreshKey mudar
   useEffect(() => {
     loadCreditCards();
-  }, [loadCreditCards]);
+  }, [loadCreditCards, refreshKey]);
 
   // Criar cartão
   const createCreditCard = async (data: CreateCreditCardInput): Promise<CreditCard | null> => {
