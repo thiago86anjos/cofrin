@@ -24,10 +24,11 @@ interface Props {
     timeframe: GoalTimeframe;
     icon: string;
   }) => Promise<void>;
+  onDelete?: () => Promise<void>;
   existingGoal?: Goal | null;
 }
 
-export default function CreateGoalModal({ visible, onClose, onSave, existingGoal }: Props) {
+export default function CreateGoalModal({ visible, onClose, onSave, onDelete, existingGoal }: Props) {
   const { colors } = useAppTheme();
   
   const [name, setName] = useState('');
@@ -35,6 +36,7 @@ export default function CreateGoalModal({ visible, onClose, onSave, existingGoal
   const [timeframe, setTimeframe] = useState<GoalTimeframe>('medium');
   const [icon, setIcon] = useState('flag-checkered');
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
 
   // Preencher com dados existentes se estiver editando
@@ -81,6 +83,21 @@ export default function CreateGoalModal({ visible, onClose, onSave, existingGoal
       setError(err.message || 'Erro ao salvar meta');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    
+    try {
+      setDeleting(true);
+      setError('');
+      await onDelete();
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Erro ao excluir meta');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -227,6 +244,24 @@ export default function CreateGoalModal({ visible, onClose, onSave, existingGoal
               <Text style={[styles.errorText, { color: colors.expense }]}>{error}</Text>
             ) : null}
 
+            {/* Botão de excluir (só aparece ao editar) */}
+            {existingGoal && onDelete && (
+              <Pressable
+                onPress={handleDelete}
+                disabled={deleting}
+                style={[
+                  styles.deleteButton,
+                  { borderColor: colors.expense },
+                  deleting && { opacity: 0.6 }
+                ]}
+              >
+                <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.expense} />
+                <Text style={[styles.deleteButtonText, { color: colors.expense }]}>
+                  {deleting ? 'Excluindo...' : 'Excluir meta'}
+                </Text>
+              </Pressable>
+            )}
+
             {/* Botões */}
             <View style={styles.buttons}>
               <Pressable
@@ -362,10 +397,24 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     textAlign: 'center',
   },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingVertical: 12,
+    marginTop: spacing.lg,
+  },
+  deleteButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
   buttons: {
     flexDirection: 'row',
     gap: spacing.md,
-    marginTop: spacing.xl,
+    marginTop: spacing.md,
     marginBottom: spacing.md,
   },
   cancelButton: {

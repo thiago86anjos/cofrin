@@ -24,6 +24,7 @@ import { updateAccountBalance } from './accountService';
 import { getCategoryById } from './categoryService';
 import { getAccountById } from './accountService';
 import { getCreditCardById, updateCreditCardUsage } from './creditCardService';
+import { removeFromGoalProgress } from './goalService';
 
 const transactionsRef = collection(db, COLLECTIONS.TRANSACTIONS);
 
@@ -120,6 +121,8 @@ export async function createTransaction(
   if (data.recurrenceEndDate) transactionData.recurrenceEndDate = data.recurrenceEndDate;
   if (data.parentTransactionId) transactionData.parentTransactionId = data.parentTransactionId;
   if (data.seriesId) transactionData.seriesId = data.seriesId;
+  if (data.goalId) transactionData.goalId = data.goalId;
+  if (data.goalName) transactionData.goalName = data.goalName;
 
   const docRef = await addDoc(transactionsRef, transactionData);
 
@@ -437,6 +440,11 @@ export async function deleteTransaction(transaction: Transaction): Promise<void>
       { ...transaction, type: transaction.type },
       true
     );
+  }
+
+  // Se for transação de aporte em meta, decrementar o valor da meta
+  if (transaction.goalId && transaction.status === 'completed') {
+    await removeFromGoalProgress(transaction.goalId, transaction.amount);
   }
 
   // Deletar transação

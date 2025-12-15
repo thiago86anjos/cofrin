@@ -123,6 +123,13 @@ export default function Reports() {
     refreshGoal();
   };
 
+  // Excluir meta
+  const handleDeleteGoal = async () => {
+    if (!goal) return;
+    await goalService.deleteGoal(goal.id);
+    refreshGoal();
+  };
+
   // Nomes dos meses
   const monthNames = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -551,6 +558,7 @@ export default function Reports() {
               visible={showGoalModal}
               onClose={() => setShowGoalModal(false)}
               onSave={handleSaveGoal}
+              onDelete={handleDeleteGoal}
               existingGoal={goal}
             />
 

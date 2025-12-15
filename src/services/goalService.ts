@@ -155,6 +155,23 @@ export async function addToGoalProgress(
   await updateDoc(docRef, updateData);
 }
 
+// Remover valor do progresso da meta (quando excluir transação de aporte)
+export async function removeFromGoalProgress(
+  goalId: string,
+  amount: number
+): Promise<void> {
+  const goal = await getGoalById(goalId);
+  if (!goal) return; // Se a meta não existe mais, não faz nada
+
+  const newAmount = Math.max(0, goal.currentAmount - amount);
+
+  const docRef = doc(db, COLLECTIONS.GOALS, goalId);
+  await updateDoc(docRef, {
+    currentAmount: newAmount,
+    updatedAt: Timestamp.now(),
+  });
+}
+
 // Definir progresso da meta (valor absoluto)
 export async function setGoalProgress(
   goalId: string,

@@ -122,6 +122,13 @@ export default function Home() {
     refreshAccounts();
   };
 
+  // Excluir meta
+  const handleDeleteGoal = async () => {
+    if (!goal) return;
+    await goalService.deleteGoal(goal.id);
+    refreshGoal();
+  };
+
   // Calcular saldo total das contas e formatar para o componente
   const { totalAccountsBalance, formattedAccounts } = useMemo(() => {
     const total = accounts
@@ -229,6 +236,7 @@ export default function Home() {
           visible={showGoalModal}
           onClose={() => setShowGoalModal(false)}
           onSave={handleSaveGoal}
+          onDelete={handleDeleteGoal}
           existingGoal={goal}
         />
 
