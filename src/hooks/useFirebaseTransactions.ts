@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/authContext';
+import { useTransactionRefresh } from '../contexts/transactionRefreshContext';
 import {
     Transaction,
     CreateTransactionInput,
@@ -262,6 +263,7 @@ export function useMonthTotals(month: number, year: number) {
 // Hook para gastos por categoria
 export function useExpensesByCategory(month: number, year: number) {
   const { user } = useAuth();
+  const { refreshKey } = useTransactionRefresh();
   const [expenses, setExpenses] = useState<Array<{
     categoryId: string;
     categoryName: string;
@@ -298,6 +300,13 @@ export function useExpensesByCategory(month: number, year: number) {
     loadExpenses();
   }, [loadExpenses]);
 
+  // Recarregar quando ocorrerem mudanças globais (criar/editar/excluir)
+  useEffect(() => {
+    if (refreshKey > 0) {
+      loadExpenses();
+    }
+  }, [refreshKey, loadExpenses]);
+
   const total = expenses.reduce((sum, e) => sum + e.total, 0);
 
   return {
@@ -312,6 +321,7 @@ export function useExpensesByCategory(month: number, year: number) {
 // Hook para relatório completo do mês
 export function useMonthReport(month: number, year: number) {
   const { user } = useAuth();
+  const { refreshKey } = useTransactionRefresh();
   const [report, setReport] = useState<{
     income: number;
     expense: number;
@@ -350,6 +360,13 @@ export function useMonthReport(month: number, year: number) {
   useEffect(() => {
     loadReport();
   }, [loadReport]);
+
+  // Recarregar quando ocorrerem mudanças globais (criar/editar/excluir)
+  useEffect(() => {
+    if (refreshKey > 0) {
+      loadReport();
+    }
+  }, [refreshKey, loadReport]);
 
   return {
     report,

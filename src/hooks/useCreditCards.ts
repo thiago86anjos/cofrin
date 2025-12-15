@@ -11,6 +11,7 @@ import {
     CreditCardBill,
 } from '../types/firebase';
 import * as creditCardService from '../services/creditCardService';
+import { deleteTransactionsByCreditCard } from '../services/transactionService';
 
 export function useCreditCards(includeArchived: boolean = false) {
   const { user } = useAuth();
@@ -114,7 +115,10 @@ export function useCreditCards(includeArchived: boolean = false) {
 
   // Deletar cartão
   const deleteCreditCard = async (cardId: string): Promise<boolean> => {
+    if (!user?.uid) return false;
     try {
+      // Ao excluir o cartão, excluir também todos os lançamentos vinculados a ele
+      await deleteTransactionsByCreditCard(user.uid, cardId);
       await creditCardService.deleteCreditCard(cardId);
       setCreditCards(prev => prev.filter(card => card.id !== cardId));
       return true;

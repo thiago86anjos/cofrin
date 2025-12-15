@@ -149,27 +149,7 @@ export default function CreditCards({ navigation }: any) {
     }
   }
 
-  async function handleArchive(cardId: string, cardName: string) {
-    showAlert(
-      'Arquivar cartão',
-      `Deseja arquivar o cartão "${cardName}"? Ele não aparecerá mais na lista, mas você pode restaurá-lo depois.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Arquivar', 
-          style: 'destructive',
-          onPress: async () => {
-            const result = await archiveCreditCard(cardId);
-            if (!result) {
-              showAlert('Erro', 'Não foi possível arquivar o cartão', [{ text: 'OK', style: 'default' }]);
-            } else {
-              triggerRefresh();
-            }
-          }
-        },
-      ]
-    );
-  }
+  // Arquivar cartão foi removido do fluxo.
 
   // Abrir modal de edição
   function openEditModal(card: CreditCard) {
@@ -285,31 +265,7 @@ export default function CreditCards({ navigation }: any) {
     );
   }
 
-  // Arquivar cartão do modal
-  async function handleArchiveFromModal() {
-    if (!editingCard) return;
-    
-    showAlert(
-      'Arquivar cartão?',
-      `O cartão "${editingCard.name}" será arquivado e não aparecerá mais na lista.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Arquivar', 
-          onPress: async () => {
-            const result = await archiveCreditCard(editingCard.id);
-            if (result) {
-              setEditModalVisible(false);
-              setEditingCard(null);
-              triggerRefresh();
-            } else {
-              showAlert('Erro', 'Não foi possível arquivar o cartão', [{ text: 'OK', style: 'default' }]);
-            }
-          }
-        },
-      ]
-    );
-  }
+  // Arquivar cartão no modal foi removido.
 
   // Excluir cartão do modal
   async function handleDeleteFromModal() {
@@ -317,7 +273,7 @@ export default function CreditCards({ navigation }: any) {
     
     showAlert(
       'Excluir permanentemente?',
-      `O cartão "${editingCard.name}" será excluído e não poderá ser recuperado. Lançamentos associados NÃO serão excluídos.`,
+      `O cartão "${editingCard.name}" será excluído e não poderá ser recuperado. Os lançamentos associados a ele também serão excluídos.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         { 
@@ -401,8 +357,6 @@ export default function CreditCards({ navigation }: any) {
                   <Pressable
                     key={card.id}
                     onPress={() => openEditModal(card)}
-                    onLongPress={() => handleArchive(card.id, card.name)}
-                    delayLongPress={500}
                     style={({ pressed }) => [
                       styles.cardItem,
                       index < activeCards.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border },
@@ -722,20 +676,8 @@ export default function CreditCards({ navigation }: any) {
                   </View>
                 </Pressable>
 
-                {/* Botões de Arquivar e Excluir */}
+                {/* Botões de Confirmar e Excluir */}
                 <View style={styles.modalActions}>
-                  <Pressable
-                    onPress={handleArchiveFromModal}
-                    style={({ pressed }) => [
-                      styles.actionButton,
-                      { backgroundColor: colors.bg, borderColor: colors.border },
-                      pressed && { opacity: 0.7 },
-                    ]}
-                  >
-                    <MaterialCommunityIcons name="archive-outline" size={20} color={colors.textMuted} />
-                    <Text style={[styles.actionButtonText, { color: colors.text }]}>Arquivar</Text>
-                  </Pressable>
-
                   <Pressable
                     onPress={handleDeleteFromModal}
                     style={({ pressed }) => [
@@ -747,6 +689,22 @@ export default function CreditCards({ navigation }: any) {
                   >
                     <MaterialCommunityIcons name="delete-outline" size={20} color={colors.expense} />
                     <Text style={[styles.actionButtonText, { color: colors.expense }]}>Excluir</Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={handleSaveEdit}
+                    disabled={saving || !editName.trim()}
+                    style={({ pressed }) => [
+                      styles.actionButton,
+                      { backgroundColor: colors.primary, borderColor: colors.primary },
+                      pressed && { opacity: 0.9 },
+                      (saving || !editName.trim()) && { opacity: 0.6 },
+                    ]}
+                  >
+                    <MaterialCommunityIcons name="check" size={20} color="#fff" />
+                    <Text style={[styles.actionButtonText, { color: '#fff' }]}>
+                      {saving ? 'Salvando...' : 'Confirmar'}
+                    </Text>
                   </Pressable>
                 </View>
               </View>
