@@ -10,6 +10,7 @@ import ConfigureAccounts from "../screens/ConfigureAccounts";
 import CreditCards from "../screens/CreditCards";
 import CreditCardBillDetails from "../screens/CreditCardBillDetails";
 import Categories from "../screens/Categories";
+import About from "../screens/About";
 import { useAuth } from "../contexts/authContext";
 import Launches from "../screens/Launches";
 import Reports from "../screens/Reports";
@@ -40,6 +41,7 @@ export default function RootNavigation() {
           <Stack.Screen name="CreditCards" component={CreditCards} />
           <Stack.Screen name="CreditCardBillDetails" component={CreditCardBillDetails} />
           <Stack.Screen name="Categories" component={Categories} />
+          <Stack.Screen name="About" component={About} />
         </Stack.Navigator>
       ) : (
         // ROTAS PÚBLICAS

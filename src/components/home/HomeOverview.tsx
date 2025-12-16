@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     borderRadius: borderRadius.md,
-    flex: 1,
+    minWidth: 110,
   },
   actionLabel: {
     color: '#fff',

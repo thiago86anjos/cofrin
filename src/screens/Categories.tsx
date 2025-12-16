@@ -96,15 +96,17 @@ export default function Categories({ navigation }: any) {
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.primary }]}>
-        <Pressable 
-          onPress={() => navigation.goBack()} 
-          style={styles.backButton}
-          hitSlop={12}
-        >
-          <MaterialCommunityIcons name="arrow-left" size={24} color="#fff" />
-        </Pressable>
-        <Text style={styles.headerTitle}>Categorias</Text>
-        <View style={{ width: 24 }} />
+        <View style={styles.headerInner}>
+          <Pressable 
+            onPress={() => navigation.goBack()} 
+            style={styles.backButton}
+            hitSlop={12}
+          >
+            <MaterialCommunityIcons name="arrow-left" size={24} color="#fff" />
+          </Pressable>
+          <Text style={styles.headerTitle}>Categorias</Text>
+          <View style={{ width: 24 }} />
+        </View>
       </View>
 
       <ScrollView 
@@ -338,11 +340,16 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   header: {
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingBottom: 16,
+  },
+  headerInner: {
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingBottom: 16,
     paddingHorizontal: spacing.md,
   },
   backButton: {

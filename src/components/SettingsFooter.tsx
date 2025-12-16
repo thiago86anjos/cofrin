@@ -51,28 +51,30 @@ export default function SettingsFooter({ navigation }: SettingsFooterProps) {
             getShadow(colors, 'lg'),
           ]}
         >
-          <View style={styles.row}>
-            <Pressable
-              onPress={() => navigation.navigate('Bem-vindo')}
-              style={({ pressed }) => [
-                styles.button,
-                pressed && { opacity: 0.7 },
-              ]}
-            >
-              <MaterialCommunityIcons name="home" size={24} color={colors.primary} />
-              <Text style={[styles.buttonText, { color: colors.primary }]}>Home</Text>
-            </Pressable>
+          <View style={styles.centeredContent}>
+            <View style={styles.row}>
+              <Pressable
+                onPress={() => navigation.navigate('Bem-vindo')}
+                style={({ pressed }) => [
+                  styles.button,
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <MaterialCommunityIcons name="home" size={24} color={colors.primary} />
+                <Text style={[styles.buttonText, { color: colors.primary }]}>Home</Text>
+              </Pressable>
 
-            <Pressable
-              onPress={handleLogout}
-              style={({ pressed }) => [
-                styles.button,
-                pressed && { opacity: 0.7 },
-              ]}
-            >
-              <MaterialCommunityIcons name="logout" size={24} color={colors.expense} />
-              <Text style={[styles.buttonText, { color: colors.expense }]}>Sair</Text>
-            </Pressable>
+              <Pressable
+                onPress={handleLogout}
+                style={({ pressed }) => [
+                  styles.button,
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <MaterialCommunityIcons name="logout" size={24} color={colors.expense} />
+                <Text style={[styles.buttonText, { color: colors.expense }]}>Sair</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </View>
@@ -92,6 +94,11 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     paddingHorizontal: spacing.md,
     borderTopWidth: 1,
+  },
+  centeredContent: {
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
   },
   row: {
     height: 56,

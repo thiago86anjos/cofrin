@@ -6,6 +6,8 @@ import { useCustomAlert } from "../hooks/useCustomAlert";
 import CustomAlert from "../components/CustomAlert";
 import SettingsFooter from "../components/SettingsFooter";
 import { spacing, borderRadius, getShadow } from "../theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useMemo } from "react";
 
 interface MenuItem {
   id: string;
@@ -19,6 +21,12 @@ export default function Settings({ navigation }: any) {
   const { colors } = useAppTheme();
   const { user } = useAuth();
   const { alertState, showAlert, hideAlert } = useCustomAlert();
+  const insets = useSafeAreaInsets();
+
+  const bottomPad = useMemo(
+    () => 56 + spacing.sm + Math.max(insets.bottom, 8) + spacing.lg,
+    [insets.bottom]
+  );
 
   const userName = user?.displayName || user?.email?.split('@')[0] || 'Usuário';
   const userEmail = user?.email || '';
@@ -33,7 +41,7 @@ export default function Settings({ navigation }: any) {
   const secondaryItems: MenuItem[] = [
     { id: "notifications", label: "Notificações", icon: "bell-outline" },
     { id: "help", label: "Ajuda & Suporte", icon: "help-circle-outline" },
-    { id: "about", label: "Sobre o app", icon: "information-outline" },
+    { id: "about", label: "Sobre o app", icon: "information-outline", screen: "About" },
   ];
 
   function handlePress(item: MenuItem) {
@@ -70,36 +78,39 @@ export default function Settings({ navigation }: any) {
   }
 
   return (
-    <ScrollView 
-      style={[styles.container, { backgroundColor: colors.bg }]} 
-      contentContainerStyle={styles.scrollContent}
-    >
-      {/* Header com perfil */}
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
-        {/* Botão voltar */}
-        <Pressable 
-          onPress={() => navigation.goBack()} 
-          style={styles.backButton}
-          hitSlop={12}
-        >
-          <MaterialCommunityIcons name="arrow-left" size={24} color="#fff" />
-        </Pressable>
-
-        <View style={styles.profileSection}>
-          <View style={styles.avatarCircle}>
-            <MaterialCommunityIcons name="account" size={40} color={colors.primary} />
-          </View>
-          <View style={styles.profileInfo}>
-            <Text style={styles.userName}>{userName}</Text>
-            <Text style={styles.userEmail}>{userEmail}</Text>
-          </View>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomPad }]}
+      >
+        {/* Header com perfil */}
+        <View style={[styles.header, { backgroundColor: colors.primary }]}>
+        <View style={styles.headerInner}>
+          {/* Botão voltar */}
           <Pressable 
-            onPress={() => navigation.navigate('EditProfile')}
-            style={styles.editButton}
-            hitSlop={8}
+            onPress={() => navigation.goBack()} 
+            style={styles.backButton}
+            hitSlop={12}
           >
-            <MaterialCommunityIcons name="pencil" size={18} color="#fff" />
+            <MaterialCommunityIcons name="arrow-left" size={24} color="#fff" />
           </Pressable>
+
+          <View style={styles.profileSection}>
+            <View style={styles.avatarCircle}>
+              <MaterialCommunityIcons name="account" size={40} color={colors.primary} />
+            </View>
+            <View style={styles.profileInfo}>
+              <Text style={styles.userName}>{userName}</Text>
+              <Text style={styles.userEmail}>{userEmail}</Text>
+            </View>
+            <Pressable 
+              onPress={() => navigation.navigate('EditProfile')}
+              style={styles.editButton}
+              hitSlop={8}
+            >
+              <MaterialCommunityIcons name="pencil" size={18} color="#fff" />
+            </Pressable>
+          </View>
         </View>
       </View>
 
@@ -125,16 +136,12 @@ export default function Settings({ navigation }: any) {
             {secondaryItems.map((item, idx) => renderMenuItem(item, idx === secondaryItems.length - 1))}
           </View>
         </View>
-
-        {/* Versão */}
-        <Text style={[styles.version, { color: colors.textMuted }]}>
-          Cofrin v1.0.0
-        </Text>
         </View>
       </View>
+      </ScrollView>
       <CustomAlert {...alertState} onClose={hideAlert} />
       <SettingsFooter navigation={navigation} />
-    </ScrollView>
+    </View>
   );
 }
 
@@ -142,8 +149,11 @@ const styles = StyleSheet.create({
   container: { 
     flex: 1,
   },
+  scrollView: {
+    flex: 1,
+  },
   scrollContent: {
-    paddingBottom: 150,
+    flexGrow: 1,
   },
   centeredContainer: {
     maxWidth: 1200,
@@ -153,6 +163,11 @@ const styles = StyleSheet.create({
   header: {
     paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingBottom: 24,
+  },
+  headerInner: {
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
     paddingHorizontal: spacing.lg,
   },
   backButton: {
@@ -231,10 +246,5 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     marginLeft: 62,
-  },
-  version: {
-    textAlign: 'center',
-    fontSize: 12,
-    marginTop: spacing.xl,
   },
 });
