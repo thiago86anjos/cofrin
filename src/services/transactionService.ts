@@ -3,22 +3,22 @@
 // ==========================================
 
 import {
-    collection,
-    doc,
-    addDoc,
-    updateDoc,
-    deleteDoc,
-    getDocs,
-    getDoc,
-    query,
-    where, Timestamp
+  collection,
+  doc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  getDocs,
+  getDoc,
+  query,
+  where, Timestamp
 } from 'firebase/firestore';
 import { db, COLLECTIONS } from './firebase';
 import {
-    Transaction,
-    CreateTransactionInput,
-    UpdateTransactionInput,
-    TransactionType,
+  Transaction,
+  CreateTransactionInput,
+  UpdateTransactionInput,
+  TransactionType,
 } from '../types/firebase';
 import { updateAccountBalance } from './accountService';
 import { getCategoryById } from './categoryService';
@@ -198,7 +198,7 @@ export async function getTransactionsByMonth(
     ...doc.data(),
   })) as Transaction[];
   
-  return transactions.sort((a, b) => b.date.toMillis() - a.date.toMillis());
+  return transactions.sort((a, b) => a.date.toMillis() - b.date.toMillis());
 }
 
 // Buscar transações por período
@@ -220,7 +220,7 @@ export async function getTransactionsByPeriod(
     ...doc.data(),
   })) as Transaction[];
   
-  return transactions.sort((a, b) => b.date.toMillis() - a.date.toMillis());
+  return transactions.sort((a, b) => a.date.toMillis() - b.date.toMillis());
 }
 
 // Buscar transações por tipo
@@ -254,7 +254,7 @@ export async function getTransactionsByType(
     ...doc.data(),
   })) as Transaction[];
   
-  return transactions.sort((a, b) => b.date.toMillis() - a.date.toMillis());
+  return transactions.sort((a, b) => a.date.toMillis() - b.date.toMillis());
 }
 
 // Buscar transações por conta
@@ -312,7 +312,7 @@ export async function getTransactionsByAccount(
   // Ordenar por data e remover duplicatas
   return transactions
     .filter((t, index, self) => self.findIndex(x => x.id === t.id) === index)
-    .sort((a, b) => b.date.toMillis() - a.date.toMillis());
+    .sort((a, b) => a.date.toMillis() - b.date.toMillis());
 }
 
 // Buscar transações por cartão de crédito
@@ -346,7 +346,7 @@ export async function getTransactionsByCreditCard(
     ...doc.data(),
   })) as Transaction[];
   
-  return transactions.sort((a, b) => b.date.toMillis() - a.date.toMillis());
+  return transactions.sort((a, b) => a.date.toMillis() - b.date.toMillis());
 }
 
 // Buscar transações recentes
@@ -368,7 +368,8 @@ export async function getRecentTransactions(
   
   return transactions
     .sort((a, b) => b.date.toMillis() - a.date.toMillis())
-    .slice(0, limitCount);
+    .slice(0, limitCount)
+    .reverse();
 }
 
 // Buscar transação por ID

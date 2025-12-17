@@ -51,47 +51,49 @@ function CreditCardBillItemComponent({
       style={({ pressed }) => [
         styles.row,
         { 
-          backgroundColor: pressed ? colors.grayLight : colors.card, 
-          borderBottomColor: colors.border 
+          backgroundColor: pressed ? colors.grayLight : colors.card,
         }
       ]}
     >
-      {/* Ícone de status - mesmo estilo do TransactionItem */}
-      <Pressable
-        hitSlop={8}
-        style={styles.statusButton}
-      >
-        <MaterialCommunityIcons name={statusIcon} size={20} color={statusColor} />
-      </Pressable>
-
-      {/* Ícone do cartão - mesmo tamanho do avatar do TransactionItem */}
-      <View style={[styles.avatar, { backgroundColor: creditCardColor + '15' }]}>
+      {/* Ícone do cartão */}
+      <View style={[styles.iconContainer, { backgroundColor: creditCardColor + '15' }]}>
         <MaterialCommunityIcons 
           name={creditCardIcon as any} 
-          size={20} 
+          size={24} 
           color={creditCardColor} 
         />
+        {/* Badge de status no canto inferior direito */}
+        <View style={[styles.statusBadge, { backgroundColor: colors.card }]}>
+          <MaterialCommunityIcons 
+            name={statusIcon} 
+            size={14} 
+            color={statusColor} 
+          />
+        </View>
       </View>
       
-      {/* Conteúdo - mesmo estilo do TransactionItem */}
+      {/* Conteúdo principal */}
       <View style={styles.content}>
-        <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
-          {title}
-        </Text>
-        <Text style={[styles.account, { color: colors.textMuted }]}>
-          {subtitle}{!isPaid && ' • Pendente'}
-        </Text>
+        <View style={styles.topRow}>
+          <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
+            {title}
+          </Text>
+          <Text style={[styles.amount, { color: amountColor }]}>
+            {formatCurrencyBRL(-totalAmount)}
+          </Text>
+        </View>
+        
+        <View style={styles.bottomRow}>
+          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+            {subtitle}{!isPaid && ' • Pendente'}
+          </Text>
+        </View>
       </View>
-      
-      {/* Valor - mesmo estilo do TransactionItem */}
-      <Text style={[styles.amount, { color: amountColor }]}>
-        {formatCurrencyBRL(-totalAmount)}
-      </Text>
       
       {/* Seta para indicar navegação */}
       <MaterialCommunityIcons 
         name="chevron-right" 
-        size={18} 
+        size={20} 
         color={colors.textMuted}
         style={styles.chevron}
       />
@@ -105,40 +107,62 @@ const styles = StyleSheet.create({
   row: { 
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.sm,
-    borderBottomWidth: 1,
-    borderRadius: borderRadius.sm,
-    marginBottom: 2,
-  },
-  statusButton: {
-    marginRight: spacing.xs,
-    padding: 2,
-  },
-  avatar: { 
-    width: 40, 
-    height: 40, 
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
     borderRadius: borderRadius.md,
+    marginBottom: spacing.sm,
+  },
+  iconContainer: { 
+    width: 48, 
+    height: 48, 
+    borderRadius: 24,
     alignItems: 'center', 
     justifyContent: 'center',
+    position: 'relative',
+  },
+  statusBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   content: {
     flex: 1,
-    marginLeft: spacing.sm,
+    marginLeft: spacing.md,
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
   title: {
     fontSize: 15,
-    fontWeight: '500',
-  },
-  account: {
-    fontSize: 13,
-    marginTop: 2,
+    fontWeight: '600',
+    flex: 1,
+    marginRight: spacing.sm,
   },
   amount: { 
     fontWeight: '700', 
-    fontSize: 15,
+    fontSize: 16,
+  },
+  bottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  subtitle: {
+    fontSize: 12,
   },
   chevron: {
-    marginLeft: spacing.xs,
+    marginLeft: spacing.sm,
   },
 });

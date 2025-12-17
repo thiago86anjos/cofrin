@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, Pressable } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { formatCurrencyBRL } from '../../utils/format';
 import { useAppTheme } from '../../contexts/themeContext';
-import { spacing, borderRadius } from '../../theme';
+import { spacing, borderRadius, getShadow } from '../../theme';
 
 interface Props {
   icon?: string; // letter or emoji
@@ -16,6 +16,7 @@ interface Props {
   status?: 'pending' | 'completed' | 'cancelled';
   goalName?: string; // Se for aporte em meta
   isLocked?: boolean; // Se for pagamento de fatura (não pode ser editado)
+  isLastInGroup?: boolean; // Se é o último item do grupo de data
   onPress?: () => void;
   onEdit?: () => void;
   onStatusPress?: () => void;
@@ -32,6 +33,7 @@ function TransactionItemComponent({
   status = 'completed',
   goalName,
   isLocked = false,
+  isLastInGroup = false,
   onPress,
   onEdit,
   onStatusPress,
@@ -60,74 +62,85 @@ function TransactionItemComponent({
     : [category, account].filter(Boolean).join(' • ');
   
   // Cor e ícone do status
-  const statusColor = status === 'completed' ? '#10b981' : colors.textMuted;
-  const statusIcon = status === 'completed' ? 'check-circle' : 'circle-outline';
+  const statusColor = status === 'completed' ? '#10b981' : '#94a3b8';
+  const statusIcon = status === 'completed' ? 'thumb-up' : 'thumb-down';
 
   return (
     <Pressable
-      onPress={isLocked ? undefined : onPress}
+      onPress={isLocked ? undefined : (onEdit || onPress)}
       disabled={isLocked}
       style={({ pressed }) => [
-        styles.row,
+        styles.card,
         { 
-          backgroundColor: isLocked ? colors.grayLight : (pressed ? colors.grayLight : colors.card), 
-          borderBottomColor: colors.border,
-          opacity: isLocked ? 0.6 : 1,
-        }
+          backgroundColor: isLocked ? colors.grayLight : colors.card,
+          opacity: isLocked ? 0.7 : 1,
+        },
+        getShadow(colors, 'sm'),
+        pressed && { backgroundColor: colors.grayLight },
       ]}
     >
-      {/* Ícone de status (concluído/pendente) */}
-      <Pressable
-        onPress={isLocked ? undefined : onStatusPress}
-        disabled={isLocked}
-        hitSlop={8}
-        style={({ pressed }) => [
-          styles.statusButton,
-          { opacity: pressed ? 0.6 : 1 }
-        ]}
-      >
-        <MaterialCommunityIcons name={statusIcon} size={20} color={statusColor} />
-      </Pressable>
-
-      <View style={[styles.avatar, { backgroundColor: color + '15' }]}>
+      {/* Ícone da categoria */}
+      <View style={[styles.iconContainer, { backgroundColor: color + '15' }]}>
         {goalName ? (
-          <MaterialCommunityIcons name="flag-checkered" size={20} color={color} />
+          <MaterialCommunityIcons name="flag-checkered" size={24} color={color} />
         ) : categoryIcon ? (
-          <MaterialCommunityIcons name={categoryIcon as any} size={20} color={color} />
+          <MaterialCommunityIcons name={categoryIcon as any} size={24} color={color} />
         ) : (
-          <Text style={[styles.avatarLabel, { color }]}>{initial}</Text>
+          <Text style={[styles.iconLabel, { color }]}>{initial}</Text>
         )}
       </View>
       
+      {/* Conteúdo central - Título e Subtítulo */}
       <View style={styles.content}>
-        <View style={styles.titleRow}>
-          <Text style={[styles.title, { color: status === 'pending' ? colors.textMuted : colors.text }]} numberOfLines={1}>
-            {title}
-          </Text>
+        <Text 
+          style={[
+            styles.title, 
+            { color: status === 'pending' ? colors.textMuted : colors.text }
+          ]} 
+          numberOfLines={2}
+        >
+          {title}
           {isLocked && (
-            <MaterialCommunityIcons name="lock" size={14} color={colors.textMuted} style={{ marginLeft: 6 }} />
+            <>
+              <Text> </Text>
+              <MaterialCommunityIcons name="lock" size={11} color={colors.textMuted} />
+            </>
           )}
-        </View>
-        {subtitle && <Text style={[styles.account, { color: colors.textMuted }]}>{subtitle}</Text>}
+        </Text>
+        {subtitle && (
+          <Text style={[styles.subtitle, { color: colors.textMuted }]} numberOfLines={1}>
+            {subtitle}
+          </Text>
+        )}
         {isLocked && (
-          <Text style={[styles.lockedLabel, { color: colors.textMuted }]}>Pagamento de fatura • Não editável</Text>
+          <Text style={[styles.lockedLabel, { color: colors.textMuted }]}>
+            Pagamento de fatura
+          </Text>
         )}
       </View>
       
-      <Text style={[styles.amount, { color: status === 'pending' ? colors.textMuted : color }]}>{formatCurrencyBRL(amount)}</Text>
-      
-      {onEdit && !isLocked && (
-        <Pressable
-          onPress={onEdit}
-          hitSlop={8}
-          style={({ pressed }) => [
-            styles.editButton,
-            { backgroundColor: pressed ? colors.grayLight : 'transparent' }
-          ]}
-        >
-          <MaterialCommunityIcons name="pencil" size={18} color={colors.textMuted} />
-        </Pressable>
-      )}
+      {/* Coluna direita - Valor e ícone de feedback */}
+      <View style={styles.rightColumn}>
+        <Text style={[styles.amount, { color: status === 'pending' ? colors.textMuted : color }]}>
+          {formatCurrencyBRL(amount)}
+        </Text>
+        {!isLocked && onStatusPress && (
+          <Pressable
+            onPress={onStatusPress}
+            hitSlop={10}
+            style={({ pressed }) => [
+              styles.feedbackButton,
+              { opacity: pressed ? 0.5 : 1 }
+            ]}
+          >
+            <MaterialCommunityIcons 
+              name={statusIcon} 
+              size={24} 
+              color={statusColor}
+            />
+          </Pressable>
+        )}
+      </View>
     </Pressable>
   );
 }
@@ -135,58 +148,60 @@ function TransactionItemComponent({
 export default memo(TransactionItemComponent);
 
 const styles = StyleSheet.create({
-  row: { 
+  card: { 
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.sm,
-    borderBottomWidth: 1,
-    borderRadius: borderRadius.sm,
-    marginBottom: 2,
-  },
-  statusButton: {
-    marginRight: spacing.xs,
-    padding: 2,
-  },
-  avatar: { 
-    width: 40, 
-    height: 40, 
+    paddingHorizontal: spacing.sm + 4,
     borderRadius: borderRadius.md,
+    marginBottom: spacing.sm,
+  },
+  iconContainer: { 
+    width: 48, 
+    height: 48, 
+    borderRadius: 24,
     alignItems: 'center', 
     justifyContent: 'center',
+    marginRight: spacing.sm + 2,
+    flexShrink: 0,
   },
-  avatarLabel: { 
+  iconLabel: { 
     fontWeight: '700',
-    fontSize: 16,
+    fontSize: 18,
   },
   content: {
     flex: 1,
-    marginLeft: spacing.sm,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
   },
   title: {
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: '600',
+    lineHeight: 20,
+    marginBottom: 2,
   },
-  account: {
-    fontSize: 13,
+  subtitle: {
+    fontSize: 12,
+    lineHeight: 16,
     marginTop: 2,
   },
-  lockedLabel: {
-    fontSize: 11,
-    marginTop: 2,
-    fontStyle: 'italic',
+  rightColumn: {
+    alignItems: 'flex-end',
+    justifyContent: 'flex-start',
+    flexShrink: 0,
   },
   amount: { 
     fontWeight: '700', 
-    fontSize: 15,
+    fontSize: 16,
+    lineHeight: 20,
   },
-  editButton: {
-    marginLeft: spacing.sm,
-    padding: spacing.xs,
-    borderRadius: borderRadius.sm,
+  feedbackButton: {
+    marginTop: 2,
+    padding: 2,
+  },
+  lockedLabel: {
+    fontSize: 10,
+    fontStyle: 'italic',
+    marginTop: 4,
   },
 });

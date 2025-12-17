@@ -1133,6 +1133,7 @@ export default function AddTransactionModal({
                         placeholder="Ex: Almoço, Salário..."
                         placeholderTextColor={colors.textMuted}
                         style={[styles.textInput, { color: colors.text }]}
+                        maxLength={60}
                       />
                     </View>
                   </View>

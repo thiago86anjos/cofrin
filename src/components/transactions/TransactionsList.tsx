@@ -40,7 +40,7 @@ export default function TransactionsList({ items = [], onEditItem, onStatusPress
       {dates.map((d) => (
         <View key={d} style={styles.group}>
           <Text style={[styles.dateHeader, { color: colors.textMuted }]}>{d}</Text>
-          {groups[d].map((tx) => (
+          {groups[d].map((tx, index) => (
             <TransactionItem 
               key={tx.id}
               title={tx.title} 
@@ -51,6 +51,7 @@ export default function TransactionsList({ items = [], onEditItem, onStatusPress
               categoryIcon={tx.categoryIcon}
               status={tx.status}
               goalName={tx.goalName}
+              isLastInGroup={index === groups[d].length - 1}
               onEdit={() => onEditItem?.(tx)}
               onStatusPress={() => onStatusPress?.(tx)}
             />
@@ -63,12 +64,14 @@ export default function TransactionsList({ items = [], onEditItem, onStatusPress
 
 const styles = StyleSheet.create({
   group: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   dateHeader: { 
-    marginVertical: spacing.sm, 
+    marginBottom: spacing.xs + 2,
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.xs,
     fontWeight: '600',
-    fontSize: 13,
+    fontSize: 12,
     textTransform: 'capitalize',
   },
 });

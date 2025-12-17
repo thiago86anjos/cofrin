@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useCustomAlert } from "../hooks/useCustomAlert";
@@ -65,11 +65,6 @@ export default function Launches() {
   
   // Estado para painel de previsão expandido
   const [forecastExpanded, setForecastExpanded] = useState(false);
-  
-  // Estado para mini modal de status
-  const [statusModalVisible, setStatusModalVisible] = useState(false);
-  const [statusTransactionId, setStatusTransactionId] = useState<string | null>(null);
-  const [statusTransactionTitle, setStatusTransactionTitle] = useState<string>('');
   
   // Estado para faturas de cartão de crédito
   const [creditCardBills, setCreditCardBills] = useState<CreditCardBillWithTransactions[]>([]);
@@ -304,27 +299,16 @@ export default function Launches() {
     setEditModalVisible(true);
   };
 
-  // Handler para abrir modal de status
-  const handleStatusPress = (item: TransactionListItem) => {
-    setStatusTransactionId(item.id);
-    setStatusTransactionTitle(item.title);
-    setStatusModalVisible(true);
-  };
-
-  // Handler para atualizar status da transação
-  const handleUpdateStatus = async (newStatus: TransactionStatus) => {
-    if (!statusTransactionId) return;
+  // Handler para alternar status diretamente (sem modal)
+  const handleStatusPress = async (item: TransactionListItem) => {
+    const newStatus: TransactionStatus = item.status === 'completed' ? 'pending' : 'completed';
     
-    const result = await updateTransaction(statusTransactionId, { status: newStatus });
+    const result = await updateTransaction(item.id, { status: newStatus });
     if (result) {
       triggerRefresh();
     } else {
       showAlert('Erro', 'Não foi possível atualizar o status');
     }
-    
-    setStatusModalVisible(false);
-    setStatusTransactionId(null);
-    setStatusTransactionTitle('');
   };
 
   // Handler para deletar transação (chamado pelo modal)
@@ -613,53 +597,6 @@ export default function Launches() {
       </View>
 
       {/* Mini Modal de Status */}
-      <Modal
-        visible={statusModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setStatusModalVisible(false)}
-      >
-        <Pressable 
-          style={styles.statusModalOverlay} 
-          onPress={() => setStatusModalVisible(false)}
-        >
-          <View style={[styles.statusModalContent, { backgroundColor: colors.card }, getShadow(colors)]}>
-            <Text style={[styles.statusModalTitle, { color: colors.text }]}>
-              Lançamento concluído?
-            </Text>
-            <Text style={[styles.statusModalSubtitle, { color: colors.textMuted }]} numberOfLines={1}>
-              {statusTransactionTitle}
-            </Text>
-            
-            <View style={styles.statusModalButtons}>
-              <Pressable
-                onPress={() => handleUpdateStatus('pending')}
-                style={({ pressed }) => [
-                  styles.statusModalButton,
-                  { backgroundColor: colors.grayLight },
-                  pressed && { opacity: 0.7 }
-                ]}
-              >
-                <MaterialCommunityIcons name="circle-outline" size={20} color={colors.textMuted} />
-                <Text style={[styles.statusModalButtonText, { color: colors.text }]}>Pendente</Text>
-              </Pressable>
-              
-              <Pressable
-                onPress={() => handleUpdateStatus('completed')}
-                style={({ pressed }) => [
-                  styles.statusModalButton,
-                  { backgroundColor: '#10b98120' },
-                  pressed && { opacity: 0.7 }
-                ]}
-              >
-                <MaterialCommunityIcons name="check-circle" size={20} color="#10b981" />
-                <Text style={[styles.statusModalButtonText, { color: '#10b981' }]}>Concluído</Text>
-              </Pressable>
-            </View>
-          </View>
-        </Pressable>
-      </Modal>
-
       {/* Modal de edição */}
       <AddTransactionModal
         visible={editModalVisible}
