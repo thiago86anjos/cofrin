@@ -5,7 +5,6 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppTheme } from '../contexts/themeContext';
 import AppHeader from '../components/AppHeader';
 import MainLayout from '../components/MainLayout';
-import FinancialHealthCard from '../components/home/FinancialHealthCard';
 import ExpensesByCategoryCard from '../components/ExpensesByCategoryCard';
 import { spacing, borderRadius, getShadow } from '../theme';
 import { formatCurrencyBRL } from '../utils/format';
@@ -218,15 +217,6 @@ export default function Reports() {
             <Text style={[styles.subtitle, { color: colors.textMuted }]}>
               {monthNames[currentMonth - 1]} de {currentYear}
             </Text>
-
-            {/* Saúde financeira do mês */}
-            <View style={{ marginTop: spacing.lg }}>
-              <FinancialHealthCard 
-                income={report?.income || 0}
-                expense={report?.expense || 0}
-                balance={report?.balance || 0}
-              />
-            </View>
 
             {/* Alerta de dívida */}
             {report && report.debtPercentage >= 30 && (

@@ -91,29 +91,6 @@ export default function AccountsCard({ accounts = [], onAccountPress, onAddPress
     );
   };
 
-  // Botão de adicionar conta
-  const AddAccountButton = () => (
-    <Pressable
-      onPress={onAddPress}
-      style={({ pressed }) => [
-        styles.addAccountButton,
-        { 
-          backgroundColor: colors.bg,
-          borderColor: colors.border,
-          opacity: pressed ? 0.7 : 1,
-        }
-      ]}
-    >
-      <View style={[styles.addIconCircle, { backgroundColor: colors.primaryBg }]}>
-        <MaterialCommunityIcons name="plus" size={24} color={colors.primary} />
-      </View>
-      <Text style={[styles.addAccountText, { color: colors.text }]}>
-        Adicionar conta
-      </Text>
-      <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />
-    </Pressable>
-  );
-
   // Calcular saldo total
   const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
 
@@ -121,15 +98,27 @@ export default function AccountsCard({ accounts = [], onAccountPress, onAddPress
     <View style={[styles.card, { backgroundColor: colors.card }, getShadow(colors)]}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <MaterialCommunityIcons 
-            name="wallet" 
-            size={20} 
-            color={colors.primary} 
-          />
-          <Text style={[styles.title, { color: colors.text }]}>
-            Minhas contas
-          </Text>
+        <View style={styles.headerTop}>
+          <View style={styles.titleRow}>
+            <MaterialCommunityIcons 
+              name="wallet" 
+              size={20} 
+              color={colors.primary} 
+            />
+            <Text style={[styles.title, { color: colors.text }]}>
+              Minhas contas
+            </Text>
+          </View>
+          <Pressable 
+            onPress={onAddPress}
+            style={({ pressed }) => [{
+              opacity: pressed ? 0.5 : 1,
+            }]}
+          >
+            <View style={[styles.addIconButton, { backgroundColor: colors.primaryBg }]}>
+              <MaterialCommunityIcons name="plus" size={20} color={colors.primary} />
+            </View>
+          </Pressable>
         </View>
         {accounts.length > 0 && (
           <View style={styles.totalRow}>
@@ -148,9 +137,6 @@ export default function AccountsCard({ accounts = [], onAccountPress, onAddPress
         {accounts.map((account) => (
           <AccountItem key={account.id} account={account} />
         ))}
-        
-        {/* Botão de adicionar */}
-        <AddAccountButton />
       </View>
 
       {/* Mensagem vazia */}
@@ -174,11 +160,23 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: spacing.md,
   },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
+  },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    marginBottom: spacing.xs,
+  },
+  addIconButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontSize: 16,
@@ -245,27 +243,6 @@ const styles = StyleSheet.create({
   balanceValue: {
     fontSize: 16,
     fontWeight: '600',
-  },
-  addAccountButton: {
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    padding: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  addIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: borderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addAccountText: {
-    fontSize: 14,
-    fontWeight: '500',
-    flex: 1,
   },
   emptyState: {
     alignItems: 'center',

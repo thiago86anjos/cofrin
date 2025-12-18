@@ -104,42 +104,31 @@ export default function CreditCardsCard({ cards = [], totalBills = 0, onCardPres
     );
   };
 
-  // Botão de adicionar cartão
-  const AddCardButton = () => (
-    <Pressable
-      onPress={onAddPress}
-      style={({ pressed }) => [
-        styles.addCardButton,
-        { 
-          backgroundColor: colors.bg,
-          borderColor: colors.border,
-          opacity: pressed ? 0.7 : 1,
-        }
-      ]}
-    >
-      <View style={[styles.addIconCircle, { backgroundColor: colors.primaryBg }]}>
-        <MaterialCommunityIcons name="plus" size={24} color={colors.primary} />
-      </View>
-      <Text style={[styles.addCardText, { color: colors.text }]}>
-        Adicionar cartão
-      </Text>
-      <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />
-    </Pressable>
-  );
-
   return (
     <View style={[styles.card, { backgroundColor: colors.card }, getShadow(colors)]}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <MaterialCommunityIcons 
-            name="credit-card-multiple" 
-            size={20} 
-            color={colors.primary} 
-          />
-          <Text style={[styles.title, { color: colors.text }]}>
-            Meus cartões
-          </Text>
+        <View style={styles.headerTop}>
+          <View style={styles.titleRow}>
+            <MaterialCommunityIcons 
+              name="credit-card-multiple" 
+              size={20} 
+              color={colors.primary} 
+            />
+            <Text style={[styles.title, { color: colors.text }]}>
+              Meus cartões
+            </Text>
+          </View>
+          <Pressable 
+            onPress={onAddPress}
+            style={({ pressed }) => [{
+              opacity: pressed ? 0.5 : 1,
+            }]}
+          >
+            <View style={[styles.addIconButton, { backgroundColor: colors.primaryBg }]}>
+              <MaterialCommunityIcons name="plus" size={20} color={colors.primary} />
+            </View>
+          </Pressable>
         </View>
         {cards.length > 0 && (
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
@@ -153,9 +142,6 @@ export default function CreditCardsCard({ cards = [], totalBills = 0, onCardPres
         {cards.map((card) => (
           <CardItem key={card.id} card={card} />
         ))}
-        
-        {/* Botão de adicionar */}
-        <AddCardButton />
       </View>
 
       {/* Mensagem vazia */}
@@ -179,11 +165,23 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: spacing.md,
   },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    marginBottom: 4,
+  },
+  addIconButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontSize: 16,
@@ -256,27 +254,6 @@ const styles = StyleSheet.create({
     width: 1,
     height: 24,
     backgroundColor: 'rgba(0,0,0,0.08)',
-  },
-  addCardButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    gap: spacing.sm,
-  },
-  addIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addCardText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '500',
   },
   emptyState: {
     alignItems: 'center',
