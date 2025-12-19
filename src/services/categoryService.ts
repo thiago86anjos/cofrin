@@ -170,3 +170,34 @@ export async function userHasCategories(userId: string): Promise<boolean> {
   const snapshot = await getDocs(q);
   return !snapshot.empty;
 }
+
+// Buscar ou criar categoria de meta
+export async function getOrCreateMetaCategory(userId: string): Promise<string> {
+  // Buscar categoria de meta existente
+  const q = query(
+    categoriesRef,
+    where('userId', '==', userId),
+    where('isMetaCategory', '==', true)
+  );
+  
+  const snapshot = await getDocs(q);
+  
+  if (!snapshot.empty) {
+    return snapshot.docs[0].id;
+  }
+  
+  // Se não existe, criar
+  const now = Timestamp.now();
+  const docRef = await addDoc(categoriesRef, {
+    name: 'Meta',
+    icon: 'flag-checkered',
+    type: 'expense',
+    isDefault: true,
+    isMetaCategory: true,
+    userId,
+    createdAt: now,
+    updatedAt: now,
+  });
+  
+  return docRef.id;
+}

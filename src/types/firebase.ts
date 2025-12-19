@@ -27,7 +27,11 @@ export interface Category extends BaseDocument {
   type: CategoryType;
   color?: string;
   isDefault?: boolean; // Categorias padrão do sistema
+  isMetaCategory?: boolean; // Categoria especial para lançamentos de meta
 }
+
+// ID especial para categoria de meta (usada em lançamentos de meta)
+export const META_DEFAULT_CATEGORY_ID = 'meta-default-category';
 
 export type CreateCategoryInput = Omit<Category, 'id' | 'userId' | 'createdAt' | 'updatedAt'>;
 export type UpdateCategoryInput = Partial<CreateCategoryInput>;
@@ -196,6 +200,7 @@ export interface Goal extends BaseDocument {
   targetAmount: number;
   currentAmount: number;
   timeframe: GoalTimeframe;
+  targetDate?: Timestamp; // Data de finalização da meta
   isActive: boolean;
   completedAt?: Timestamp;
   icon?: string;
@@ -223,9 +228,22 @@ export const GOAL_TIMEFRAME_DESCRIPTIONS: Record<GoalTimeframe, string> = {
 
 // Ícones sugeridos para metas
 export const GOAL_ICONS = [
-  'piggy-bank', 'home', 'car', 'airplane', 'briefcase', 
-  'school', 'heart', 'trophy', 'star', 'wallet',
+  'cash-multiple',     // Investimentos
+  'airplane',          // Viagens
+  'home-variant',      // Conquista de bens materiais
 ];
+
+export const GOAL_ICON_LABELS: Record<string, string> = {
+  'cash-multiple': 'Investimentos',
+  'airplane': 'Viagens',
+  'home-variant': 'Bens Materiais',
+};
+
+// Helper para calcular progresso da meta
+export function calculateGoalProgress(currentAmount: number, targetAmount: number): number {
+  if (targetAmount === 0) return 0;
+  return Math.min((currentAmount / targetAmount) * 100, 100);
+}
 
 // ==========================================
 // HELPERS / CONSTANTES
@@ -241,6 +259,7 @@ export const DEFAULT_EXPENSE_CATEGORIES: Omit<Category, 'id' | 'userId' | 'creat
   { name: 'Compras', icon: 'shopping', type: 'expense' },
   { name: 'Lazer', icon: 'gamepad-variant', type: 'expense' },
   { name: 'Outros', icon: 'dots-horizontal', type: 'expense' },
+  { name: 'Meta', icon: 'flag-checkered', type: 'expense', isDefault: true, isMetaCategory: true },
 ];
 
 // Categorias padrão de receita

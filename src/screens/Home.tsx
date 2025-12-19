@@ -21,6 +21,7 @@ import { ACCOUNT_TYPE_LABELS } from "../types/firebase";
 import { Timestamp } from "firebase/firestore";
 import * as goalService from "../services/goalService";
 import * as transactionService from "../services/transactionService";
+import * as categoryService from "../services/categoryService";
 import { spacing } from "../theme";
 
 export default function Home() {
@@ -71,7 +72,7 @@ export default function Home() {
   const handleSaveGoal = async (data: {
     name: string;
     targetAmount: number;
-    timeframe: 'short' | 'medium' | 'long';
+    targetDate: Date;
     icon: string;
   }) => {
     if (!user) return;
@@ -81,15 +82,20 @@ export default function Home() {
       await goalService.updateGoal(goal.id, {
         name: data.name,
         targetAmount: data.targetAmount,
-        timeframe: data.timeframe,
+        targetDate: Timestamp.fromDate(data.targetDate),
         icon: data.icon,
       });
     } else {
-      // Criar nova meta
+      // Criar nova meta - calcular timeframe com base na data
+      const monthsDiff = Math.ceil((data.targetDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30));
+      const timeframe: 'short' | 'medium' | 'long' = 
+        monthsDiff <= 12 ? 'short' : monthsDiff <= 60 ? 'medium' : 'long';
+      
       await goalService.createGoal(user.uid, {
         name: data.name,
         targetAmount: data.targetAmount,
-        timeframe: data.timeframe,
+        targetDate: Timestamp.fromDate(data.targetDate),
+        timeframe,
         icon: data.icon,
         isActive: true,
       });
@@ -104,6 +110,9 @@ export default function Home() {
     const account = accounts.find(acc => acc.id === accountId);
     if (!account) return;
 
+    // Buscar ou criar categoria de meta
+    const metaCategoryId = await categoryService.getOrCreateMetaCategory(user.uid);
+
     // Criar transação de aporte em meta (expense da conta)
     await transactionService.createTransaction(user.uid, {
       type: 'expense',
@@ -111,6 +120,7 @@ export default function Home() {
       description: `Meta: ${goal.name}`,
       date: Timestamp.now(),
       accountId: accountId,
+      categoryId: metaCategoryId,
       recurrence: 'none',
       status: 'completed',
       goalId: goal.id,
@@ -250,6 +260,7 @@ export default function Home() {
               onSave={handleSaveGoal}
               onDelete={handleDeleteGoal}
               existingGoal={goal}
+              progressPercentage={progressPercentage}
             />
 
             {goal && (

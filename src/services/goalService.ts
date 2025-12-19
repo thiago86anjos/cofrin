@@ -51,6 +51,7 @@ export async function createGoal(
   // Adicionar campos opcionais apenas se definidos
   if (data.icon) goalData.icon = data.icon;
   if (data.color) goalData.color = data.color;
+  if (data.targetDate) goalData.targetDate = data.targetDate;
 
   const docRef = await addDoc(goalsRef, goalData);
 

@@ -8,12 +8,14 @@ import {
     ScrollView,
     KeyboardAvoidingView,
     Platform,
+    Alert,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useAppTheme } from '../contexts/themeContext';
 import { spacing, borderRadius } from '../theme';
-import { Goal, GoalTimeframe, GOAL_TIMEFRAME_LABELS, GOAL_TIMEFRAME_DESCRIPTIONS, GOAL_ICONS } from '../types/firebase';
+import { Goal, GOAL_ICONS, GOAL_ICON_LABELS } from '../types/firebase';
 
 interface Props {
   visible: boolean;
@@ -21,20 +23,22 @@ interface Props {
   onSave: (data: {
     name: string;
     targetAmount: number;
-    timeframe: GoalTimeframe;
+    targetDate: Date;
     icon: string;
   }) => Promise<void>;
-  onDelete?: () => Promise<void>;
+  onDelete?: (confirmed: boolean) => Promise<void>;
   existingGoal?: Goal | null;
+  progressPercentage?: number;
 }
 
-export default function CreateGoalModal({ visible, onClose, onSave, onDelete, existingGoal }: Props) {
+export default function CreateGoalModal({ visible, onClose, onSave, onDelete, existingGoal, progressPercentage = 0 }: Props) {
   const { colors } = useAppTheme();
   
   const [name, setName] = useState('');
   const [targetAmount, setTargetAmount] = useState('');
-  const [timeframe, setTimeframe] = useState<GoalTimeframe>('medium');
-  const [icon, setIcon] = useState('flag-checkered');
+  const [targetDate, setTargetDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [icon, setIcon] = useState('cash-multiple');
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
@@ -44,14 +48,25 @@ export default function CreateGoalModal({ visible, onClose, onSave, onDelete, ex
     if (existingGoal) {
       setName(existingGoal.name);
       setTargetAmount(existingGoal.targetAmount.toString());
-      setTimeframe(existingGoal.timeframe);
-      setIcon(existingGoal.icon || 'flag-checkered');
+      // Se tem targetDate, usar; senão calcular com base no timeframe (legado)
+      if (existingGoal.targetDate) {
+        setTargetDate(existingGoal.targetDate.toDate());
+      } else {
+        // Fallback: adicionar meses baseado no timeframe
+        const now = new Date();
+        const months = existingGoal.timeframe === 'short' ? 12 : existingGoal.timeframe === 'medium' ? 36 : 60;
+        now.setMonth(now.getMonth() + months);
+        setTargetDate(now);
+      }
+      setIcon(existingGoal.icon || 'cash-multiple');
     } else {
       // Reset para nova meta
       setName('');
       setTargetAmount('');
-      setTimeframe('medium');
-      setIcon('flag-checkered');
+      const defaultDate = new Date();
+      defaultDate.setMonth(defaultDate.getMonth() + 12); // 1 ano por padrão
+      setTargetDate(defaultDate);
+      setIcon('cash-multiple');
     }
     setError('');
   }, [existingGoal, visible]);
@@ -69,13 +84,24 @@ export default function CreateGoalModal({ visible, onClose, onSave, onDelete, ex
       return;
     }
 
+    // Validar data no futuro
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDate = new Date(targetDate);
+    selectedDate.setHours(0, 0, 0, 0);
+    
+    if (selectedDate <= today) {
+      setError('A data da meta deve ser no futuro');
+      return;
+    }
+
     try {
       setSaving(true);
       setError('');
       await onSave({
         name: name.trim(),
         targetAmount: amount,
-        timeframe,
+        targetDate,
         icon,
       });
       onClose();
@@ -87,18 +113,40 @@ export default function CreateGoalModal({ visible, onClose, onSave, onDelete, ex
   };
 
   const handleDelete = async () => {
-    if (!onDelete) return;
+    if (!onDelete || !existingGoal) return;
     
-    try {
-      setDeleting(true);
-      setError('');
-      await onDelete();
-      onClose();
-    } catch (err: any) {
-      setError(err.message || 'Erro ao excluir meta');
-    } finally {
-      setDeleting(false);
-    }
+    // Mostrar confirmação com progresso
+    const progress = Math.round(progressPercentage);
+    const message = progress > 0 
+      ? `Tem certeza que quer excluir sua meta?\n\nVocê já tem ${progress}% de progresso (R$ ${existingGoal.currentAmount.toFixed(2)} de R$ ${existingGoal.targetAmount.toFixed(2)}).`
+      : `Tem certeza que quer excluir sua meta?\n\nEsta ação não pode ser desfeita.`;
+    
+    Alert.alert(
+      'Excluir meta',
+      message,
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setDeleting(true);
+              setError('');
+              await onDelete(true);
+              onClose();
+            } catch (err: any) {
+              setError(err.message || 'Erro ao excluir meta');
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const formatCurrency = (value: string) => {
@@ -118,7 +166,20 @@ export default function CreateGoalModal({ visible, onClose, onSave, onDelete, ex
     setTargetAmount(formatCurrency(value));
   };
 
-  const timeframes: GoalTimeframe[] = ['short', 'medium', 'long'];
+  const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowDatePicker(Platform.OS === 'ios');
+    if (event.type === 'set' && selectedDate) {
+      setTargetDate(selectedDate);
+    }
+  };
+
+  const formatDate = (date: Date): string => {
+    return date.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    });
+  };
 
   return (
     <Modal
@@ -178,51 +239,40 @@ export default function CreateGoalModal({ visible, onClose, onSave, onDelete, ex
               />
             </View>
 
-            {/* Prazo */}
-            <Text style={[styles.label, { color: colors.text }]}>Em quanto tempo?</Text>
-            <View style={styles.timeframeOptions}>
-              {timeframes.map((tf) => {
-                const isSelected = timeframe === tf;
-                return (
-                  <Pressable
-                    key={tf}
-                    onPress={() => setTimeframe(tf)}
-                    style={[
-                      styles.timeframeOption,
-                      { 
-                        backgroundColor: isSelected ? colors.primary : colors.bg,
-                        borderColor: isSelected ? colors.primary : colors.border,
-                      }
-                    ]}
-                  >
-                    <Text style={[
-                      styles.timeframeLabel,
-                      { color: isSelected ? '#fff' : colors.text }
-                    ]}>
-                      {GOAL_TIMEFRAME_LABELS[tf]}
-                    </Text>
-                    <Text style={[
-                      styles.timeframeDesc,
-                      { color: isSelected ? 'rgba(255,255,255,0.8)' : colors.textMuted }
-                    ]}>
-                      {GOAL_TIMEFRAME_DESCRIPTIONS[tf]}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+            {/* Data de finalização */}
+            <Text style={[styles.label, { color: colors.text }]}>Quando você quer atingir?</Text>
+            <Pressable
+              onPress={() => setShowDatePicker(true)}
+              style={[styles.dateButton, { backgroundColor: colors.bg, borderColor: colors.border }]}
+            >
+              <MaterialCommunityIcons name="calendar" size={20} color={colors.primary} />
+              <Text style={[styles.dateText, { color: colors.text }]}>
+                {formatDate(targetDate)}
+              </Text>
+            </Pressable>
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={targetDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleDateChange}
+                minimumDate={new Date()}
+              />
+            )}
 
             {/* Ícone */}
-            <Text style={[styles.label, { color: colors.text }]}>Escolha um ícone</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Escolha uma categoria</Text>
             <View style={styles.iconGrid}>
               {GOAL_ICONS.map((iconName) => {
                 const isSelected = icon === iconName;
+                const label = GOAL_ICON_LABELS[iconName] || iconName;
                 return (
                   <Pressable
                     key={iconName}
                     onPress={() => setIcon(iconName)}
                     style={[
-                      styles.iconOption,
+                      styles.iconOptionLarge,
                       { 
                         backgroundColor: isSelected ? colors.primary : colors.bg,
                         borderColor: isSelected ? colors.primary : colors.border,
@@ -231,9 +281,15 @@ export default function CreateGoalModal({ visible, onClose, onSave, onDelete, ex
                   >
                     <MaterialCommunityIcons 
                       name={iconName as any} 
-                      size={24} 
+                      size={32} 
                       color={isSelected ? '#fff' : colors.text} 
                     />
+                    <Text style={[
+                      styles.iconLabel,
+                      { color: isSelected ? '#fff' : colors.text }
+                    ]}>
+                      {label}
+                    </Text>
                   </Pressable>
                 );
               })}
@@ -358,6 +414,38 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     paddingVertical: spacing.md,
+  },
+  dateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+  },
+  dateText: {
+    fontSize: 16,
+    flex: 1,
+  },
+  iconGrid: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    justifyContent: 'space-between',
+  },
+  iconOptionLarge: {
+    flex: 1,
+    aspectRatio: 1,
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    padding: spacing.sm,
+  },
+  iconLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   timeframeOptions: {
     flexDirection: 'row',

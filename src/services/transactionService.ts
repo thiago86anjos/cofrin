@@ -24,7 +24,7 @@ import { updateAccountBalance } from './accountService';
 import { getCategoryById } from './categoryService';
 import { getAccountById } from './accountService';
 import { getCreditCardById, updateCreditCardUsage, recalculateCreditCardUsage } from './creditCardService';
-import { removeFromGoalProgress } from './goalService';
+import { addToGoalProgress, removeFromGoalProgress } from './goalService';
 
 const transactionsRef = collection(db, COLLECTIONS.TRANSACTIONS);
 
@@ -414,8 +414,16 @@ export async function updateTransaction(
   const oldCreditCardId = oldTransaction.creditCardId;
   const newCreditCardId = data.creditCardId !== undefined ? data.creditCardId : oldTransaction.creditCardId;
 
+  const oldGoalId = oldTransaction.goalId;
+  const hasGoal = !!oldGoalId;
+
   // ===== REVERTER IMPACTOS DA TRANSAÇÃO ANTIGA =====
   if (oldWasCompleted) {
+    // Reverter progresso da meta se tinha goalId e estava completa
+    if (hasGoal && oldGoalId) {
+      await removeFromGoalProgress(oldGoalId, oldAmount);
+    }
+
     if (oldCreditCardId) {
       // Reverter uso do cartão de crédito antigo
       const oldUsageAmount = oldType === 'expense' ? oldAmount : -oldAmount;
@@ -466,6 +474,11 @@ export async function updateTransaction(
 
   // ===== APLICAR IMPACTOS DA TRANSAÇÃO NOVA =====
   if (newWillBeCompleted) {
+    // Adicionar progresso à meta se tem goalId e ficou completa
+    if (hasGoal && oldGoalId) {
+      await addToGoalProgress(oldGoalId, newAmount);
+    }
+
     if (newCreditCardId) {
       // Aplicar uso no novo cartão de crédito
       const newUsageAmount = newType === 'expense' ? newAmount : -newAmount;

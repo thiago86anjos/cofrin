@@ -48,6 +48,8 @@ export interface EditableTransaction {
   creditCardName?: string;
   recurrence?: RecurrenceType;
   recurrenceType?: 'installment' | 'fixed';
+  goalId?: string;
+  goalName?: string;
   seriesId?: string; // ID da série para transações recorrentes
 }
 
@@ -136,6 +138,8 @@ export default function AddTransactionModal({
 
   // Mode
   const isEditMode = !!editTransaction;
+  const isGoalTransaction = !!editTransaction?.goalId;
+  const isMetaCategoryTransaction = editTransaction?.categoryId && categories.find(c => c.id === editTransaction.categoryId)?.isMetaCategory;
 
   // State
   const [type, setType] = useState<LocalTransactionType>(initialType);
@@ -869,8 +873,8 @@ export default function AddTransactionModal({
               </Pressable>
             ))}
             
-            {/* Credit cards option for expenses */}
-            {type === 'despesa' && activeCards.length > 0 && (
+            {/* Credit cards option for expenses - não permitir para transações de meta */}
+            {type === 'despesa' && activeCards.length > 0 && !isGoalTransaction && !isMetaCategoryTransaction && (
               <>
                 <View style={[styles.pickerDivider, { backgroundColor: colors.border }]} />
                 <Text style={[styles.pickerSectionTitle, { color: colors.textMuted }]}>
@@ -1143,31 +1147,33 @@ export default function AddTransactionModal({
               <View style={[styles.sheet, { backgroundColor: colors.bg }]}> 
                 {/* Header colorido */}
                 <View style={[styles.header, { backgroundColor: headerColor }]}> 
-                  {/* Type selector com título integrado */}
-                  <View style={styles.typeSelector}> 
-                    {(['despesa', 'receita', 'transfer'] as LocalTransactionType[]).map((t) => (
-                      <Pressable
-                        key={t}
-                        onPress={() => setType(t)}
-                        style={[ 
-                          styles.typeChip,
-                          type === t && styles.typeChipActive,
-                        ]}
-                        disabled={activeAccounts.length === 0}
-                      >
-                        <View style={{ alignItems: 'center' }}>
-                          <Text
-                            style={[ 
-                              styles.typeChipText,
-                              type === t && styles.typeChipTextActive,
-                            ]}
-                          >
-                            {t === 'despesa' ? 'Despesa' : t === 'receita' ? 'Receita' : 'Transf.'}
-                          </Text>
-                        </View>
-                      </Pressable>
-                    ))}
-                  </View>
+                  {/* Type selector com título integrado - ocultar para transações de meta */}
+                  {!isGoalTransaction && !isMetaCategoryTransaction && (
+                    <View style={styles.typeSelector}> 
+                      {(['despesa', 'receita', 'transfer'] as LocalTransactionType[]).map((t) => (
+                        <Pressable
+                          key={t}
+                          onPress={() => setType(t)}
+                          style={[ 
+                            styles.typeChip,
+                            type === t && styles.typeChipActive,
+                          ]}
+                          disabled={activeAccounts.length === 0}
+                        >
+                          <View style={{ alignItems: 'center' }}>
+                            <Text
+                              style={[ 
+                                styles.typeChipText,
+                                type === t && styles.typeChipTextActive,
+                              ]}
+                            >
+                              {t === 'despesa' ? 'Despesa' : t === 'receita' ? 'Receita' : 'Transf.'}
+                            </Text>
+                          </View>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
                   {/* Amount input */}
                   <TextInput
                     value={amount}
@@ -1176,11 +1182,12 @@ export default function AddTransactionModal({
                     style={styles.amountInput}
                     placeholderTextColor="rgba(255,255,255,0.6)"
                     selectionColor="#fff"
-                    editable={activeAccounts.length > 0}
-                    autoFocus={activeAccounts.length > 0 && shouldAutoFocus.current}
+                    editable={activeAccounts.length > 0 && !isGoalTransaction}
+                    autoFocus={activeAccounts.length > 0 && shouldAutoFocus.current && !isGoalTransaction}
                     onFocus={() => { shouldAutoFocus.current = false; }}
                   />
                 </View>
+                
                 {/* Onboarding message if no accounts */}
                 {activeAccounts.length === 0 ? (
                   <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
@@ -1232,8 +1239,8 @@ export default function AddTransactionModal({
                   </View>
                   {/* Card de campos */}
                   <View style={[styles.fieldsCard, { backgroundColor: colors.card }, getShadow(colors)]}>
-                    {/* Categoria - não mostrar para transferências */}
-                    {type !== 'transfer' && (
+                    {/* Categoria - não mostrar para transferências ou transações de meta */}
+                    {type !== 'transfer' && !isGoalTransaction && !isMetaCategoryTransaction && (
                       <>
                         <SelectField
                           label="Categoria"
@@ -1244,7 +1251,7 @@ export default function AddTransactionModal({
                         <View style={[styles.divider, { backgroundColor: colors.border }]} />
                       </>
                     )}
-                    {/* Conta */}
+                    {/* Conta - desabilitado para transações de meta */}
                     {type === 'transfer' ? (
                       <>
                         <SelectField
@@ -1287,9 +1294,7 @@ export default function AddTransactionModal({
                         label={type === 'despesa' ? 'Pago com' : 'Recebido em'}
                         value={useCreditCard ? creditCardName : (accountName || 'Selecione')}
                         icon={useCreditCard ? 'credit-card' : 'bank-outline'}
-                        onPress={() => {
-                          setActivePicker('account');
-                        }}
+                        onPress={() => setActivePicker('account')}
                         subtitle={!useCreditCard && sourceAccount ? `Saldo atual: ${formatCurrency(Math.round(sourceAccount.balance * 100).toString())}` : undefined}
                         subtitleColor={!useCreditCard && sourceAccount && sourceAccount.balance < 0 ? colors.danger : colors.textMuted}
                       />
@@ -1303,12 +1308,12 @@ export default function AddTransactionModal({
                       onPress={() => setActivePicker('date')}
                     />
                     <View style={[styles.divider, { backgroundColor: colors.border }]} />
-                    {/* Recorrência */}
+                    {/* Recorrência - desabilitado para transações de meta */}
                     <SelectField
                       label="Repetir"
                       value={RECURRENCE_OPTIONS.find((r) => r.value === recurrence)?.label || 'Não repetir'}
                       icon="repeat"
-                      onPress={() => setActivePicker('recurrence')}
+                      onPress={(!isGoalTransaction && !isMetaCategoryTransaction) ? () => setActivePicker('recurrence') : undefined}
                     />
                     {/* Tipo de recorrência - só aparece se recorrência != none */}
                     {recurrence !== 'none' && (
@@ -1856,5 +1861,27 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     flex: 1,
+  },
+  goalBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    padding: spacing.md,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    borderRadius: borderRadius.md,
+  },
+  goalBannerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  goalBannerText: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  goalBannerSubtext: {
+    fontSize: 12,
   },
 });
