@@ -1,6 +1,6 @@
 {
-  "name": "my-finance-app",
-  "version": "1.0.0",
+  "name": "cofrin",
+  "version": "1.0.1",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
