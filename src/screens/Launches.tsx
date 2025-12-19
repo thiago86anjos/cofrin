@@ -20,8 +20,8 @@ import { FOOTER_HEIGHT } from '../components/AppFooter';
 import { spacing, borderRadius, getShadow } from '../theme';
 import type { Transaction, TransactionStatus } from '../types/firebase';
 import {
-  generateBillsForMonth,
-  CreditCardBillWithTransactions
+    generateBillsForMonth,
+    CreditCardBillWithTransactions
 } from '../services/creditCardBillService';
 
 // Tipos dos parâmetros de navegação
@@ -304,8 +304,9 @@ export default function Launches() {
       date: originalTransaction.date.toDate(),
       categoryId: originalTransaction.categoryId,
       categoryName: originalTransaction.categoryName,
-      accountId: originalTransaction.accountId,
-      accountName: originalTransaction.accountName,
+      // Se tem creditCardId, NÃO passar accountId (evita confusão no modal)
+      accountId: originalTransaction.creditCardId ? undefined : originalTransaction.accountId,
+      accountName: originalTransaction.creditCardId ? undefined : originalTransaction.accountName,
       toAccountId: originalTransaction.toAccountId,
       toAccountName: originalTransaction.toAccountName,
       creditCardId: originalTransaction.creditCardId,

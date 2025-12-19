@@ -213,9 +213,17 @@ export default function AddTransactionModal({
     }
   }, [type]);
 
-  // Set default account when accounts load
+  // Set default account when accounts load (only for new transactions)
   useEffect(() => {
-    if (activeAccounts.length > 0 && !accountId) {
+    // Não setar conta padrão se estiver editando uma transação
+    if (activeAccounts.length > 0 && !accountId && !useCreditCard && !editTransaction) {
+      console.log('⚠️ [DEFAULT ACCOUNT] Setting default account:', {
+        account: activeAccounts[0],
+        isEditMode,
+        editTransaction: !!editTransaction,
+        useCreditCard,
+        accountId
+      });
       setAccountId(activeAccounts[0].id);
       setAccountName(activeAccounts[0].name);
       if (activeAccounts.length > 1) {
@@ -223,16 +231,17 @@ export default function AddTransactionModal({
         setToAccountName(activeAccounts[1].name);
       }
     }
-  }, [activeAccounts.length]); // Apenas quando o tamanho muda
+  }, [activeAccounts.length, useCreditCard, accountId, editTransaction]); // Verificar editTransaction diretamente
 
-  // Set default category when categories load
+  // Set default category when categories load (only for new transactions)
   useEffect(() => {
-    if (categories.length > 0 && !categoryId) {
+    // Não setar categoria padrão se estiver editando uma transação
+    if (categories.length > 0 && !categoryId && !editTransaction) {
       const defaultCat = categories.find(c => c.name === 'Outros') || categories[0];
       setCategoryId(defaultCat.id);
       setCategoryName(defaultCat.name);
     }
-  }, [categories.length]); // Apenas quando o tamanho muda
+  }, [categories.length, categoryId, editTransaction]); // Verificar editTransaction diretamente
 
   // Reset form when modal opens or populate with edit data
   useEffect(() => {
@@ -250,6 +259,14 @@ export default function AddTransactionModal({
       
       if (editTransaction) {
         // Populate form with existing transaction data
+        console.log('🔍 [EDIT MODE] editTransaction:', {
+          id: editTransaction.id,
+          accountId: editTransaction.accountId,
+          accountName: editTransaction.accountName,
+          creditCardId: editTransaction.creditCardId,
+          creditCardName: editTransaction.creditCardName,
+        });
+        
         const localType: LocalTransactionType = 
           editTransaction.type === 'expense' ? 'despesa' : 
           editTransaction.type === 'income' ? 'receita' : 'transfer';
@@ -269,10 +286,14 @@ export default function AddTransactionModal({
         if (editTransaction.categoryId) {
           setCategoryId(editTransaction.categoryId);
           setCategoryName(editTransaction.categoryName || '');
+        } else {
+          setCategoryId('');
+          setCategoryName('');
         }
         
         // Account or Credit Card - clear the other when one is set
         if (editTransaction.accountId) {
+          // Transaction is on account
           setAccountId(editTransaction.accountId);
           setAccountName(editTransaction.accountName || '');
           setUseCreditCard(false);
@@ -280,18 +301,34 @@ export default function AddTransactionModal({
           setCreditCardId('');
           setCreditCardName('');
         } else if (editTransaction.creditCardId) {
+          // Transaction is on credit card
+          console.log('✅ [EDIT MODE] Setting CREDIT CARD:', {
+            creditCardId: editTransaction.creditCardId,
+            creditCardName: editTransaction.creditCardName,
+            clearingAccount: true
+          });
           setUseCreditCard(true);
           setCreditCardId(editTransaction.creditCardId);
           setCreditCardName(editTransaction.creditCardName || '');
           // Clear account fields
           setAccountId('');
           setAccountName('');
+        } else {
+          // Caso não tenha nem conta nem cartão (edge case)
+          setUseCreditCard(false);
+          setAccountId('');
+          setAccountName('');
+          setCreditCardId('');
+          setCreditCardName('');
         }
         
         // To account (for transfers)
         if (editTransaction.toAccountId) {
           setToAccountId(editTransaction.toAccountId);
           setToAccountName(editTransaction.toAccountName || '');
+        } else {
+          setToAccountId('');
+          setToAccountName('');
         }
       } else {
         // Reset to defaults for new transaction
@@ -1269,7 +1306,17 @@ export default function AddTransactionModal({
                         label={type === 'despesa' ? 'Pago com' : 'Recebido em'}
                         value={useCreditCard ? creditCardName : (accountName || 'Selecione')}
                         icon={useCreditCard ? 'credit-card' : 'bank-outline'}
-                        onPress={() => setActivePicker('account')}
+                        onPress={() => {
+                          console.log('📝 [FIELD CLICK] Current state:', {
+                            useCreditCard,
+                            creditCardId,
+                            creditCardName,
+                            accountId,
+                            accountName,
+                            isEditMode
+                          });
+                          setActivePicker('account');
+                        }}
                         subtitle={!useCreditCard && sourceAccount ? `Saldo atual: ${formatCurrency(Math.round(sourceAccount.balance * 100).toString())}` : undefined}
                         subtitleColor={!useCreditCard && sourceAccount && sourceAccount.balance < 0 ? colors.danger : colors.textMuted}
                       />

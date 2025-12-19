@@ -240,8 +240,9 @@ export default function CreditCardBillDetails() {
       date: transaction.date.toDate(),
       categoryId: transaction.categoryId,
       categoryName: transaction.categoryName,
-      accountId: transaction.accountId,
-      accountName: transaction.accountName,
+      // Se tem creditCardId, NÃO passar accountId (evita confusão no modal)
+      accountId: transaction.creditCardId ? undefined : transaction.accountId,
+      accountName: transaction.creditCardId ? undefined : transaction.accountName,
       toAccountId: transaction.toAccountId,
       toAccountName: transaction.toAccountName,
       creditCardId: transaction.creditCardId,

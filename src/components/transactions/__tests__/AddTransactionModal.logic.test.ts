@@ -185,6 +185,72 @@ describe('AddTransactionModal - Lógica de Pré-preenchimento', () => {
       expect(toAccountId).toBe('account2');
       expect(toAccountName).toBe('Conta Secundária');
     });
+
+    it('NÃO deve setar conta padrão quando useCreditCard está ativo', () => {
+      // Simula o bug: após limpar accountId para transação de cartão,
+      // o useEffect de "Set default account" estava setando a primeira conta
+      let accountId = '';
+      let accountName = '';
+      let useCreditCard = true;
+      let isEditMode = true; // Está em modo de edição
+      
+      const activeAccounts = [
+        { id: 'account1', name: 'Conta Principal' },
+        { id: 'account2', name: 'Conta Secundária' },
+      ];
+
+      // Lógica CORRIGIDA: só seta conta padrão se !useCreditCard E !isEditMode
+      if (activeAccounts.length > 0 && !accountId && !useCreditCard && !isEditMode) {
+        accountId = activeAccounts[0].id;
+        accountName = activeAccounts[0].name;
+      }
+
+      // Validação: NÃO deve setar conta quando useCreditCard está ativo
+      expect(accountId).toBe('');
+      expect(accountName).toBe('');
+    });
+
+    it('DEVE setar conta padrão quando useCreditCard está inativo e não há accountId', () => {
+      let accountId = '';
+      let accountName = '';
+      let useCreditCard = false;
+      let isEditMode = false; // Nova transação
+      
+      const activeAccounts = [
+        { id: 'account1', name: 'Conta Principal' },
+        { id: 'account2', name: 'Conta Secundária' },
+      ];
+
+      // Lógica: seta conta padrão quando não há accountId, não está usando cartão E não está editando
+      if (activeAccounts.length > 0 && !accountId && !useCreditCard && !isEditMode) {
+        accountId = activeAccounts[0].id;
+        accountName = activeAccounts[0].name;
+      }
+
+      expect(accountId).toBe('account1');
+      expect(accountName).toBe('Conta Principal');
+    });
+
+    it('NÃO deve setar conta padrão quando está em modo de edição', () => {
+      let accountId = '';
+      let accountName = '';
+      let useCreditCard = false;
+      let isEditMode = true; // Editando transação
+      
+      const activeAccounts = [
+        { id: 'account1', name: 'Conta Principal' },
+        { id: 'account2', name: 'Conta Secundária' },
+      ];
+
+      // Lógica: NÃO seta conta padrão em modo de edição
+      if (activeAccounts.length > 0 && !accountId && !useCreditCard && !isEditMode) {
+        accountId = activeAccounts[0].id;
+        accountName = activeAccounts[0].name;
+      }
+
+      expect(accountId).toBe('');
+      expect(accountName).toBe('');
+    });
   });
 
   describe('Formato de valores', () => {

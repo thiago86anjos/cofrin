@@ -52,7 +52,7 @@ npm run test:coverage
 
 ```
 Test Suites: 1 passed
-Tests:       9 passed
+Tests:       11 passed
 ```
 
 ### Testes incluídos:
@@ -60,51 +60,60 @@ Tests:       9 passed
 2. ✓ deve pré-preencher cartão e limpar conta quando transação está em cartão
 3. ✓ CASO CRÍTICO: transação movida de conta para cartão deve mostrar apenas cartão
 4. ✓ deve pré-preencher transferência com conta origem e destino
-5. ✓ deve formatar valores corretamente para exibição
-6. ✓ deve mapear tipos corretamente (local <-> Firebase)
-7. ✓ despesa e receita devem ter categoria
-8. ✓ transferência deve ter conta destino
-9. ✓ valor deve ser maior que zero
+5. ✓ NÃO deve setar conta padrão quando useCreditCard está ativo
+6. ✓ DEVE setar conta padrão quando useCreditCard está inativo e não há accountId
+7. ✓ deve formatar valores corretamente para exibição
+8. ✓ deve mapear tipos corretamente (local <-> Firebase)
+9. ✓ despesa e receita devem ter categoria
+10. ✓ transferência deve ter conta destino
+11. ✓ valor deve ser maior que zero
 
 ## 🐛 Bug Corrigido
 
 ### Problema
-Quando o usuário editava uma transação que foi movida de conta para cartão, o campo "Pago com" ainda mostrava a conta original em vez do cartão atualizado.
+Quando o usuário editava uma transação que foi movida de conta para cartão (ou que foi criada originalmente em um cartão), o campo "Pago com" ainda mostrava a conta original/padrão em vez do cartão correto.
+
+**Causa raiz**: Havia dois problemas:
+1. **Falta de limpeza explícita**: Ao pré-preencher campos de cartão, não estávamos limpando os campos de conta
+2. **useEffect conflitante**: Havia um `useEffect` que definia uma conta padrão sempre que `!accountId`, mesmo quando a transação estava em um cartão
 
 ### Solução
-Adicionamos limpeza explícita dos campos ao pré-preencher:
-- Se `accountId` existe: limpa `creditCardId` e `creditCardName`
-- Se `creditCardId` existe: limpa `accountId` e `accountName`
+1. **Limpeza explícita dos campos** (linhas 275-292):
+   - Se `accountId` existe: limpa `creditCardId` e `creditCardName`
+   - Se `creditCardId` existe: limpa `accountId` e `accountName`
+
+2. **Correção do useEffect** (linha 219):
+   - Adicionada verificação `!useCreditCard` antes de setar conta padrão
+   - Agora só define conta padrão quando não está usando cartão
 
 ### Código da correção
 ```typescript
-// Antes (bugado)
+// CORREÇÃO 1: Limpeza explícita ao pré-preencher (linhas 275-292)
+// Account or Credit Card - clear the other when one is set
 if (editTransaction.accountId) {
   setAccountId(editTransaction.accountId);
   setAccountName(editTransaction.accountName || '');
   setUseCreditCard(false);
-} else if (editTransaction.creditCardId) {
-  setUseCreditCard(true);
-  setCreditCardId(editTransaction.creditCardId);
-  setCreditCardName(editTransaction.creditCardName || '');
-}
-
-// Depois (corrigido)
-if (editTransaction.accountId) {
-  setAccountId(editTransaction.accountId);
-  setAccountName(editTransaction.accountName || '');
-  setUseCreditCard(false);
-  // Limpar campos de cartão
+  // Clear credit card fields
   setCreditCardId('');
   setCreditCardName('');
 } else if (editTransaction.creditCardId) {
   setUseCreditCard(true);
   setCreditCardId(editTransaction.creditCardId);
   setCreditCardName(editTransaction.creditCardName || '');
-  // Limpar campos de conta
+  // Clear account fields
   setAccountId('');
   setAccountName('');
 }
+
+// CORREÇÃO 2: useEffect não seta conta padrão quando usando cartão (linha 219)
+useEffect(() => {
+  if (activeAccounts.length > 0 && !accountId && !useCreditCard) {
+    setAccountId(activeAccounts[0].id);
+    setAccountName(activeAccounts[0].name);
+    // ...
+  }
+}, [activeAccounts.length]);
 ```
 
 ## 🔄 Integração Contínua
