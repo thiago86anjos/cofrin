@@ -5,10 +5,12 @@ import { useEffect } from "react";
 import { auth } from "./firebase";
 import { createDefaultCategories } from "./categoryService";
 import { createDefaultAccount, getAllAccounts } from "./accountService";
+import { useCustomAlert } from "../hooks/useCustomAlert";
 
 WebBrowser.maybeCompleteAuthSession();
 
 export function useGoogleAuth(onLogin?: () => void) {
+  const { showAlert } = useCustomAlert();
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: "1026415452462-bnqbtkpks7pts26n6l4eg22en1pradau.apps.googleusercontent.com",
@@ -56,7 +58,14 @@ export function useGoogleAuth(onLogin?: () => void) {
           if (mounted && onLogin) onLogin();
         })
         .catch((err) => {
-          if (mounted) console.error("Erro no login Google:", err);
+          if (mounted) {
+            console.error("Erro no login Google:", err);
+            showAlert(
+              "Erro no Login",
+              `Falha ao fazer login com Google: ${err.message || err.code || "Erro desconhecido"}`,
+              [{ text: "OK", style: "default" }]
+            );
+          }
         });
     }
 
