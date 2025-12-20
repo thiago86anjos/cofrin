@@ -349,6 +349,72 @@ export async function getTransactionsByCreditCard(
   return transactions.sort((a, b) => a.date.toMillis() - b.date.toMillis());
 }
 
+// Buscar transações por meta
+export async function getTransactionsByGoal(
+  userId: string,
+  goalId: string
+): Promise<Transaction[]> {
+  const q = query(
+    transactionsRef,
+    where('userId', '==', userId),
+    where('goalId', '==', goalId)
+  );
+
+  const snapshot = await getDocs(q);
+  const transactions = snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data(),
+  })) as Transaction[];
+  
+  return transactions.sort((a, b) => a.date.toMillis() - b.date.toMillis());
+}
+
+// Deletar todas as transações de uma meta (para metas não concluídas)
+export async function deleteTransactionsByGoal(
+  userId: string,
+  goalId: string
+): Promise<number> {
+  const transactions = await getTransactionsByGoal(userId, goalId);
+  let deletedCount = 0;
+
+  for (const transaction of transactions) {
+    try {
+      await deleteTransaction(transaction);
+      deletedCount++;
+    } catch (error) {
+      console.error(`Erro ao deletar transação ${transaction.id}:`, error);
+    }
+  }
+
+  return deletedCount;
+}
+
+// Remover goalId das transações (para metas concluídas - mantém transações mas remove associação)
+export async function removeGoalIdFromTransactions(
+  userId: string,
+  goalId: string
+): Promise<number> {
+  const transactions = await getTransactionsByGoal(userId, goalId);
+  let updatedCount = 0;
+
+  for (const transaction of transactions) {
+    try {
+      const docRef = doc(db, COLLECTIONS.TRANSACTIONS, transaction.id);
+      // Remove goalId e goalName mas mantém a transação
+      await updateDoc(docRef, {
+        goalId: null,
+        goalName: null,
+        updatedAt: Timestamp.now(),
+      });
+      updatedCount++;
+    } catch (error) {
+      console.error(`Erro ao atualizar transação ${transaction.id}:`, error);
+    }
+  }
+
+  return updatedCount;
+}
+
 // Buscar transações recentes
 export async function getRecentTransactions(
   userId: string,

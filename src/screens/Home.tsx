@@ -138,9 +138,10 @@ export default function Home() {
 
   // Excluir meta
   const handleDeleteGoal = async () => {
-    if (!goal) return;
-    await goalService.deleteGoal(goal.id);
+    if (!goal || !user) return;
+    await goalService.deleteGoal(goal.id, user.uid);
     refreshGoal();
+    refresh(); // Atualiza transações pois podem ter sido modificadas
   };
 
   // Calcular saldo total das contas e formatar para o componente

@@ -18,6 +18,7 @@ import { useAuth } from "../contexts/authContext";
 import Launches from "../screens/Launches";
 import Reports from "../screens/Reports";
 import Goals from "../screens/Goals";
+import MyGoals from "../screens/MyGoals";
 
 const Stack = createNativeStackNavigator();
 
@@ -50,6 +51,7 @@ export default function RootNavigation() {
           <Stack.Screen name="Lançamentos" component={Launches} />
           <Stack.Screen name="Relatórios" component={Reports} />
           <Stack.Screen name="Metas do ano" component={Goals} />
+          <Stack.Screen name="Meus Objetivos" component={MyGoals} />
           <Stack.Screen name="Configurações" component={Settings} />
           <Stack.Screen name="EditProfile" component={EditProfile} />
           <Stack.Screen name="ConfigureAccounts" component={ConfigureAccounts} />

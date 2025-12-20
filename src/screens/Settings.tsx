@@ -36,6 +36,7 @@ export default function Settings({ navigation }: any) {
     { id: "accounts", label: "Configurar contas", icon: "bank", screen: "ConfigureAccounts" },
     { id: "cards", label: "Cartões de crédito", icon: "credit-card", screen: "CreditCards" },
     { id: "categories", label: "Categorias", icon: "tag-multiple", screen: "Categories" },
+    { id: "my_goals", label: "Meus objetivos", icon: "trophy", screen: "Meus Objetivos" },
   ];
 
   const secondaryItems: MenuItem[] = [
