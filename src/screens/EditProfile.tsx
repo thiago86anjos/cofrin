@@ -52,7 +52,7 @@ export default function EditProfile({ navigation }: any) {
       contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomPad }]}
     >
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
+      <View style={[styles.header, { backgroundColor: colors.primary, paddingTop: insets.top || 16 }]}>
         <View style={styles.headerInner}>
           <Pressable 
             onPress={() => navigation.goBack()} 

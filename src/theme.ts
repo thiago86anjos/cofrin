@@ -51,6 +51,29 @@ export const borderRadius = {
   full: 9999,
 };
 
+export const typography = {
+  // Font weights
+  fontWeights: {
+    regular: '400' as const,
+    medium: '500' as const,
+    semibold: '600' as const,
+    bold: '700' as const,
+    extrabold: '800' as const,
+  },
+  // Font sizes
+  fontSizes: {
+    xs: 12,
+    sm: 14,
+    base: 16,
+    lg: 18,
+    xl: 20,
+    '2xl': 24,
+    '3xl': 28,
+    '4xl': 32,
+    '5xl': 40,
+  },
+};
+
 export const shadows = {
   sm: {
     // iOS
@@ -93,4 +116,4 @@ export function getShadow(colors: { card: string }, size: 'sm' | 'md' | 'lg' = '
   return shadow;
 }
 
-export default { palette, spacing, borderRadius, shadows, getShadow };
+export default { palette, spacing, borderRadius, typography, shadows, getShadow };

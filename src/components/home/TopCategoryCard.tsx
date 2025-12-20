@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppTheme } from '../../contexts/themeContext';
-import { spacing, borderRadius, getShadow } from '../../theme';
+import { getShadow } from '../../theme';
 import { formatCurrencyBRL } from '../../utils/format';
 
 interface CategoryExpense {
@@ -23,9 +23,9 @@ export default function TopCategoryCard({ expenses, totalExpenses, onPress }: To
 
   if (!expenses || expenses.length === 0) {
     return (
-      <View style={[styles.card, { backgroundColor: colors.card }, getShadow(colors)]}>
-        <Text style={[styles.title, { color: colors.text }]}>Onde você gastou</Text>
-        <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+      <View style={[styles.card, { backgroundColor: '#fff' }, getShadow(colors)]}>
+        <Text style={[styles.title, { color: '#1F2937' }]}>Onde você gastou</Text>
+        <Text style={[styles.emptyText, { color: '#9CA3AF' }]}>
           Nenhuma despesa registrada este mês
         </Text>
       </View>
@@ -41,7 +41,7 @@ export default function TopCategoryCard({ expenses, totalExpenses, onPress }: To
     if (percentage >= 50) {
       return `Mais da metade dos gastos foi em ${topCategory.categoryName}`;
     } else if (percentage >= 30) {
-      return `${topCategory.categoryName} representa ${Math.round(percentage)}% dos gastos`;
+      return `${Math.round(percentage)}% dos gastos em ${topCategory.categoryName}`;
     } else {
       return `Gastos distribuídos entre várias categorias`;
     }
@@ -49,41 +49,38 @@ export default function TopCategoryCard({ expenses, totalExpenses, onPress }: To
 
   return (
     <Pressable 
-      style={[styles.card, { backgroundColor: colors.card }, getShadow(colors)]}
+      style={[styles.card, { backgroundColor: '#fff' }, getShadow(colors)]}
       onPress={onPress}
     >
       {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Onde você gastou</Text>
-        <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />
-      </View>
-
-      {/* Top Category */}
-      <View style={styles.categoryRow}>
-        <View style={[styles.iconContainer, { backgroundColor: colors.primaryBg }]}>
+        <View style={[styles.iconContainer, { backgroundColor: '#DBEAFE' }]}>
           <MaterialCommunityIcons 
             name={(topCategory.icon || 'tag') as any} 
             size={20} 
-            color={colors.primary} 
+            color="#3B82F6" 
           />
         </View>
-        <View style={styles.categoryInfo}>
-          <Text style={[styles.categoryName, { color: colors.text }]}>
+        <View style={styles.headerText}>
+          <Text style={[styles.title, { color: '#1F2937' }]}>Onde você gastou</Text>
+          <Text style={[styles.categoryName, { color: '#6B7280' }]}>
             {topCategory.categoryName}
-          </Text>
-          <Text style={[styles.categoryAmount, { color: colors.text }]}>
-            {formatCurrencyBRL(topCategory.total)}
           </Text>
         </View>
       </View>
 
+      {/* Valor */}
+      <Text style={[styles.categoryAmount, { color: '#1F2937' }]}>
+        {formatCurrencyBRL(topCategory.total)}
+      </Text>
+
       {/* Progress Bar */}
-      <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
+      <View style={[styles.progressTrack, { backgroundColor: '#E5E7EB' }]}>
         <View 
           style={[
             styles.progressFill, 
             { 
-              backgroundColor: colors.primary, 
+              backgroundColor: '#3B82F6', 
               width: `${Math.min(percentage, 100)}%` 
             }
           ]} 
@@ -91,7 +88,7 @@ export default function TopCategoryCard({ expenses, totalExpenses, onPress }: To
       </View>
 
       {/* Insight */}
-      <Text style={[styles.insight, { color: colors.textMuted }]}>
+      <Text style={[styles.insight, { color: '#9CA3AF' }]}>
         {getInsight()}
       </Text>
     </Pressable>
@@ -100,57 +97,56 @@ export default function TopCategoryCard({ expenses, totalExpenses, onPress }: To
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  emptyText: {
-    fontSize: 14,
-    marginTop: spacing.sm,
-  },
-  categoryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-    gap: spacing.sm,
+    marginBottom: 16,
+    gap: 12,
   },
   iconContainer: {
     width: 40,
     height: 40,
-    borderRadius: borderRadius.md,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  categoryInfo: {
+  headerText: {
     flex: 1,
+    gap: 2,
+  },
+  title: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  emptyText: {
+    fontSize: 14,
+    marginTop: 8,
   },
   categoryName: {
-    fontSize: 15,
-    fontWeight: '500',
-    marginBottom: 2,
+    fontSize: 13,
   },
   categoryAmount: {
-    fontSize: 18,
+    fontSize: 28,
     fontWeight: '700',
+    marginBottom: 12,
   },
   progressTrack: {
-    height: 8,
-    borderRadius: 4,
+    height: 6,
+    borderRadius: 3,
     overflow: 'hidden',
-    marginBottom: spacing.sm,
+    marginBottom: 12,
   },
   progressFill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: 3,
   },
   insight: {
     fontSize: 13,

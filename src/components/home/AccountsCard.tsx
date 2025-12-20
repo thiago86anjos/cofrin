@@ -2,7 +2,7 @@ import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppTheme } from '../../contexts/themeContext';
-import { spacing, borderRadius, getShadow } from '../../theme';
+import { getShadow } from '../../theme';
 import { formatCurrencyBRL } from '../../utils/format';
 import { Account, ACCOUNT_TYPE_LABELS } from '../../types/firebase';
 
@@ -95,41 +95,19 @@ export default function AccountsCard({ accounts = [], onAccountPress, onAddPress
   const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.card }, getShadow(colors)]}>
+    <View style={[styles.card, { backgroundColor: '#fff' }, getShadow(colors)]}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <View style={styles.titleRow}>
-            <MaterialCommunityIcons 
-              name="wallet" 
-              size={20} 
-              color={colors.primary} 
-            />
-            <Text style={[styles.title, { color: colors.text }]}>
-              Minhas contas
+        <View style={styles.titleSection}>
+          <Text style={[styles.title, { color: '#1F2937' }]}>
+            Onde está meu dinheiro
+          </Text>
+          {accounts.length > 0 && (
+            <Text style={[styles.subtitle, { color: '#9CA3AF' }]}>
+              Saldo total: {formatCurrencyBRL(totalBalance)}
             </Text>
-          </View>
-          <Pressable 
-            onPress={onAddPress}
-            style={({ pressed }) => [{
-              opacity: pressed ? 0.5 : 1,
-            }]}
-          >
-            <View style={[styles.addIconButton, { backgroundColor: colors.primaryBg }]}>
-              <MaterialCommunityIcons name="plus" size={20} color={colors.primary} />
-            </View>
-          </Pressable>
+          )}
         </View>
-        {accounts.length > 0 && (
-          <View style={styles.totalRow}>
-            <Text style={[styles.totalLabel, { color: colors.textMuted }]}>
-              Saldo total
-            </Text>
-            <Text style={[styles.totalValue, { color: totalBalance < 0 ? colors.expense : colors.income }]}>
-              {formatCurrencyBRL(totalBalance)}
-            </Text>
-          </View>
-        )}
       </View>
 
       {/* Lista de contas */}
@@ -142,9 +120,9 @@ export default function AccountsCard({ accounts = [], onAccountPress, onAddPress
       {/* Mensagem vazia */}
       {accounts.length === 0 && (
         <View style={styles.emptyState}>
-          <MaterialCommunityIcons name="wallet-plus" size={48} color={colors.textMuted} />
-          <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-            Adicione sua primeira conta
+          <MaterialCommunityIcons name="wallet-plus" size={48} color="#9CA3AF" />
+          <Text style={[styles.emptyText, { color: '#9CA3AF' }]}>
+            Nenhuma conta cadastrada
           </Text>
         </View>
       )}
@@ -154,71 +132,52 @@ export default function AccountsCard({ accounts = [], onAccountPress, onAddPress
 
 const styles = StyleSheet.create({
   card: {
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
+    padding: 24,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
   header: {
-    marginBottom: spacing.md,
+    marginBottom: 16,
   },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.xs,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  addIconButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+  titleSection: {
+    gap: 4,
   },
   title: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
   },
-  totalRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 4,
-  },
-  totalLabel: {
-    fontSize: 12,
-  },
-  totalValue: {
-    fontSize: 14,
-    fontWeight: '600',
+  subtitle: {
+    fontSize: 13,
   },
   accountsList: {
-    gap: spacing.sm,
+    gap: 12,
   },
   accountItem: {
-    borderRadius: borderRadius.lg,
+    borderRadius: 16,
     borderWidth: 1,
     overflow: 'hidden',
   },
   accountContent: {
-    padding: spacing.md,
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 12,
   },
   accountHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 12,
     flex: 1,
   },
   accountIconSmall: {
-    width: 36,
-    height: 36,
-    borderRadius: borderRadius.md,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -226,19 +185,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   accountNameCompact: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     marginBottom: 2,
   },
   accountType: {
-    fontSize: 11,
+    fontSize: 12,
+    color: '#9CA3AF',
   },
   balanceSection: {
     alignItems: 'flex-end',
   },
   balanceLabel: {
-    fontSize: 10,
+    fontSize: 11,
     marginBottom: 2,
+    color: '#9CA3AF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   balanceValue: {
     fontSize: 16,
@@ -246,10 +209,10 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     alignItems: 'center',
-    padding: spacing.xl,
+    paddingVertical: 32,
+    gap: 12,
   },
   emptyText: {
-    marginTop: spacing.sm,
     fontSize: 14,
     textAlign: 'center',
   },

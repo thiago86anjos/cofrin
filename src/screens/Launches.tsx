@@ -14,7 +14,6 @@ import { useAppTheme } from '../contexts/themeContext';
 import { useAuth } from '../contexts/authContext';
 import { useTransactionRefresh } from '../contexts/transactionRefreshContext';
 import { formatCurrencyBRL } from '../utils/format';
-import AppHeader from '../components/AppHeader';
 import MainLayout from '../components/MainLayout';
 import { FOOTER_HEIGHT } from '../components/AppFooter';
 import { spacing, borderRadius, getShadow } from '../theme';
@@ -387,7 +386,10 @@ export default function Launches() {
       <View style={[styles.root, { backgroundColor: colors.bg }]}>
         <ScrollView 
           style={styles.scrollView} 
-          contentContainerStyle={styles.scrollContent} 
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: insets.top || 16 }
+          ]} 
           keyboardShouldPersistTaps="handled"
           refreshControl={
             <RefreshControl
@@ -398,7 +400,6 @@ export default function Launches() {
             />
           }
         >
-          <AppHeader />
           <View style={styles.centeredContainer}>
             <View style={styles.content}>
               {/* Seletor de Mês/Ano (sempre visível, mesmo com filtro de conta) */}

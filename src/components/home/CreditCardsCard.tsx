@@ -2,7 +2,7 @@ import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppTheme } from '../../contexts/themeContext';
-import { spacing, borderRadius, getShadow } from '../../theme';
+import { getShadow } from '../../theme';
 import { formatCurrencyBRL } from '../../utils/format';
 import { CreditCard } from '../../types/firebase';
 
@@ -28,8 +28,21 @@ export default function CreditCardsCard({ cards = [], totalBills = 0, onCardPres
   const CardItem = ({ card }: { card: CreditCard }) => {
     const cardColor = getCardColor(card.name, card.color);
     const used = card.currentUsed || 0;
-    const usagePercent = card.limit > 0 ? (used / card.limit) * 100 : 0;
     const available = card.limit - used;
+    
+    // Determinar status da fatura
+    const today = new Date().getDate();
+    const isPaid = used === 0;
+    const isPending = !isPaid && today <= card.dueDay;
+    const isOverdue = !isPaid && today > card.dueDay;
+    
+    const getStatusBadge = () => {
+      if (isOverdue) return { text: 'Vencida', color: '#EF4444' };
+      if (isPending) return { text: 'Pendente', color: '#9CA3AF' };
+      return null;
+    };
+    
+    const statusBadge = getStatusBadge();
     
     return (
       <Pressable
@@ -37,65 +50,46 @@ export default function CreditCardsCard({ cards = [], totalBills = 0, onCardPres
         style={({ pressed }) => [
           styles.cardItem,
           { 
-            backgroundColor: colors.bg,
-            borderColor: colors.border,
+            backgroundColor: '#F9FAFB',
+            borderColor: '#E5E7EB',
             opacity: pressed ? 0.7 : 1,
           }
         ]}
       >
-        {/* Barra de progresso no topo */}
-        <View style={styles.progressBar}>
-          <View 
-            style={[
-              styles.progressFill, 
-              { 
-                width: `${Math.min(usagePercent, 100)}%`,
-                backgroundColor: usagePercent > 80 ? colors.expense : usagePercent > 50 ? colors.warning : colors.primary
-              }
-            ]} 
-          />
-        </View>
-
         <View style={styles.cardContent}>
-          {/* Ícone e nome */}
-          <View style={styles.cardHeader}>
-            <View style={[styles.cardIconSmall, { backgroundColor: `${cardColor}20` }]}>
+          {/* Ícone + Nome do cartão + Status */}
+          <View style={styles.topRow}>
+            <View style={[styles.cardIconSmall, { backgroundColor: `${cardColor}15` }]}>
               <MaterialCommunityIcons
                 name={(card.icon as any) || 'credit-card'}
-                size={18}
+                size={24}
                 color={cardColor}
               />
             </View>
-            <View style={styles.cardTitleSection}>
-              <Text style={[styles.cardNameCompact, { color: colors.text }]} numberOfLines={1}>
-                {card.name}
-              </Text>
-              <Text style={[styles.cardLimit, { color: colors.textMuted }]}>
-                Limite {formatCurrencyBRL(card.limit)}
-              </Text>
-            </View>
+            <Text style={[styles.cardNameCompact, { color: '#1F2937' }]} numberOfLines={1}>
+              {card.name}
+            </Text>
+            {statusBadge && (
+              <View style={[styles.statusBadgeCompact, { backgroundColor: `${statusBadge.color}15` }]}>
+                <Text style={[styles.statusTextCompact, { color: statusBadge.color }]}>
+                  {statusBadge.text}
+                </Text>
+              </View>
+            )}
           </View>
 
-          {/* Informações principais */}
-          <View style={styles.cardStats}>
-            <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Usado</Text>
-              <Text style={[styles.statValue, { color: usagePercent > 80 ? colors.expense : colors.text }]}>
-                {formatCurrencyBRL(used)}
-              </Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Disponível</Text>
-              <Text style={[styles.statValue, { color: colors.income }]}>
-                {formatCurrencyBRL(available)}
-              </Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Vencimento</Text>
-              <Text style={[styles.statValue, { color: colors.text }]}>
+          {/* Vencimento + Valor da fatura */}
+          <View style={styles.infoRow}>
+            <View style={styles.infoItem}>
+              <Text style={[styles.infoLabel, { color: '#9CA3AF' }]}>Vencimento</Text>
+              <Text style={[styles.infoValue, { color: '#1F2937' }]}>
                 Dia {card.dueDay}
+              </Text>
+            </View>
+            <View style={styles.infoItem}>
+              <Text style={[styles.infoLabel, { color: '#9CA3AF' }]}>Valor da fatura</Text>
+              <Text style={[styles.infoValue, { color: '#1F2937' }]}>
+                {formatCurrencyBRL(used)}
               </Text>
             </View>
           </View>
@@ -105,36 +99,19 @@ export default function CreditCardsCard({ cards = [], totalBills = 0, onCardPres
   };
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.card }, getShadow(colors)]}>
+    <View style={[styles.card, { backgroundColor: '#fff' }, getShadow(colors)]}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <View style={styles.titleRow}>
-            <MaterialCommunityIcons 
-              name="credit-card-multiple" 
-              size={20} 
-              color={colors.primary} 
-            />
-            <Text style={[styles.title, { color: colors.text }]}>
-              Meus cartões
-            </Text>
-          </View>
-          <Pressable 
-            onPress={onAddPress}
-            style={({ pressed }) => [{
-              opacity: pressed ? 0.5 : 1,
-            }]}
-          >
-            <View style={[styles.addIconButton, { backgroundColor: colors.primaryBg }]}>
-              <MaterialCommunityIcons name="plus" size={20} color={colors.primary} />
-            </View>
-          </Pressable>
-        </View>
-        {cards.length > 0 && (
-          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            {cards.length} cartão{cards.length > 1 ? 'es' : ''} cadastrado{cards.length > 1 ? 's' : ''}
+        <View style={styles.titleSection}>
+          <Text style={[styles.title, { color: '#1F2937' }]}>
+            Meus cartões
           </Text>
-        )}
+          {cards.length > 0 && (
+            <Text style={[styles.subtitle, { color: '#9CA3AF' }]}>
+              {cards.length} cartão{cards.length > 1 ? 'es' : ''} cadastrado{cards.length > 1 ? 's' : ''}
+            </Text>
+          )}
+        </View>
       </View>
 
       {/* Lista de cartões */}
@@ -147,9 +124,9 @@ export default function CreditCardsCard({ cards = [], totalBills = 0, onCardPres
       {/* Mensagem vazia */}
       {cards.length === 0 && (
         <View style={styles.emptyState}>
-          <MaterialCommunityIcons name="credit-card-plus" size={48} color={colors.textMuted} />
-          <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-            Adicione seu primeiro cartão de crédito
+          <MaterialCommunityIcons name="credit-card-plus" size={48} color="#9CA3AF" />
+          <Text style={[styles.emptyText, { color: '#9CA3AF' }]}>
+            Nenhum cartão cadastrado
           </Text>
         </View>
       )}
@@ -159,106 +136,87 @@ export default function CreditCardsCard({ cards = [], totalBills = 0, onCardPres
 
 const styles = StyleSheet.create({
   card: {
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
+    padding: 24,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
   header: {
-    marginBottom: spacing.md,
+    marginBottom: 16,
   },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  addIconButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+  titleSection: {
+    gap: 4,
   },
   title: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 13,
   },
   cardsList: {
-    gap: spacing.sm,
+    gap: 12,
   },
   cardItem: {
-    borderRadius: borderRadius.lg,
+    borderRadius: 16,
     borderWidth: 1,
     overflow: 'hidden',
   },
-  progressBar: {
-    height: 4,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-  },
-  progressFill: {
-    height: '100%',
-  },
   cardContent: {
-    padding: spacing.md,
-    gap: spacing.sm,
+    padding: 16,
+    gap: 12,
   },
-  cardHeader: {
+  topRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 12,
   },
   cardIconSmall: {
-    width: 36,
-    height: 36,
-    borderRadius: borderRadius.md,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cardTitleSection: {
-    flex: 1,
-  },
   cardNameCompact: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  cardLimit: {
-    fontSize: 11,
-  },
-  cardStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statItem: {
     flex: 1,
-    alignItems: 'center',
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 20,
   },
-  statLabel: {
-    fontSize: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 2,
+  statusBadgeCompact: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
-  statValue: {
-    fontSize: 13,
+  statusTextCompact: {
+    fontSize: 11,
     fontWeight: '600',
   },
-  statDivider: {
-    width: 1,
-    height: 24,
-    backgroundColor: 'rgba(0,0,0,0.08)',
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  infoItem: {
+    flex: 1,
+    gap: 4,
+  },
+  infoLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  infoValue: {
+    fontSize: 15,
+    fontWeight: '600',
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: spacing.xl,
-    gap: spacing.sm,
+    paddingVertical: 32,
+    gap: 12,
   },
   emptyText: {
     fontSize: 14,

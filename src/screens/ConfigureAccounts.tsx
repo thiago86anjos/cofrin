@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet, Platform, ScrollView, Modal } from "react-native";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppTheme } from "../contexts/themeContext";
 import { useAuth } from "../contexts/authContext";
@@ -38,6 +39,7 @@ export default function ConfigureAccounts({ navigation }: any) {
   const { user } = useAuth();
   const { alertState, showAlert, hideAlert } = useCustomAlert();
   const { triggerRefresh } = useTransactionRefresh();
+  const insets = useSafeAreaInsets();
   
   const [name, setName] = useState('');
   const [selectedType, setSelectedType] = useState<AccountType>('checking');
@@ -491,7 +493,7 @@ export default function ConfigureAccounts({ navigation }: any) {
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
+      <View style={[styles.header, { backgroundColor: colors.primary, paddingTop: insets.top || 16 }]}>
         <View style={styles.headerInner}>
           <Pressable 
             onPress={() => navigation.goBack()} 

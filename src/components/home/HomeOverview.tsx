@@ -1,11 +1,9 @@
-import { useState } from 'react';
-import { View, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
-import { Text, Snackbar } from 'react-native-paper';
+import { View, StyleSheet } from 'react-native';
+import { Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import AddTransactionModal from '../../components/transactions/AddTransactionModal';
 import { formatCurrencyBRL } from '../../utils/format';
 import { useAppTheme } from '../../contexts/themeContext';
-import { spacing, borderRadius, getShadow } from '../../theme';
+import { getShadow } from '../../theme';
 
 interface Props {
   username?: string;
@@ -21,31 +19,13 @@ export default function HomeOverview({
   onSaveTransaction 
 }: Props) {
   const { colors } = useAppTheme();
-  const { width } = useWindowDimensions();
-  const isDesktop = width >= 900;
-  const isNarrowStats = width < 500; // Mobile: stats em coluna
-
-  const [modalVisible, setModalVisible] = useState(false);
-  const [modalType, setModalType] = useState<'despesa' | 'receita' | 'transfer'>('despesa');
-  const [snackbarVisible, setSnackbarVisible] = useState(false);
-
-  const openModal = (type: 'despesa' | 'receita' | 'transfer') => {
-    setModalType(type);
-    setModalVisible(true);
-  };
-
-  const handleSave = () => {
-    setModalVisible(false);
-    onSaveTransaction?.();
-    setSnackbarVisible(true);
-  };
 
   // Determinar saudação baseada na hora
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return { text: 'Bom dia', emoji: '🌅' };
-    if (hour < 18) return { text: 'Boa tarde', emoji: '☀️' };
-    return { text: 'Boa noite', emoji: '🌙' };
+    if (hour < 12) return { text: 'Bom dia', emoji: '👋' };
+    if (hour < 18) return { text: 'Boa tarde', emoji: '👋' };
+    return { text: 'Boa noite', emoji: '👋' };
   };
 
   // Formatar data amigável
@@ -53,267 +33,134 @@ export default function HomeOverview({
     const now = new Date();
     const weekday = new Intl.DateTimeFormat('pt-BR', { weekday: 'long' }).format(now);
     const day = now.getDate();
-    const month = new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(now);
+    const month = new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(now);
     
-    return `Hoje é ${weekday}, ${day} de ${month}`;
+    const capitalizedWeekday = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+    
+    return `${capitalizedWeekday}, ${day} de ${month}`;
   };
 
-  // Obter mês abreviado atual
-  const getCurrentMonthShort = () => {
+  // Obter mês atual completo
+  const getCurrentMonth = () => {
     const now = new Date();
-    return new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(now);
+    return new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(now);
   };
 
   const greeting = getGreeting();
   const friendlyDate = getFriendlyDate();
-  const currentMonth = getCurrentMonthShort();
-
-  // Action button component
-  const ActionButton = ({ 
-    icon, 
-    color, 
-    label, 
-    onPress 
-  }: { 
-    icon: string; 
-    color: string; 
-    label: string; 
-    onPress: () => void;
-  }) => (
-    <Pressable 
-      onPress={onPress} 
-      style={({ pressed }) => [
-        styles.actionButton,
-        { opacity: pressed ? 0.8 : 1 }
-      ]}
-    >
-      <View style={[styles.actionCircle, { backgroundColor: color, borderColor: color }]}>
-        <MaterialCommunityIcons name={icon as any} size={24} color="#fff" />
-      </View>
-      <Text style={[styles.actionLabel, { color: colors.textSecondary }]}>{label}</Text>
-    </Pressable>
-  );
+  const currentMonth = getCurrentMonth();
+  const capitalizedMonth = currentMonth.charAt(0).toUpperCase() + currentMonth.slice(1);
+  const balance = revenue - expenses;
 
   return (
-    <>
-      <View style={[styles.wrapper, isDesktop && styles.wrapperDesktop]}>
-        {/* Card Principal - Saudação e Stats */}
-        <View style={[styles.mainCard, { backgroundColor: colors.card }, getShadow(colors)]}>
-          {/* Saudação com data */}
-          <View style={styles.greetingContainer}>
-            <View style={styles.greetingTextContainer}>
-              <View style={styles.greetingRow}>
-                <Text style={[styles.greeting, { color: colors.text }]}>
-                  {greeting.text}, {username}
-                </Text>
-                <Text style={styles.greetingEmoji}>{greeting.emoji}</Text>
-              </View>
-              <Text style={[styles.dateText, { color: colors.textMuted }]}>
-                {friendlyDate}
-              </Text>
-            </View>
-          </View>
-
-          {/* Stats - responsivo */}
-          <View style={[styles.statsRow, isNarrowStats && styles.statsColumn]}>
-            <View style={[styles.statBox, styles.statBoxLeft, isNarrowStats && styles.statBoxFull]}>
-              <Text style={[styles.statLabel, { color: colors.textMuted }]}>
-                Receitas em {currentMonth}
-              </Text>
-              <Text style={[styles.statValue, { color: colors.income }]}>
-                {formatCurrencyBRL(revenue)}
-              </Text>
-            </View>
-
-            {!isNarrowStats && <View style={styles.statDivider} />}
-
-            <View style={[styles.statBox, styles.statBoxRight, isNarrowStats && styles.statBoxFull]}>
-              <Text style={[styles.statLabel, { color: colors.textMuted }]}>
-                Despesas em {currentMonth}
-              </Text>
-              <Text style={[styles.statValue, { color: colors.expense }]}>
-                {formatCurrencyBRL(expenses)}
-              </Text>
-            </View>
-
-            {/* Ícone de gráfico */}
-            {!isNarrowStats && (
-              <View style={styles.chartIcon}>
-                <MaterialCommunityIcons name="chart-line-variant" size={32} color={colors.textMuted} />
-              </View>
-            )}
-          </View>
-        </View>
-
-        {/* Card Ações Rápidas - Apenas em Desktop */}
-        {isDesktop && (
-          <View style={[styles.actionsCard, { backgroundColor: colors.card }, getShadow(colors)]}>
-            <Text style={[styles.actionsTitle, { color: colors.text }]}>
-              Acesso rápido
-            </Text>
-            <View style={styles.actionsGrid}>
-              <ActionButton 
-                icon="minus-circle" 
-                color={colors.expense} 
-                label="DESPESA" 
-                onPress={() => openModal('despesa')} 
-              />
-              <ActionButton 
-                icon="plus-circle" 
-                color={colors.income} 
-                label="RECEITA" 
-                onPress={() => openModal('receita')} 
-              />
-              <ActionButton 
-                icon="swap-horizontal-circle" 
-                color="#8B9DC3" 
-                label="TRANSF." 
-                onPress={() => openModal('transfer')} 
-              />
-            </View>
-          </View>
-        )}
+    <View style={styles.container}>
+      {/* Saudação */}
+      <View style={styles.greetingSection}>
+        <Text style={[styles.greeting, { color: colors.text }]}>
+          {greeting.text}, {username} {greeting.emoji}
+        </Text>
+        <Text style={[styles.dateText, { color: colors.textMuted }]}>
+          {friendlyDate}
+        </Text>
       </View>
 
-      <AddTransactionModal
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-        initialType={modalType}
-        onSave={handleSave}
-      />
+      {/* Card Hero - Resumo do Mês */}
+      <View style={[styles.heroCard, { backgroundColor: '#fff' }, getShadow(colors)]}>
+        <Text style={[styles.heroTitle, { color: '#6B7280' }]}>
+          Resumo de {capitalizedMonth}
+        </Text>
+        
+        <Text style={[styles.heroValue, { color: '#10B981' }]}>
+          {formatCurrencyBRL(balance)}
+        </Text>
 
-      <Snackbar 
-        visible={snackbarVisible} 
-        onDismiss={() => setSnackbarVisible(false)} 
-        duration={2000}
-        style={{ backgroundColor: colors.card }}
-      >
-        Lançamento salvo com sucesso!
-      </Snackbar>
-    </>
+        {/* Receitas e Despesas */}
+        <View style={styles.statsContainer}>
+          <View style={styles.statRow}>
+            <View style={styles.statIconLabel}>
+              <MaterialCommunityIcons name="arrow-up" size={16} color="#10B981" />
+              <Text style={[styles.statLabel, { color: '#6B7280' }]}>Receitas</Text>
+            </View>
+            <Text style={[styles.statValue, { color: '#10B981' }]}>
+              {formatCurrencyBRL(revenue)}
+            </Text>
+          </View>
+
+          <View style={styles.statRow}>
+            <View style={styles.statIconLabel}>
+              <MaterialCommunityIcons name="arrow-down" size={16} color="#EF4444" />
+              <Text style={[styles.statLabel, { color: '#6B7280' }]}>Despesas</Text>
+            </View>
+            <Text style={[styles.statValue, { color: '#6B7280' }]}>
+              {formatCurrencyBRL(expenses)}
+            </Text>
+          </View>
+        </View>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // Wrapper principal
-  wrapper: {
-    gap: spacing.md,
-    marginBottom: spacing.md,
+  container: {
+    gap: 16,
   },
-  wrapperDesktop: {
-    flexDirection: 'row',
-    gap: spacing.lg,
-  },
-
-  // Card principal - saudação e stats
-  mainCard: {
-    padding: spacing.xl,
-    borderRadius: borderRadius.lg,
-    flex: 1,
-  },
-
-  // Saudação
-  greetingContainer: {
-    marginBottom: spacing.lg,
-  },
-  greetingTextContainer: {
-    flex: 1,
-  },
-  greetingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.xs,
+  greetingSection: {
+    gap: 4,
   },
   greeting: {
-    fontSize: 22,
-    fontWeight: '700',
-  },
-  greetingEmoji: {
     fontSize: 28,
+    fontWeight: '800',
+    lineHeight: 36,
+    letterSpacing: -0.5,
   },
   dateText: {
-    fontSize: 13,
+    fontSize: 14,
+    fontWeight: '400',
+    lineHeight: 20,
   },
-
-  // Stats em linha
-  statsRow: {
+  heroCard: {
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  heroTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 12,
+    textTransform: 'capitalize',
+    letterSpacing: -0.2,
+  },
+  heroValue: {
+    fontSize: 40,
+    fontWeight: '800',
+    lineHeight: 48,
+    marginBottom: 20,
+    letterSpacing: -1,
+  },
+  statsContainer: {
+    gap: 12,
+  },
+  statRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statIconLabel: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.lg,
-  },
-  statsColumn: {
-    flexDirection: 'column',
-    alignItems: 'stretch',
-    gap: spacing.md,
-  },
-  statBox: {
-    flex: 1,
-  },
-  statBoxLeft: {
-    alignItems: 'flex-start',
-  },
-  statBoxRight: {
-    alignItems: 'flex-start',
-  },
-  statBoxFull: {
-    flex: undefined,
-    width: '100%',
+    gap: 6,
   },
   statLabel: {
-    fontSize: 12,
-    marginBottom: spacing.xs,
+    fontSize: 14,
+    fontWeight: '600',
   },
   statValue: {
-    fontSize: 26,
-    fontWeight: '700',
-  },
-  statDivider: {
-    width: 1,
-    height: 50,
-    backgroundColor: 'rgba(0,0,0,0.08)',
-  },
-  chartIcon: {
-    marginLeft: spacing.sm,
-    opacity: 0.5,
-  },
-
-  // Card de ações rápidas
-  actionsCard: {
-    padding: spacing.xl,
-    borderRadius: borderRadius.lg,
-    minWidth: 280,
-  },
-  actionsTitle: {
     fontSize: 16,
     fontWeight: '700',
-    marginBottom: spacing.lg,
-    textAlign: 'center',
-  },
-  actionsGrid: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    justifyContent: 'space-around',
-  },
-
-  // Botão de ação
-  actionButton: {
-    alignItems: 'center',
-    flex: 1,
-    maxWidth: 90,
-  },
-  actionCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    marginBottom: spacing.sm,
-  },
-  actionLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.3,
   },
 });

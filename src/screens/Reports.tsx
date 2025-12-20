@@ -1,9 +1,9 @@
 import { useMemo, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/authContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppTheme } from '../contexts/themeContext';
-import AppHeader from '../components/AppHeader';
 import MainLayout from '../components/MainLayout';
 import ExpensesByCategoryCard from '../components/ExpensesByCategoryCard';
 import { spacing, borderRadius, getShadow } from '../theme';
@@ -76,6 +76,7 @@ export default function Reports() {
   const { user } = useAuth();
   const { colors } = useAppTheme();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const isNarrow = width < 700;
 
   // Mês atual
@@ -195,8 +196,10 @@ export default function Reports() {
   if (loading) {
     return (
       <MainLayout>
-        <ScrollView style={[styles.root, { backgroundColor: colors.bg }]}>
-          <AppHeader />
+        <ScrollView 
+          style={[styles.root, { backgroundColor: colors.bg }]}
+          contentContainerStyle={{ paddingTop: insets.top || 16 }}
+        >
           <View style={styles.loadingContainer}>
             <Text style={[styles.loadingText, { color: colors.textMuted }]}>
               Carregando relatório...
@@ -209,8 +212,13 @@ export default function Reports() {
 
   return (
     <MainLayout>
-      <ScrollView style={[styles.root, { backgroundColor: colors.bg }]} contentContainerStyle={styles.scrollContent}>
-        <AppHeader />
+      <ScrollView 
+        style={[styles.root, { backgroundColor: colors.bg }]} 
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top || 16 }
+        ]}
+      >
         <View style={styles.centeredContainer}>
           <View style={styles.content}>
             <Text style={[styles.title, { color: colors.text }]}>Relatórios</Text>

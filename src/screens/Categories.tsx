@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet, Platform, ScrollView } from "react-native";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppTheme } from "../contexts/themeContext";
 import { spacing, borderRadius, getShadow } from "../theme";
@@ -13,6 +14,7 @@ import SettingsFooter from "../components/SettingsFooter";
 export default function Categories({ navigation }: any) {
   const { colors } = useAppTheme();
   const { alertState, showAlert, hideAlert } = useCustomAlert();
+  const insets = useSafeAreaInsets();
   
   const [categoryType, setCategoryType] = useState<CategoryType>('expense');
   const [name, setName] = useState('');
@@ -95,7 +97,7 @@ export default function Categories({ navigation }: any) {
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
+      <View style={[styles.header, { backgroundColor: colors.primary, paddingTop: insets.top || 16 }]}>
         <View style={styles.headerInner}>
           <Pressable 
             onPress={() => navigation.goBack()} 
@@ -115,8 +117,8 @@ export default function Categories({ navigation }: any) {
       >
         <View style={styles.centeredContainer}>
           <View style={styles.content}>
-        {/* Tipo de categoria */}
-        <View style={styles.typeSelector}>
+            {/* Tipo de categoria */}
+            <View style={styles.typeSelector}>
           <Pressable
             onPress={() => {
               setCategoryType('expense');
@@ -167,148 +169,150 @@ export default function Categories({ navigation }: any) {
               Receitas
             </Text>
           </Pressable>
-        </View>
+            </View>
 
-        {/* Categorias existentes */}
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <Text style={[styles.loadingText, { color: colors.textMuted }]}>Carregando categorias...</Text>
-          </View>
-        ) : currentCategories.length > 0 ? (
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-              {categoryType === 'expense' ? 'CATEGORIAS DE DESPESA' : 'CATEGORIAS DE RECEITA'}
-            </Text>
-            <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
-              Toque para editar
-            </Text>
-            <View style={[styles.card, { backgroundColor: colors.card }, getShadow(colors)]}>
-              <View style={styles.categoriesGrid}>
-                {currentCategories.map((cat) => (
-                  <Pressable 
-                    key={cat.id} 
-                    style={styles.categoryChip}
-                    onPress={() => setEditingCategory(cat)}
-                  >
+            {/* Categorias existentes */}
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <Text style={[styles.loadingText, { color: colors.textMuted }]}>Carregando categorias...</Text>
+              </View>
+            ) : currentCategories.length > 0 ? (
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+                  {categoryType === 'expense' ? 'CATEGORIAS DE DESPESA' : 'CATEGORIAS DE RECEITA'}
+                </Text>
+                <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
+                  Toque para editar
+                </Text>
+                <View style={[styles.card, { backgroundColor: colors.card }, getShadow(colors)]}>
+                  <View style={styles.categoriesGrid}>
+                    {currentCategories.map((cat) => (
+                      <Pressable 
+                        key={cat.id} 
+                        style={styles.categoryChip}
+                        onPress={() => setEditingCategory(cat)}
+                      >
+                        <View style={[
+                          styles.categoryIcon, 
+                          { backgroundColor: (categoryType === 'expense' ? colors.expense : colors.income) + '20' }
+                        ]}>
+                          <MaterialCommunityIcons 
+                            name={cat.icon as any} 
+                            size={16} 
+                            color={categoryType === 'expense' ? colors.expense : colors.income} 
+                          />
+                        </View>
+                        <Text style={[styles.categoryName, { color: colors.text }]}>{cat.name}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.section}>
+                <View style={[styles.emptyCard, { backgroundColor: colors.card }, getShadow(colors)]}>
+                  <MaterialCommunityIcons name="tag-off-outline" size={48} color={colors.textMuted} />
+                  <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+                    Nenhuma categoria de {categoryType === 'expense' ? 'despesa' : 'receita'} cadastrada
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* Nova categoria */}
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+                CRIAR NOVA CATEGORIA
+              </Text>
+              <View style={[styles.card, { backgroundColor: colors.card }, getShadow(colors)]}>
+                {/* Nome */}
+                <View style={styles.formGroup}>
+                  <Text style={[styles.label, { color: colors.text }]}>Nome da categoria</Text>
+                  <View style={[styles.inputContainer, { borderColor: colors.border }]}>
+                    <TextInput
+                      value={name}
+                      onChangeText={setName}
+                      placeholder="Ex: Restaurantes, Academia..."
+                      placeholderTextColor={colors.textMuted}
+                      style={[styles.input, { color: colors.text }]}
+                    />
+                  </View>
+                </View>
+
+                {/* Ícone */}
+                <View style={styles.formGroup}>
+                  <Text style={[styles.label, { color: colors.text }]}>Ícone</Text>
+                  <View style={styles.iconGrid}>
+                    {icons.map((icon) => (
+                      <Pressable
+                        key={icon}
+                        onPress={() => setSelectedIcon(icon)}
+                        style={[
+                          styles.iconOption,
+                          { 
+                            borderColor: selectedIcon === icon 
+                              ? (categoryType === 'expense' ? colors.expense : colors.income) 
+                              : colors.border,
+                          },
+                          selectedIcon === icon && { 
+                            backgroundColor: (categoryType === 'expense' ? colors.expense : colors.income) + '15' 
+                          },
+                        ]}
+                      >
+                        <MaterialCommunityIcons 
+                          name={icon as any} 
+                          size={22} 
+                          color={selectedIcon === icon 
+                            ? (categoryType === 'expense' ? colors.expense : colors.income) 
+                            : colors.textMuted
+                          } 
+                        />
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Preview */}
+                <View style={[styles.previewContainer, { borderColor: colors.border }]}>
+                  <Text style={[styles.previewLabel, { color: colors.textMuted }]}>Preview:</Text>
+                  <View style={styles.previewChip}>
                     <View style={[
                       styles.categoryIcon, 
                       { backgroundColor: (categoryType === 'expense' ? colors.expense : colors.income) + '20' }
                     ]}>
                       <MaterialCommunityIcons 
-                        name={cat.icon as any} 
+                        name={selectedIcon as any} 
                         size={16} 
                         color={categoryType === 'expense' ? colors.expense : colors.income} 
                       />
                     </View>
-                    <Text style={[styles.categoryName, { color: colors.text }]}>{cat.name}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.section}>
-            <View style={[styles.emptyCard, { backgroundColor: colors.card }, getShadow(colors)]}>
-              <MaterialCommunityIcons name="tag-off-outline" size={48} color={colors.textMuted} />
-              <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-                Nenhuma categoria de {categoryType === 'expense' ? 'despesa' : 'receita'} cadastrada
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* Nova categoria */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-            CRIAR NOVA CATEGORIA
-          </Text>
-          <View style={[styles.card, { backgroundColor: colors.card }, getShadow(colors)]}>
-            {/* Nome */}
-            <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.text }]}>Nome da categoria</Text>
-              <View style={[styles.inputContainer, { borderColor: colors.border }]}>
-                <TextInput
-                  value={name}
-                  onChangeText={setName}
-                  placeholder="Ex: Restaurantes, Academia..."
-                  placeholderTextColor={colors.textMuted}
-                  style={[styles.input, { color: colors.text }]}
-                />
-              </View>
-            </View>
-
-            {/* Ícone */}
-            <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.text }]}>Ícone</Text>
-              <View style={styles.iconGrid}>
-                {icons.map((icon) => (
-                  <Pressable
-                    key={icon}
-                    onPress={() => setSelectedIcon(icon)}
-                    style={[
-                      styles.iconOption,
-                      { 
-                        borderColor: selectedIcon === icon 
-                          ? (categoryType === 'expense' ? colors.expense : colors.income) 
-                          : colors.border,
-                      },
-                      selectedIcon === icon && { 
-                        backgroundColor: (categoryType === 'expense' ? colors.expense : colors.income) + '15' 
-                      },
-                    ]}
-                  >
-                    <MaterialCommunityIcons 
-                      name={icon as any} 
-                      size={22} 
-                      color={selectedIcon === icon 
-                        ? (categoryType === 'expense' ? colors.expense : colors.income) 
-                        : colors.textMuted
-                      } 
-                    />
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-
-            {/* Preview */}
-            <View style={[styles.previewContainer, { borderColor: colors.border }]}>
-              <Text style={[styles.previewLabel, { color: colors.textMuted }]}>Preview:</Text>
-              <View style={styles.previewChip}>
-                <View style={[
-                  styles.categoryIcon, 
-                  { backgroundColor: (categoryType === 'expense' ? colors.expense : colors.income) + '20' }
-                ]}>
-                  <MaterialCommunityIcons 
-                    name={selectedIcon as any} 
-                    size={16} 
-                    color={categoryType === 'expense' ? colors.expense : colors.income} 
-                  />
+                    <Text style={[styles.categoryName, { color: colors.text }]}>
+                      {name || 'Nova categoria'}
+                    </Text>
+                  </View>
                 </View>
-                <Text style={[styles.categoryName, { color: colors.text }]}>
-                  {name || 'Nova categoria'}
-                </Text>
+
+                {/* Botão */}
+                <Pressable
+                  onPress={handleCreate}
+                  disabled={saving || !name.trim()}
+                  style={({ pressed }) => [
+                    styles.createButton,
+                    { backgroundColor: categoryType === 'expense' ? colors.expense : colors.income },
+                    pressed && { opacity: 0.9 },
+                    (saving || !name.trim()) && { opacity: 0.6 },
+                  ]}
+                >
+                  <MaterialCommunityIcons name="plus" size={20} color="#fff" />
+                  <Text style={styles.createButtonText}>
+                    {saving ? 'Criando...' : 'Criar categoria'}
+                  </Text>
+                </Pressable>
               </View>
             </View>
-
-            {/* Botão */}
-            <Pressable
-              onPress={handleCreate}
-              disabled={saving || !name.trim()}
-              style={({ pressed }) => [
-                styles.createButton,
-                { backgroundColor: categoryType === 'expense' ? colors.expense : colors.income },
-                pressed && { opacity: 0.9 },
-                (saving || !name.trim()) && { opacity: 0.6 },
-              ]}
-            >
-              <MaterialCommunityIcons name="plus" size={20} color="#fff" />
-              <Text style={styles.createButtonText}>
-                {saving ? 'Criando...' : 'Criar categoria'}
-              </Text>
-            </Pressable>
           </View>
         </View>
-        </View>        </View>      </ScrollView>
+      </ScrollView>
 
       <EditCategoryModal
         visible={editingCategory !== null}

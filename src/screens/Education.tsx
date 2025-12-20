@@ -64,7 +64,7 @@ export default function Education({ navigation }: any) {
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
+      <View style={[styles.header, { backgroundColor: colors.primary, paddingTop: insets.top || 16 }]}>
         <View style={styles.headerInner}>
           <Pressable
             onPress={() => navigation.goBack()}

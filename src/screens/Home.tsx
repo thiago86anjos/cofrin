@@ -1,4 +1,5 @@
 import { View, StyleSheet, ScrollView, useWindowDimensions } from "react-native";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../contexts/authContext";
 import { useAppTheme } from "../contexts/themeContext";
@@ -8,7 +9,6 @@ import { useCreditCards } from "../hooks/useCreditCards";
 import { useGoal } from "../hooks/useGoal";
 import { useTransactionRefresh } from "../contexts/transactionRefreshContext";
 import { useEffect, useMemo, useCallback, useState } from "react";
-import AppHeader from "../components/AppHeader";
 import MainLayout from "../components/MainLayout";
 import HomeOverview from "../components/home/HomeOverview";
 import AccountsCard from "../components/home/AccountsCard";
@@ -22,7 +22,6 @@ import { Timestamp } from "firebase/firestore";
 import * as goalService from "../services/goalService";
 import * as transactionService from "../services/transactionService";
 import * as categoryService from "../services/categoryService";
-import { spacing } from "../theme";
 
 export default function Home() {
   const { user } = useAuth();
@@ -30,6 +29,7 @@ export default function Home() {
   const { width } = useWindowDimensions();
   const { refreshKey, triggerRefresh } = useTransactionRefresh();
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const isNarrow = width < 700;
   const userName = user?.displayName || user?.email?.split("@")?.[0] || "Usuário";
 
@@ -203,11 +203,16 @@ export default function Home() {
 
   return (
     <MainLayout>
-      <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ paddingBottom: 120 }}>
-        <AppHeader />
+      <ScrollView 
+        style={{ backgroundColor: '#F9FAFB' }} 
+        contentContainerStyle={{ 
+          paddingTop: insets.top || 16,
+          paddingBottom: 120 
+        }}
+      >
         <View style={styles.centeredContainer}>
           <View style={styles.content}>
-            {/* 1. Header contextual com acesso rápido */}
+            {/* 1. Saudação + Hero Card - Resumo do Mês */}
             <HomeOverview
               username={userName}
               revenue={totalIncome}
@@ -215,16 +220,16 @@ export default function Home() {
               onSaveTransaction={triggerRefresh}
             />
 
-            <View style={{ height: spacing.lg }} />
+            <View style={{ height: 24 }} />
 
-            {/* 2. Minhas contas */}
+            {/* 2. Onde está meu dinheiro */}
             <AccountsCard 
               accounts={accounts}
               onAccountPress={handleAccountPress}
               onAddPress={() => navigation.navigate('ConfigureAccounts')}
             />
 
-            <View style={{ height: spacing.lg }} />
+            <View style={{ height: 24 }} />
 
             {/* 3. Meus cartões de crédito */}
             <CreditCardsCard 
@@ -233,7 +238,7 @@ export default function Home() {
               onAddPress={handleAddCreditCard}
             />
 
-            <View style={{ height: spacing.lg }} />
+            <View style={{ height: 24 }} />
 
             {/* 4. Meta financeira */}
             <GoalCard 
@@ -244,7 +249,7 @@ export default function Home() {
               onAddPress={() => setShowAddToGoalModal(true)}
             />
 
-            <View style={{ height: spacing.lg }} />
+            <View style={{ height: 24 }} />
 
             {/* 5. Onde você gastou (categoria principal) */}
             <TopCategoryCard 
@@ -287,20 +292,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   content: {
-    padding: spacing.lg,
+    padding: 24,
   },
-  container: { flex: 1, justifyContent: "center", alignItems: "center" },
-  title: { fontSize: 24, marginBottom: 12 },
-  avatarContainer: { alignItems: "center", marginBottom: 12 },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "#2563eb",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
-  },
-  avatarName: { fontSize: 16 },
-  subTitle: { fontSize: 14, color: '#94a3b8' },
 });
