@@ -1,5 +1,6 @@
 import { View, StyleSheet, Pressable, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRoute } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppTheme } from '../contexts/themeContext';
 import { spacing, getShadow } from '../theme';
@@ -18,26 +19,43 @@ export const FOOTER_HEIGHT = 56;
 export default function AppFooter({ onHome, onAdd, onLaunches, onReports, onOthers }: Props) {
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
+  const route = useRoute();
 
-  // Cor fixa para ícones inativos - cinza arroxeado do design system
-  const inactiveIconColor = '#9A96B0';
+  // Detectar rota ativa
+  const currentRoute = route.name;
 
-  const IconButton = ({ icon, onPress, isActive }: { icon: string; onPress: () => void; isActive?: boolean }) => (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.iconButton,
-        { opacity: pressed ? 0.7 : 1 }
-      ]}
-      hitSlop={8}
-    >
-      <MaterialCommunityIcons 
-        name={icon as any} 
-        size={24} 
-        color={isActive ? colors.primary : inactiveIconColor} 
-      />
-    </Pressable>
-  );
+  // Cores do design system
+  const activeIconColor = '#4A2FA8';    // roxo escuro para ícone ativo
+  const inactiveIconColor = '#9A96B0'; // cinza arroxeado para ícone inativo
+
+  const IconButton = ({ 
+    icon, 
+    onPress, 
+    routeName 
+  }: { 
+    icon: string; 
+    onPress: () => void; 
+    routeName: string;
+  }) => {
+    const isActive = currentRoute === routeName;
+    
+    return (
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.iconButton,
+          { opacity: pressed ? 0.7 : 1 }
+        ]}
+        hitSlop={8}
+      >
+        <MaterialCommunityIcons 
+          name={icon as any} 
+          size={24} 
+          color={isActive ? activeIconColor : inactiveIconColor} 
+        />
+      </Pressable>
+    );
+  };
 
   return (
     <View style={styles.safeArea}>
@@ -54,11 +72,11 @@ export default function AppFooter({ onHome, onAdd, onLaunches, onReports, onOthe
         <View style={styles.centeredContent}>
           <View style={styles.row}>
             <View style={styles.slot}>
-              <IconButton icon="home-outline" onPress={onHome} />
+              <IconButton icon="home-outline" onPress={onHome} routeName="Bem-vindo" />
             </View>
 
             <View style={styles.slot}>
-              <IconButton icon="swap-horizontal" onPress={onLaunches} />
+              <IconButton icon="swap-horizontal" onPress={onLaunches} routeName="Lançamentos" />
             </View>
 
             <View style={styles.centerSlot}>
@@ -78,11 +96,11 @@ export default function AppFooter({ onHome, onAdd, onLaunches, onReports, onOthe
             </View>
 
             <View style={styles.slot}>
-              <IconButton icon="chart-bar" onPress={onReports} />
+              <IconButton icon="chart-bar" onPress={onReports} routeName="Relatórios" />
             </View>
 
             <View style={styles.slot}>
-              <IconButton icon="dots-horizontal" onPress={onOthers} />
+              <IconButton icon="dots-horizontal" onPress={onOthers} routeName="Configurações" />
             </View>
           </View>
         </View>
