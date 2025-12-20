@@ -207,8 +207,7 @@ export default function Home() {
       <ScrollView 
         style={{ backgroundColor: '#F9FAFB' }} 
         contentContainerStyle={{ 
-          paddingTop: insets.top || 16,
-          paddingBottom: 120 
+          paddingTop: insets.top || 16
         }}
       >
         <View style={styles.centeredContainer}>

@@ -474,7 +474,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 100,
+    flexGrow: 1,
   },
   centeredContainer: {
     maxWidth: 1200,
