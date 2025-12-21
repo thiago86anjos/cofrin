@@ -13,9 +13,9 @@ export function useGoogleAuth(onLogin?: () => void) {
   const { showAlert } = useCustomAlert();
 
   const [request, response, promptAsync] = Google.useAuthRequest({
-    //clientId: "1026415452462-bnqbtkpks7pts26n6l4eg22en1pradau.apps.googleusercontent.com",
+    expoClientId: "1026415452462-bnqbtkpks7pts26n6l4eg22en1pradau.apps.googleusercontent.com",
     webClientId: "1026415452462-bnqbtkpks7pts26n6l4eg22en1pradau.apps.googleusercontent.com",
-    androidClientId: "1026415452462-5fq481lvavlqg8pon3sobamd9l6nmgjb.apps.googleusercontent.com",
+    androidClientId: "1026415452462-bnqbtkpks7pts26n6l4eg22en1pradau.apps.googleusercontent.com",
     //iosClientId: "1026415452462-3jti3vafhr81mjkrmftdv11edugdgm42.apps.googleusercontent.com",
     scopes: ["openid", "profile", "email"],
     responseType: "id_token", // <-- ESSENCIAL!
