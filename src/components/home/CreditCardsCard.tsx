@@ -38,18 +38,18 @@ const lightBg = '#FAFAFA';
 
 // Status de uso do cartão baseado na porcentagem de gastos vs receitas
 type CardUsageStatus = {
-  level: 'controlled' | 'warning' | 'alert';
+  level: 'controlled' | 'warning' | 'alert' | 'no-income';
   message: string;
-  icon: 'check-circle' | 'alert-circle' | 'alert';
+  icon: 'check-circle' | 'alert-circle' | 'alert' | 'information-outline';
   color: string;
 };
 
 const getCardUsageStatus = (totalUsed: number, totalIncome: number, colors: any): CardUsageStatus => {
   if (totalIncome === 0) {
     return {
-      level: 'controlled',
+      level: 'no-income',
       message: 'Sem receitas registradas neste mês',
-      icon: 'check-circle',
+      icon: 'information-outline',
       color: colors.textMuted,
     };
   }
@@ -313,21 +313,34 @@ export default function CreditCardsCard({ cards = [], totalBills = 0, totalIncom
               )}
             </View>
 
-            {/* Dica */}
-            <View style={[styles.modalTip, { backgroundColor: `${usageStatus.color}10` }]}>
-              <MaterialCommunityIcons 
-                name="lightbulb-outline" 
-                size={16} 
-                color={usageStatus.color} 
-              />
-              <Text style={[styles.modalTipText, { color: colors.textMuted }]}>
-                {usageStatus.level === 'controlled' 
-                  ? 'Continue assim! Manter os gastos no cartão abaixo de 30% das receitas é ideal.'
-                  : usageStatus.level === 'warning'
-                  ? 'Considere revisar seus gastos. O ideal é manter abaixo de 30% das receitas.'
-                  : 'Revise seus gastos no cartão para evitar comprometer seu orçamento.'}
-              </Text>
-            </View>
+            {/* Dica - só mostra se tiver receitas para comparar */}
+            {usageStatus.level !== 'no-income' ? (
+              <View style={[styles.modalTip, { backgroundColor: `${usageStatus.color}10` }]}>
+                <MaterialCommunityIcons 
+                  name="lightbulb-outline" 
+                  size={16} 
+                  color={usageStatus.color} 
+                />
+                <Text style={[styles.modalTipText, { color: colors.textMuted }]}>
+                  {usageStatus.level === 'controlled' 
+                    ? 'Continue assim! Manter os gastos no cartão abaixo de 30% das receitas é ideal.'
+                    : usageStatus.level === 'warning'
+                    ? 'Considere revisar seus gastos. O ideal é manter abaixo de 30% das receitas.'
+                    : 'Revise seus gastos no cartão para evitar comprometer seu orçamento.'}
+                </Text>
+              </View>
+            ) : (
+              <View style={[styles.modalTip, { backgroundColor: `${colors.primary}10` }]}>
+                <MaterialCommunityIcons 
+                  name="information-outline" 
+                  size={16} 
+                  color={colors.primary} 
+                />
+                <Text style={[styles.modalTipText, { color: colors.textMuted }]}>
+                  Cadastre suas receitas para acompanhar o comprometimento do seu orçamento com cartões de crédito.
+                </Text>
+              </View>
+            )}
           </View>
         </Pressable>
       </Modal>
