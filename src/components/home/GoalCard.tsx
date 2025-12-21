@@ -21,6 +21,9 @@ interface Props {
 
 export default function GoalCard({ goal, progressPercentage, onCreatePress, onManagePress, onAddPress }: Props) {
   const { colors } = useAppTheme();
+  
+  // Verificar se meta está completa
+  const isGoalComplete = goal ? goal.currentAmount >= goal.targetAmount : false;
 
   // Card quando NÃO há meta
   if (!goal) {
@@ -69,7 +72,9 @@ export default function GoalCard({ goal, progressPercentage, onCreatePress, onMa
           />
         </View>
         <View style={styles.goalHeaderText}>
-          <Text style={[styles.goalTitle, { color: colors.textMuted }]}>Objetivos em andamento</Text>
+          <Text style={[styles.goalTitle, { color: isGoalComplete ? colors.success : colors.textMuted }]}>
+            {isGoalComplete ? 'Meta atingida!' : 'Objetivos em andamento'}
+          </Text>
           <Text style={[styles.goalName, { color: colors.text }]} numberOfLines={1}>
             {goal.name}
           </Text>
@@ -84,28 +89,31 @@ export default function GoalCard({ goal, progressPercentage, onCreatePress, onMa
               styles.progressFill, 
               { 
                 width: `${Math.min(progressPercentage, 100)}%`,
-                backgroundColor: primary
+                backgroundColor: isGoalComplete ? colors.success : primary
               }
             ]} 
           />
         </View>
-        <Text style={[styles.progressText, { color: primary }]}>
+        <Text style={[styles.progressText, { color: isGoalComplete ? colors.success : primary }]}>
           {Math.round(progressPercentage)}%
         </Text>
       </View>
 
       {/* Botões de ação */}
       <View style={styles.actionsRow}>
-        <Pressable
-          onPress={onAddPress}
-          style={({ pressed }) => [
-            styles.addButton,
-            { backgroundColor: colors.grayLight, borderColor: colors.border },
-            pressed && { opacity: 0.7 }
-          ]}
-        >
-          <Text style={[styles.addButtonText, { color: colors.textSecondary }]}>Adicionar progresso</Text>
-        </Pressable>
+        {/* Botão de adicionar progresso - esconder quando meta completa */}
+        {!isGoalComplete && (
+          <Pressable
+            onPress={onAddPress}
+            style={({ pressed }) => [
+              styles.addButton,
+              { backgroundColor: colors.grayLight, borderColor: colors.border },
+              pressed && { opacity: 0.7 }
+            ]}
+          >
+            <Text style={[styles.addButtonText, { color: colors.textSecondary }]}>Adicionar progresso</Text>
+          </Pressable>
+        )}
 
         <Pressable
           onPress={onManagePress}

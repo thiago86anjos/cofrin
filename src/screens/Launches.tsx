@@ -565,20 +565,24 @@ export default function Launches() {
         </ScrollView>
       </View>
 
-      {/* FAB para Saldo Previsto */}
-      <FAB
-        icon="chart-line"
-        size="small"
-        style={[
-          styles.forecastFab,
-          { 
-            backgroundColor: colors.primary,
-            bottom: summaryBottom + 70,
-          }
-        ]}
-        color="#FFFFFF"
-        onPress={() => setShowForecastTooltip(!showForecastTooltip)}
-      />
+      {/* FAB para Saldo Previsto - wrapper para respeitar max-width */}
+      <View style={styles.fabContainer} pointerEvents="box-none">
+        <View style={styles.fabCentered} pointerEvents="box-none">
+          <FAB
+            icon="chart-line"
+            size="small"
+            style={[
+              styles.forecastFab,
+              { 
+                backgroundColor: colors.primary,
+                bottom: summaryBottom + 70,
+              }
+            ]}
+            color="#FFFFFF"
+            onPress={() => setShowForecastTooltip(!showForecastTooltip)}
+          />
+        </View>
+      </View>
       
       {/* Tooltip de Saldo Previsto */}
       {showForecastTooltip && (
@@ -804,6 +808,20 @@ const styles = StyleSheet.create({
   forecastFab: {
     position: 'absolute',
     right: 16,
+  },
+  fabContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    top: 0,
+    alignItems: 'center',
+  },
+  fabCentered: {
+    maxWidth: 1200,
+    width: '100%',
+    flex: 1,
+    position: 'relative',
   },
   tooltipOverlay: {
     position: 'absolute',

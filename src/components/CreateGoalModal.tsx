@@ -1,21 +1,23 @@
 import { useState, useEffect } from 'react';
 import {
-    View,
-    StyleSheet,
-    Modal,
-    Pressable,
-    TextInput,
-    ScrollView,
-    KeyboardAvoidingView,
-    Platform,
-    Alert,
+  View,
+  StyleSheet,
+  Modal,
+  Pressable,
+  TextInput,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import DatePickerCrossPlatform from './DatePickerCrossPlatform';
+
 import { useAppTheme } from '../contexts/themeContext';
 import { spacing, borderRadius } from '../theme';
 import { Goal, GOAL_ICONS, GOAL_ICON_LABELS } from '../types/firebase';
+import { getModalContainerStyle } from '../utils/modalLayout';
 
 interface Props {
   visible: boolean;
@@ -53,8 +55,7 @@ export default function CreateGoalModal({
   const [name, setName] = useState('');
   const [targetAmount, setTargetAmount] = useState('');
   const [targetDate, setTargetDate] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [icon, setIcon] = useState('cash-multiple');
+  const [icon, setIcon] = useState('piggy-bank');
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
@@ -74,7 +75,7 @@ export default function CreateGoalModal({
         now.setMonth(now.getMonth() + months);
         setTargetDate(now);
       }
-      setIcon(existingGoal.icon || 'cash-multiple');
+      setIcon(existingGoal.icon || 'piggy-bank');
     } else {
       // Reset para nova meta
       setName('');
@@ -82,7 +83,7 @@ export default function CreateGoalModal({
       const defaultDate = new Date();
       defaultDate.setMonth(defaultDate.getMonth() + 12); // 1 ano por padrão
       setTargetDate(defaultDate);
-      setIcon('cash-multiple');
+      setIcon('piggy-bank');
     }
     setError('');
   }, [existingGoal, visible]);
@@ -182,13 +183,6 @@ export default function CreateGoalModal({
     setTargetAmount(formatCurrency(value));
   };
 
-  const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    setShowDatePicker(Platform.OS === 'ios');
-    if (event.type === 'set' && selectedDate) {
-      setTargetDate(selectedDate);
-    }
-  };
-
   const formatDate = (date: Date): string => {
     return date.toLocaleDateString('pt-BR', {
       day: '2-digit',
@@ -210,8 +204,12 @@ export default function CreateGoalModal({
       >
         <Pressable style={styles.backdrop} onPress={onClose} />
         
-        <View style={[styles.container, { backgroundColor: colors.card }]}>
-          <ScrollView showsVerticalScrollIndicator={false}>
+        <View style={Platform.OS === 'web' ? { alignItems: 'center', width: '100%' } : undefined}>
+        <View style={[getModalContainerStyle(colors), { backgroundColor: colors.card }]}> 
+          <ScrollView 
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+          >
             {/* Header */}
             <View style={styles.header}>
               <Text style={[styles.title, { color: colors.text }]}>
@@ -220,14 +218,6 @@ export default function CreateGoalModal({
               <Pressable onPress={onClose} hitSlop={8}>
                 <MaterialCommunityIcons name="close" size={24} color={colors.textMuted} />
               </Pressable>
-            </View>
-
-            {/* Texto motivacional */}
-            <View style={[styles.motivationalBox, { backgroundColor: colors.primaryBg }]}>
-              <MaterialCommunityIcons name="lightbulb-on" size={20} color={colors.primary} />
-              <Text style={[styles.motivationalText, { color: colors.primary }]}>
-                Uma meta clara transforma sonhos em planos concretos.
-              </Text>
             </View>
 
             {/* Nome da meta */}
@@ -256,30 +246,16 @@ export default function CreateGoalModal({
             </View>
 
             {/* Data de finalização */}
-            <Text style={[styles.label, { color: colors.text }]}>Quando você quer atingir?</Text>
-            <Pressable
-              onPress={() => setShowDatePicker(true)}
-              style={[styles.dateButton, { backgroundColor: colors.bg, borderColor: colors.border }]}
-            >
-              <MaterialCommunityIcons name="calendar" size={20} color={colors.primary} />
-              <Text style={[styles.dateText, { color: colors.text }]}>
-                {formatDate(targetDate)}
-              </Text>
-            </Pressable>
-
-            {showDatePicker && (
-              <DateTimePicker
-                value={targetDate}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={handleDateChange}
-                minimumDate={new Date()}
-              />
-            )}
+            <DatePickerCrossPlatform
+              label="Quando você quer atingir?"
+              value={targetDate}
+              onChange={setTargetDate}
+              minimumDate={new Date()}
+            />
 
             {/* Ícone */}
             <Text style={[styles.label, { color: colors.text }]}>Escolha uma categoria</Text>
-            <View style={styles.iconGrid}>
+            <View style={styles.chipGrid}>
               {GOAL_ICONS.map((iconName) => {
                 const isSelected = icon === iconName;
                 const label = GOAL_ICON_LABELS[iconName] || iconName;
@@ -288,20 +264,15 @@ export default function CreateGoalModal({
                     key={iconName}
                     onPress={() => setIcon(iconName)}
                     style={[
-                      styles.iconOptionLarge,
+                      styles.chip,
                       { 
                         backgroundColor: isSelected ? colors.primary : colors.bg,
                         borderColor: isSelected ? colors.primary : colors.border,
                       }
                     ]}
                   >
-                    <MaterialCommunityIcons 
-                      name={iconName as any} 
-                      size={32} 
-                      color={isSelected ? '#fff' : colors.text} 
-                    />
                     <Text style={[
-                      styles.iconLabel,
+                      styles.chipText,
                       { color: isSelected ? '#fff' : colors.text }
                     ]}>
                       {label}
@@ -359,6 +330,7 @@ export default function CreateGoalModal({
             </View>
           </ScrollView>
         </View>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -373,11 +345,19 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
+  centeredContainer: {
+    width: '100%',
+    alignSelf: 'center',
+    marginTop: 'auto',
+  },
   container: {
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
     padding: spacing.lg,
     maxHeight: '90%',
+  },
+  scrollContent: {
+    paddingBottom: spacing.xl,
   },
   header: {
     flexDirection: 'row',
@@ -443,25 +423,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     flex: 1,
   },
-  iconGrid: {
+  chipGrid: {
     flexDirection: 'row',
-    gap: spacing.md,
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
   },
-  iconOptionLarge: {
-    flex: 1,
-    aspectRatio: 1,
+  chip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderWidth: 1,
-    borderRadius: borderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    padding: spacing.sm,
+    borderRadius: 20,
   },
-  iconLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'center',
+  chipText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   timeframeOptions: {
     flexDirection: 'row',
@@ -482,11 +457,6 @@ const styles = StyleSheet.create({
   timeframeDesc: {
     fontSize: 11,
     textAlign: 'center',
-  },
-  iconGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
   },
   iconOption: {
     width: 48,

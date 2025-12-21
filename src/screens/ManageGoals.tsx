@@ -426,14 +426,18 @@ export default function ManageGoals() {
         </View>
       </ScrollView>
 
-      {/* FAB para criar nova meta */}
-      <FAB
-        icon="plus"
-        label="Criar nova meta"
-        style={[styles.fab, { backgroundColor: colors.primary, bottom: insets.bottom + 80 }]}
-        onPress={handleCreateGoal}
-        color="#fff"
-      />
+      {/* FAB para criar nova meta - wrapper para respeitar max-width */}
+      <View style={styles.fabContainer} pointerEvents="box-none">
+        <View style={styles.fabCentered} pointerEvents="box-none">
+          <FAB
+            icon="plus"
+            label="Criar nova meta"
+            style={[styles.fab, { backgroundColor: colors.primary, bottom: insets.bottom + 80 }]}
+            onPress={handleCreateGoal}
+            color="#fff"
+          />
+        </View>
+      </View>
 
       {/* Modais */}
       <CreateGoalModal
@@ -625,6 +629,20 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 16,
+  },
+  fabContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    top: 0,
+    alignItems: 'center',
+  },
+  fabCentered: {
+    maxWidth: 1200,
+    width: '100%',
+    flex: 1,
+    position: 'relative',
   },
   emptyState: {
     alignItems: 'center',

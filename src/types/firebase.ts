@@ -229,15 +229,21 @@ export const GOAL_TIMEFRAME_DESCRIPTIONS: Record<GoalTimeframe, string> = {
 
 // Ícones sugeridos para metas
 export const GOAL_ICONS = [
-  'cash-multiple',     // Investimentos
+  'piggy-bank',        // Reserva Financeira
+  'home-variant',      // Bens Materiais
   'airplane',          // Viagens
-  'home-variant',      // Conquista de bens materiais
+  'school',            // Educação
+  'heart-pulse',       // Bem-estar
+  'chart-line',        // Investimentos
 ];
 
 export const GOAL_ICON_LABELS: Record<string, string> = {
-  'cash-multiple': 'Investimentos',
-  'airplane': 'Viagens',
+  'piggy-bank': 'Reserva Financeira',
   'home-variant': 'Bens Materiais',
+  'airplane': 'Viagens',
+  'school': 'Educação',
+  'heart-pulse': 'Bem-estar',
+  'chart-line': 'Investimentos',
 };
 
 // Helper para calcular progresso da meta

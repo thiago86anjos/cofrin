@@ -11,10 +11,12 @@ import {
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+
 import { useAppTheme } from '../contexts/themeContext';
 import { spacing, borderRadius } from '../theme';
 import { Goal, Account } from '../types/firebase';
 import { formatCurrencyBRL } from '../utils/format';
+import { getModalContainerStyle } from '../utils/modalLayout';
 
 interface Props {
   visible: boolean;
@@ -102,6 +104,9 @@ export default function AddToGoalModal({ visible, onClose, onSave, goal, progres
   // Sugestões rápidas de valores
   const suggestions = [50, 100, 200, 500].filter(v => v <= remaining + 100);
 
+  // Verificar se meta está completa
+  const isGoalComplete = goal.currentAmount >= goal.targetAmount;
+
   return (
     <Modal
       visible={visible}
@@ -115,7 +120,8 @@ export default function AddToGoalModal({ visible, onClose, onSave, goal, progres
       >
         <Pressable style={styles.backdrop} onPress={handleClose} />
         
-        <View style={[styles.container, { backgroundColor: colors.card }]}>
+        <View style={Platform.OS === 'web' ? styles.centeredContainer : undefined}>
+        <View style={[getModalContainerStyle(colors), { backgroundColor: colors.card }]}> 
           {/* Header */}
           <View style={styles.header}>
             <Text style={[styles.title, { color: colors.text }]}>
@@ -152,10 +158,17 @@ export default function AddToGoalModal({ visible, onClose, onSave, goal, progres
           </View>
 
           {/* Quanto falta */}
-          <View style={[styles.remainingBox, { backgroundColor: colors.primaryBg }]}>
-            <MaterialCommunityIcons name="flag-checkered" size={18} color={colors.primary} />
-            <Text style={[styles.remainingText, { color: colors.primary }]}>
-              Faltam {formatCurrencyBRL(remaining > 0 ? remaining : 0)} para alcançar sua meta!
+          <View style={[styles.remainingBox, { backgroundColor: isGoalComplete ? colors.successBg : colors.primaryBg }]}>
+            <MaterialCommunityIcons 
+              name={isGoalComplete ? "check-circle" : "flag-checkered"} 
+              size={18} 
+              color={isGoalComplete ? colors.success : colors.primary} 
+            />
+            <Text style={[styles.remainingText, { color: isGoalComplete ? colors.success : colors.primary }]}>
+              {isGoalComplete 
+                ? 'Parabéns! Você já atingiu sua meta!' 
+                : `Faltam ${formatCurrencyBRL(remaining > 0 ? remaining : 0)} para alcançar sua meta!`
+              }
             </Text>
           </View>
 
@@ -207,23 +220,27 @@ export default function AddToGoalModal({ visible, onClose, onSave, goal, progres
             </ScrollView>
           )}
 
-          {/* Input de valor */}
-          <Text style={[styles.label, { color: colors.text }]}>Quanto você conquistou?</Text>
-          <View style={[styles.inputContainer, { backgroundColor: colors.bg, borderColor: colors.border }]}>
-            <Text style={[styles.currencyPrefix, { color: colors.textMuted }]}>R$</Text>
-            <TextInput
-              style={[styles.amountInput, { color: colors.text }]}
-              placeholder="0,00"
-              placeholderTextColor={colors.textMuted}
-              value={amount}
-              onChangeText={handleAmountChange}
-              keyboardType="numeric"
-              autoFocus
-            />
-          </View>
+          {/* Input de valor - esconder se meta completa */}
+          {!isGoalComplete && (
+            <>
+              <Text style={[styles.label, { color: colors.text }]}>Quanto você conquistou?</Text>
+              <View style={[styles.inputContainer, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+                <Text style={[styles.currencyPrefix, { color: colors.textMuted }]}>R$</Text>
+                <TextInput
+                  style={[styles.amountInput, { color: colors.text }]}
+                  placeholder="0,00"
+                  placeholderTextColor={colors.textMuted}
+                  value={amount}
+                  onChangeText={handleAmountChange}
+                  keyboardType="numeric"
+                  autoFocus
+                />
+              </View>
+            </>
+          )}
 
-          {/* Sugestões rápidas */}
-          {suggestions.length > 0 && (
+          {/* Sugestões rápidas - esconder se meta completa */}
+          {!isGoalComplete && suggestions.length > 0 && (
             <View style={styles.suggestions}>
               {suggestions.map((value) => (
                 <Pressable
@@ -248,26 +265,31 @@ export default function AddToGoalModal({ visible, onClose, onSave, goal, progres
           <View style={styles.buttons}>
             <Pressable
               onPress={handleClose}
-              style={[styles.cancelButton, { borderColor: colors.border }]}
+              style={[styles.cancelButton, { borderColor: colors.border }, isGoalComplete && { flex: 1 }]}
             >
-              <Text style={[styles.cancelButtonText, { color: colors.text }]}>Cancelar</Text>
-            </Pressable>
-            
-            <Pressable
-              onPress={handleSave}
-              disabled={saving}
-              style={[
-                styles.saveButton, 
-                { backgroundColor: colors.primary },
-                saving && { opacity: 0.6 }
-              ]}
-            >
-              <MaterialCommunityIcons name="plus" size={18} color="#fff" />
-              <Text style={styles.saveButtonText}>
-                {saving ? 'Salvando...' : 'Adicionar'}
+              <Text style={[styles.cancelButtonText, { color: colors.text }]}>
+                {isGoalComplete ? 'Fechar' : 'Cancelar'}
               </Text>
             </Pressable>
+            
+            {!isGoalComplete && (
+              <Pressable
+                onPress={handleSave}
+                disabled={saving}
+                style={[
+                  styles.saveButton, 
+                  { backgroundColor: colors.primary },
+                  saving && { opacity: 0.6 }
+                ]}
+              >
+                <MaterialCommunityIcons name="plus" size={18} color="#fff" />
+                <Text style={styles.saveButtonText}>
+                  {saving ? 'Salvando...' : 'Adicionar'}
+                </Text>
+              </Pressable>
+            )}
           </View>
+        </View>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -282,6 +304,11 @@ const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  centeredContainer: {
+    width: '100%',
+    maxWidth: 500,
+    alignSelf: 'center',
   },
   container: {
     borderTopLeftRadius: borderRadius.xl,
