@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Modal } from "react-native";
+import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Modal, Platform } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppTheme } from "../contexts/themeContext";
 import { useAuth } from "../contexts/authContext";
 import { spacing, borderRadius, getShadow } from "../theme";
+import { getModalContainerStyle } from "../utils/modalLayout";
 import { useAccounts } from "../hooks/useAccounts";
 import { useCustomAlert } from "../hooks/useCustomAlert";
 import { useSnackbar } from "../hooks/useSnackbar";
@@ -776,16 +777,16 @@ export default function ConfigureAccounts({ navigation }: any) {
         onRequestClose={() => setEditModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+          <View style={Platform.OS === 'web' ? { alignItems: 'center', width: '100%' } : undefined}>
+          <View style={[getModalContainerStyle(colors), { backgroundColor: colors.card }]}>
+            <ScrollView showsVerticalScrollIndicator={false}>
             {/* Header do Modal */}
-            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>Editar Conta</Text>
               <Pressable onPress={() => setEditModalVisible(false)} hitSlop={12}>
-                <MaterialCommunityIcons name="close" size={24} color={colors.text} />
+                <MaterialCommunityIcons name="close" size={24} color={colors.textMuted} />
               </Pressable>
             </View>
-
-            <ScrollView style={styles.modalBody}>
               {/* Nome */}
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.text }]}>Nome da conta</Text>
@@ -817,35 +818,33 @@ export default function ConfigureAccounts({ navigation }: any) {
               {/* Tipo */}
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.text }]}>Tipo da conta</Text>
-                <View style={styles.typeGrid}>
-                  {ACCOUNT_TYPES.map((type) => (
-                    <Pressable
-                      key={type.id}
-                      onPress={() => {
-                        setEditType(type.id);
-                        setEditIcon(type.icon);
-                      }}
-                      style={[
-                        styles.typeOptionSmall,
-                        { borderColor: editType === type.id ? colors.primary : colors.border },
-                        editType === type.id && { backgroundColor: colors.primaryBg },
-                      ]}
-                    >
-                      <MaterialCommunityIcons 
-                        name={type.icon as any} 
-                        size={18} 
-                        color={editType === type.id ? colors.primary : colors.textMuted} 
-                      />
-                      <Text 
+                <View style={styles.chipGrid}>
+                  {ACCOUNT_TYPES.map((type) => {
+                    const isSelected = editType === type.id;
+                    return (
+                      <Pressable
+                        key={type.id}
+                        onPress={() => {
+                          setEditType(type.id);
+                          setEditIcon(type.icon);
+                        }}
                         style={[
-                          styles.typeLabelSmall, 
-                          { color: editType === type.id ? colors.primary : colors.textMuted },
+                          styles.chip,
+                          { 
+                            backgroundColor: isSelected ? colors.primary : colors.bg,
+                            borderColor: isSelected ? colors.primary : colors.border,
+                          }
                         ]}
                       >
-                        {type.label}
-                      </Text>
-                    </Pressable>
-                  ))}
+                        <Text style={[
+                          styles.chipText,
+                          { color: isSelected ? '#fff' : colors.text }
+                        ]}>
+                          {type.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
                 </View>
               </View>
 
@@ -965,6 +964,7 @@ export default function ConfigureAccounts({ navigation }: any) {
                 </View>
               </View>
             </ScrollView>
+          </View>
           </View>
         </View>
       </Modal>
@@ -1214,6 +1214,21 @@ const styles = StyleSheet.create({
     fontSize: 9,
     marginTop: 2,
   },
+  chipGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  chip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderWidth: 1,
+    borderRadius: 20,
+  },
+  chipText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
   iconGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1306,12 +1321,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: spacing.md,
-    borderBottomWidth: 1,
+    marginBottom: spacing.md,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
   },
   modalBody: {
     padding: spacing.md,

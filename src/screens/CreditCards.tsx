@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Modal } from "react-native";
+import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Modal, Platform } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppTheme } from "../contexts/themeContext";
@@ -12,6 +12,7 @@ import MainLayout from "../components/MainLayout";
 import SimpleHeader from "../components/SimpleHeader";
 import { useAuth } from "../contexts/authContext";
 import { spacing, borderRadius, getShadow } from "../theme";
+import { getModalContainerStyle } from "../utils/modalLayout";
 import { useCreditCards } from "../hooks/useCreditCards";
 import { useAccounts } from "../hooks/useAccounts";
 import { CreditCard } from "../types/firebase";
@@ -599,23 +600,16 @@ export default function CreditCards({ navigation }: any) {
         onRequestClose={() => setEditModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.editModalContent, { backgroundColor: colors.card }]}>
+          <View style={Platform.OS === 'web' ? { alignItems: 'center', width: '100%' } : undefined}>
+          <View style={[getModalContainerStyle(colors), { backgroundColor: colors.card }]}>
+            <ScrollView showsVerticalScrollIndicator={false}>
             {/* Header do Modal */}
-            <View style={[styles.editModalHeader, { borderBottomColor: colors.border }]}>
-              <Pressable onPress={() => setEditModalVisible(false)} hitSlop={12}>
-                <MaterialCommunityIcons name="close" size={24} color={colors.text} />
-              </Pressable>
+            <View style={styles.editModalHeader}>
               <Text style={[styles.editModalTitle, { color: colors.text }]}>Editar Cartão</Text>
-              <Pressable onPress={handleSaveEdit} disabled={saving} hitSlop={12}>
-                <MaterialCommunityIcons 
-                  name="check" 
-                  size={24} 
-                  color={saving ? colors.textMuted : colors.primary} 
-                />
+              <Pressable onPress={() => setEditModalVisible(false)} hitSlop={12}>
+                <MaterialCommunityIcons name="close" size={24} color={colors.textMuted} />
               </Pressable>
             </View>
-
-            <ScrollView style={styles.editModalBody}>
               {/* Nome */}
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.text }]}>Nome do cartão</Text>
@@ -630,25 +624,26 @@ export default function CreditCards({ navigation }: any) {
                 </View>
               </View>
 
-              {/* Limite */}
-              <View style={styles.formGroup}>
-                <Text style={[styles.label, { color: colors.text }]}>Limite</Text>
-                <View style={[styles.inputContainer, { borderColor: colors.border }]}>
-                  <Text style={[styles.currency, { color: colors.textMuted }]}>R$</Text>
-                  <TextInput
-                    value={editLimit}
-                    onChangeText={(v) => setEditLimit(formatCurrency(v))}
-                    placeholder="0,00"
-                    placeholderTextColor={colors.textMuted}
-                    keyboardType="numeric"
-                    style={[styles.input, { color: colors.text }]}
-                  />
+              {/* Limite e Datas - Layout responsivo */}
+              <View style={styles.limitDatesRow}>
+                {/* Limite */}
+                <View style={styles.limitField}>
+                  <Text style={[styles.label, { color: colors.text }]}>Limite</Text>
+                  <View style={[styles.inputContainer, { borderColor: colors.border }]}>
+                    <Text style={[styles.currency, { color: colors.textMuted }]}>R$</Text>
+                    <TextInput
+                      value={editLimit}
+                      onChangeText={(v) => setEditLimit(formatCurrency(v))}
+                      placeholder="0,00"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="numeric"
+                      style={[styles.input, { color: colors.text }]}
+                    />
+                  </View>
                 </View>
-              </View>
 
-              {/* Datas */}
-              <View style={styles.rowFormGroup}>
-                <View style={[styles.formGroup, { flex: 1 }]}>
+                {/* Dia fechamento */}
+                <View style={styles.dateField}>
                   <Text style={[styles.label, { color: colors.text }]}>Dia fechamento</Text>
                   <View style={[styles.inputContainer, { borderColor: colors.border }]}>
                     <TextInput
@@ -662,7 +657,9 @@ export default function CreditCards({ navigation }: any) {
                     />
                   </View>
                 </View>
-                <View style={[styles.formGroup, { flex: 1 }]}>
+
+                {/* Dia vencimento */}
+                <View style={styles.dateField}>
                   <Text style={[styles.label, { color: colors.text }]}>Dia vencimento</Text>
                   <View style={[styles.inputContainer, { borderColor: colors.border }]}>
                     <TextInput
@@ -748,6 +745,7 @@ export default function CreditCards({ navigation }: any) {
                 </View>
               </View>
             </ScrollView>
+          </View>
           </View>
         </View>
       </Modal>
@@ -954,6 +952,22 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingHorizontal: spacing.md,
   },
+  // Layout responsivo para Limite + Datas
+  limitDatesRow: {
+    flexDirection: Platform.OS === 'web' ? 'row' : 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+    padding: spacing.md,
+    paddingBottom: 0,
+  },
+  limitField: {
+    flex: Platform.OS === 'web' ? 2 : 1,
+    minWidth: Platform.OS === 'web' ? 200 : '100%',
+  },
+  dateField: {
+    flex: 1,
+    minWidth: Platform.OS === 'web' ? 120 : 100,
+  },
   label: {
     fontSize: 14,
     fontWeight: '600',
@@ -1057,12 +1071,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: spacing.md,
-    borderBottomWidth: 1,
+    marginBottom: spacing.md,
   },
   editModalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
   },
   editModalBody: {
     padding: spacing.md,
