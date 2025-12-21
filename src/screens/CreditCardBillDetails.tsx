@@ -2,7 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCustomAlert } from "../hooks/useCustomAlert";
+import { useSnackbar } from "../hooks/useSnackbar";
 import CustomAlert from "../components/CustomAlert";
+import Snackbar from "../components/Snackbar";
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useTransactions } from '../hooks/useFirebaseTransactions';
 import { useAppTheme } from '../contexts/themeContext';
@@ -33,6 +35,7 @@ interface RouteParams {
 
 export default function CreditCardBillDetails() {
   const { alertState, showAlert, hideAlert } = useCustomAlert();
+  const { snackbarState, showSnackbar, hideSnackbar } = useSnackbar();
   const { colors } = useAppTheme();
   const { user } = useAuth();
   const { triggerRefresh } = useTransactionRefresh();
@@ -205,7 +208,7 @@ export default function CreditCardBillDetails() {
                 summary.total
               );
               
-              showAlert('Sucesso', 'Fatura paga com sucesso!', [{ text: 'OK' }]);
+              showSnackbar('Fatura paga com sucesso!');
               setPayModalVisible(false);
               loadBillDetails(); // Recarregar dados
               triggerRefresh(); // Atualizar Home/Resumo/Relatórios/Contas
@@ -397,7 +400,7 @@ export default function CreditCardBillDetails() {
                         setUnpaying(true);
                         try {
                           await unpayBill(bill.id);
-                          showAlert('Sucesso', 'Pagamento desfeito com sucesso', [{ text: 'OK' }]);
+                          showSnackbar('Pagamento desfeito!');
                           loadBillDetails();
                           triggerRefresh(); // Atualizar Home/Resumo/Relatórios/Contas
                         } catch (err) {
@@ -540,6 +543,13 @@ export default function CreditCardBillDetails() {
         message={alertState.message}
         buttons={alertState.buttons}
         onClose={hideAlert}
+      />
+      <Snackbar
+        visible={snackbarState.visible}
+        message={snackbarState.message}
+        type={snackbarState.type}
+        duration={snackbarState.duration}
+        onDismiss={hideSnackbar}
       />
       
       {/* Modal de edição de transação */}

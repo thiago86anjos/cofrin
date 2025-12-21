@@ -7,7 +7,9 @@ import { useAuth } from "../contexts/authContext";
 import { spacing, borderRadius, getShadow } from "../theme";
 import { useAccounts } from "../hooks/useAccounts";
 import { useCustomAlert } from "../hooks/useCustomAlert";
+import { useSnackbar } from "../hooks/useSnackbar";
 import CustomAlert from "../components/CustomAlert";
+import Snackbar from "../components/Snackbar";
 import MainLayout from "../components/MainLayout";
 import SimpleHeader from "../components/SimpleHeader";
 import { AccountType, ACCOUNT_TYPE_LABELS, Account } from "../types/firebase";
@@ -39,6 +41,7 @@ export default function ConfigureAccounts({ navigation }: any) {
   const { colors } = useAppTheme();
   const { user } = useAuth();
   const { alertState, showAlert, hideAlert } = useCustomAlert();
+  const { snackbarState, showSnackbar, hideSnackbar } = useSnackbar();
   const { triggerRefresh } = useTransactionRefresh();
   const insets = useSafeAreaInsets();
   
@@ -115,7 +118,7 @@ export default function ConfigureAccounts({ navigation }: any) {
         setSelectedIcon('bank');
         setIncludeInTotal(true);
         triggerRefresh();
-        showAlert('Sucesso', 'Conta criada com sucesso!', [{ text: 'OK', style: 'default' }]);
+        showSnackbar('Conta criada com sucesso!');
       } else {
         showAlert('Erro', 'Não foi possível criar a conta', [{ text: 'OK', style: 'default' }]);
       }
@@ -151,7 +154,7 @@ export default function ConfigureAccounts({ navigation }: any) {
         setEditModalVisible(false);
         setEditingAccount(null);
         triggerRefresh();
-        showAlert('Sucesso', 'Conta atualizada com sucesso!', [{ text: 'OK', style: 'default' }]);
+        showSnackbar('Conta atualizada!');
       } else {
         showAlert('Erro', 'Não foi possível atualizar a conta', [{ text: 'OK', style: 'default' }]);
       }
@@ -425,7 +428,7 @@ export default function ConfigureAccounts({ navigation }: any) {
               setEditModalVisible(false);
               setEditingAccount(null);
               triggerRefresh();
-              showAlert('Sucesso', 'Conta excluída com sucesso!', [{ text: 'OK', style: 'default' }]);
+              showSnackbar('Conta excluída!');
             } else {
               showAlert('Erro', 'Não foi possível excluir a conta', [{ text: 'OK', style: 'default' }]);
             }
@@ -474,7 +477,7 @@ export default function ConfigureAccounts({ navigation }: any) {
             const result = await deleteAccount(accountId);
             if (result) {
               triggerRefresh();
-              showAlert('Sucesso', 'Conta excluída com sucesso!', [{ text: 'OK', style: 'default' }]);
+              showSnackbar('Conta excluída!');
             } else {
               showAlert('Erro', 'Não foi possível excluir a conta', [{ text: 'OK', style: 'default' }]);
             }
@@ -997,6 +1000,13 @@ export default function ConfigureAccounts({ navigation }: any) {
         message={alertState.message}
         buttons={alertState.buttons}
         onClose={hideAlert}
+      />
+      <Snackbar
+        visible={snackbarState.visible}
+        message={snackbarState.message}
+        type={snackbarState.type}
+        duration={snackbarState.duration}
+        onDismiss={hideSnackbar}
       />
       </View>
     </MainLayout>

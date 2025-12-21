@@ -22,7 +22,9 @@ import { useAccounts } from '../../hooks/useAccounts';
 import { useCreditCards } from '../../hooks/useCreditCards';
 import { useTransactions } from '../../hooks/useFirebaseTransactions';
 import { useCustomAlert } from '../../hooks/useCustomAlert';
+import { useSnackbar } from '../../hooks/useSnackbar';
 import CustomAlert from '../CustomAlert';
+import Snackbar from '../Snackbar';
 import { TransactionType, RecurrenceType, CreateTransactionInput } from '../../types/firebase';
 import { useTransactionRefresh } from '../../contexts/transactionRefreshContext';
 import { validateBillForTransaction } from '../../services/creditCardBillService';
@@ -185,6 +187,9 @@ export default function AddTransactionModal({
   
   // Custom alert hook
   const { alertState, showAlert, hideAlert } = useCustomAlert();
+  
+  // Snackbar hook
+  const { snackbarState, showSnackbar, hideSnackbar } = useSnackbar();
   
   // Calcular valor por parcela
   const installmentValue = React.useMemo(() => {
@@ -578,14 +583,14 @@ export default function AddTransactionModal({
           success = createdCount === totalToCreate;
           if (success) {
             const valuePerInstallment = formatCurrency(Math.round(amountPerInstallment * 100).toString());
-            showAlert('Sucesso', `${createdCount} lançamentos criados!\n${totalToCreate}x de ${valuePerInstallment}`, [{ text: 'OK', style: 'default' }]);
+            showSnackbar(`${createdCount} lançamentos criados! ${totalToCreate}x de ${valuePerInstallment}`);
           }
         } else {
           // Update existing transaction normalmente (sem adicionar recorrência)
           const transactionData = buildTransactionData(date);
           success = await updateTransaction(editTransaction.id, transactionData);
           if (success) {
-            showAlert('Sucesso', 'Lançamento atualizado!', [{ text: 'OK', style: 'default' }]);
+            showSnackbar('Lançamento atualizado!');
           }
         }
       } else {
@@ -615,14 +620,14 @@ export default function AddTransactionModal({
           if (totalToCreate > 1) {
             const valuePerInstallment = formatCurrency(Math.round(amountPerInstallment * 100).toString());
             const totalMessage = recurrenceType === 'fixed' 
-              ? `Total geral: ${formatCurrency(Math.round(amountPerInstallment * totalToCreate * 100).toString())}`
+              ? ` (Total: ${formatCurrency(Math.round(amountPerInstallment * totalToCreate * 100).toString())})`
               : '';
-            showAlert('Sucesso', `${createdCount} lançamentos criados!\n${totalToCreate}x de ${valuePerInstallment}${totalMessage ? '\n' + totalMessage : ''}`, [{ text: 'OK', style: 'default' }]);
+            showSnackbar(`${createdCount} lançamentos criados! ${totalToCreate}x de ${valuePerInstallment}${totalMessage}`);
           } else {
-            showAlert('Sucesso', 'Lançamento salvo!', [{ text: 'OK', style: 'default' }]);
+            showSnackbar('Lançamento salvo!');
           }
         } else if (createdCount > 0) {
-          showAlert('Aviso', `Apenas ${createdCount} de ${totalToCreate} lançamentos foram criados.`, [{ text: 'OK', style: 'default' }]);
+          showSnackbar(`${createdCount} de ${totalToCreate} lançamentos criados`, 'info');
           success = true; // Considerar parcialmente bem sucedido
         }
       }
@@ -1536,6 +1541,15 @@ export default function AddTransactionModal({
         message={alertState.message}
         buttons={alertState.buttons}
         onClose={hideAlert}
+      />
+      
+      {/* Snackbar para mensagens de sucesso */}
+      <Snackbar
+        visible={snackbarState.visible}
+        message={snackbarState.message}
+        type={snackbarState.type}
+        duration={snackbarState.duration}
+        onDismiss={hideSnackbar}
       />
     </>
   );

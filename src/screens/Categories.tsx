@@ -6,10 +6,11 @@ import { useAppTheme } from "../contexts/themeContext";
 import { useAuth } from "../contexts/authContext";
 import { spacing, borderRadius, getShadow } from "../theme";
 import { useCategories } from "../hooks/useCategories";
+import { useCustomAlert, useSnackbar } from "../hooks";
 import { CategoryType, CATEGORY_ICONS, Category } from "../types/firebase";
-import { useCustomAlert } from "../hooks";
 import EditCategoryModal from "../components/EditCategoryModal";
 import CustomAlert from "../components/CustomAlert";
+import Snackbar from "../components/Snackbar";
 import MainLayout from "../components/MainLayout";
 import SimpleHeader from "../components/SimpleHeader";
 
@@ -17,6 +18,7 @@ export default function Categories({ navigation }: any) {
   const { colors } = useAppTheme();
   const { user } = useAuth();
   const { alertState, showAlert, hideAlert } = useCustomAlert();
+  const { snackbarState, showSnackbar, hideSnackbar } = useSnackbar();
   const insets = useSafeAreaInsets();
   
   const [categoryType, setCategoryType] = useState<CategoryType>('expense');
@@ -48,7 +50,7 @@ export default function Categories({ navigation }: any) {
 
       if (result) {
         setName('');
-        showAlert('Sucesso', 'Categoria criada com sucesso!');
+        showSnackbar('Categoria criada com sucesso!');
       } else {
         showAlert('Erro', 'Não foi possível criar a categoria');
       }
@@ -62,7 +64,7 @@ export default function Categories({ navigation }: any) {
   async function handleSave(categoryId: string, name: string, icon: string) {
     const result = await updateCategory(categoryId, { name, icon });
     if (result) {
-      showAlert('Sucesso', 'Categoria atualizada com sucesso!');
+      showSnackbar('Categoria atualizada!');
     } else {
       showAlert('Erro', 'Não foi possível atualizar a categoria');
     }
@@ -135,7 +137,7 @@ export default function Categories({ navigation }: any) {
               onPress: async () => {
                 const result = await deleteCategory(categoryId);
                 if (result) {
-                  showAlert('Sucesso', 'Categoria excluída com sucesso!');
+                  showSnackbar('Categoria excluída!');
                 } else {
                   showAlert('Erro', 'Não foi possível excluir a categoria');
                 }
@@ -170,10 +172,7 @@ export default function Categories({ navigation }: any) {
       const result = await deleteCategory(fromCategoryId);
       
       if (result) {
-        showAlert(
-          'Sucesso', 
-          `${count} lançamento(s) foram transferidos para "${toCategoryName}" e a categoria "${fromCategoryName}" foi excluída.`
-        );
+        showSnackbar(`${count} lançamento(s) transferidos e categoria excluída`);
       } else {
         showAlert('Erro', 'Não foi possível excluir a categoria');
       }
@@ -403,6 +402,13 @@ export default function Categories({ navigation }: any) {
       />
 
       <CustomAlert {...alertState} onClose={hideAlert} />
+      <Snackbar
+        visible={snackbarState.visible}
+        message={snackbarState.message}
+        type={snackbarState.type}
+        duration={snackbarState.duration}
+        onDismiss={hideSnackbar}
+      />
       </View>
     </MainLayout>
   );

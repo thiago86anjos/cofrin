@@ -4,7 +4,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppTheme } from "../contexts/themeContext";
 import { useCustomAlert } from "../hooks/useCustomAlert";
+import { useSnackbar } from "../hooks/useSnackbar";
 import CustomAlert from "../components/CustomAlert";
+import Snackbar from "../components/Snackbar";
 import MainLayout from "../components/MainLayout";
 import SimpleHeader from "../components/SimpleHeader";
 import { useAuth } from "../contexts/authContext";
@@ -21,6 +23,7 @@ export default function CreditCards({ navigation }: any) {
   const { colors } = useAppTheme();
   const { user } = useAuth();
   const { alertState, showAlert, hideAlert } = useCustomAlert();
+  const { snackbarState, showSnackbar, hideSnackbar } = useSnackbar();
   const { triggerRefresh } = useTransactionRefresh();
   const insets = useSafeAreaInsets();
   
@@ -144,7 +147,7 @@ export default function CreditCards({ navigation }: any) {
         setSelectedAccountId('');
         setSelectedAccountName('');
         triggerRefresh();
-        showAlert('Sucesso', 'Cartão cadastrado com sucesso!', [{ text: 'OK', style: 'default' }]);
+        showSnackbar('Cartão cadastrado com sucesso!');
       } else {
         showAlert('Erro', 'Não foi possível cadastrar o cartão', [{ text: 'OK', style: 'default' }]);
       }
@@ -205,7 +208,7 @@ export default function CreditCards({ navigation }: any) {
         setEditModalVisible(false);
         setEditingCard(null);
         triggerRefresh();
-        showAlert('Sucesso', 'Cartão atualizado com sucesso!', [{ text: 'OK', style: 'default' }]);
+        showSnackbar('Cartão atualizado!');
       } else {
         showAlert('Erro', 'Não foi possível atualizar o cartão', [{ text: 'OK', style: 'default' }]);
       }
@@ -291,7 +294,7 @@ export default function CreditCards({ navigation }: any) {
               setEditModalVisible(false);
               setEditingCard(null);
               triggerRefresh();
-              showAlert('Sucesso', 'Cartão excluído com sucesso!', [{ text: 'OK', style: 'default' }]);
+              showSnackbar('Cartão excluído!');
             } else {
               showAlert('Erro', 'Não foi possível excluir o cartão', [{ text: 'OK', style: 'default' }]);
             }
@@ -767,6 +770,13 @@ export default function CreditCards({ navigation }: any) {
         message={alertState.message}
         buttons={alertState.buttons}
         onClose={hideAlert}
+      />
+      <Snackbar
+        visible={snackbarState.visible}
+        message={snackbarState.message}
+        type={snackbarState.type}
+        duration={snackbarState.duration}
+        onDismiss={hideSnackbar}
       />
       </View>
     </MainLayout>

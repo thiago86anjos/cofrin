@@ -27,16 +27,7 @@ export default function CustomAlert({ visible, title, message, buttons, onClose 
     onClose();
   };
 
-  const getButtonColor = (style?: string) => {
-    switch (style) {
-      case 'destructive':
-        return colors.danger;
-      case 'cancel':
-        return colors.textMuted;
-      default:
-        return colors.primary;
-    }
-  };
+  const isDestructive = buttons?.some(b => b.style === 'destructive');
 
   return (
     <Modal
@@ -53,19 +44,22 @@ export default function CustomAlert({ visible, title, message, buttons, onClose 
           style={[styles.container, { backgroundColor: colors.card }, getShadow(colors, 'lg')]}
           onPress={(e) => e.stopPropagation()}
         >
-          {/* Ícone */}
-          <View style={[styles.iconContainer, { backgroundColor: colors.primaryBg }]}>
-            <MaterialCommunityIcons 
-              name={buttons?.some(b => b.style === 'destructive') ? "alert-circle" : "information"}
-              size={32} 
-              color={buttons?.some(b => b.style === 'destructive') ? colors.danger : colors.primary}
-            />
+          {/* Header com ícone inline */}
+          <View style={styles.header}>
+            <View style={[
+              styles.iconContainer, 
+              { backgroundColor: isDestructive ? colors.dangerBg : colors.primaryBg }
+            ]}>
+              <MaterialCommunityIcons 
+                name={isDestructive ? "alert-circle" : "information"}
+                size={20} 
+                color={isDestructive ? colors.danger : colors.primary}
+              />
+            </View>
+            <Text style={[styles.title, { color: colors.text }]}>
+              {title}
+            </Text>
           </View>
-
-          {/* Título */}
-          <Text style={[styles.title, { color: colors.text }]}>
-            {title}
-          </Text>
 
           {/* Mensagem */}
           {message && (
@@ -74,17 +68,21 @@ export default function CustomAlert({ visible, title, message, buttons, onClose 
             </Text>
           )}
 
-          {/* Botões */}
-          <View style={styles.buttonsContainer}>
+          {/* Botões - layout horizontal para 2 botões, vertical para mais */}
+          <View style={[
+            styles.buttonsContainer,
+            buttons?.length === 2 && styles.buttonsRow
+          ]}>
             {buttons?.map((button, index) => (
               <Pressable
                 key={index}
                 onPress={() => handleButtonPress(button)}
                 style={({ pressed }) => [
                   styles.button,
-                  button.style === 'cancel' && styles.cancelButton,
-                  button.style === 'destructive' && [styles.destructiveButton, { backgroundColor: colors.danger }],
-                  button.style === 'default' && [styles.defaultButton, { backgroundColor: colors.primary }],
+                  buttons?.length === 2 && styles.buttonFlex,
+                  button.style === 'cancel' && [styles.cancelButton, { borderColor: colors.border }],
+                  button.style === 'destructive' && [styles.actionButton, { backgroundColor: colors.danger }],
+                  button.style === 'default' && [styles.actionButton, { backgroundColor: colors.primary }],
                   pressed && { opacity: 0.8 },
                 ]}
               >
@@ -109,60 +107,68 @@ export default function CustomAlert({ visible, title, message, buttons, onClose 
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.lg,
   },
   container: {
     width: '100%',
-    maxWidth: 400,
-    borderRadius: borderRadius.xl,
-    padding: spacing.xl,
-    alignItems: 'center',
-    gap: spacing.md,
+    maxWidth: 320,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
   },
-  iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: borderRadius.full,
-    justifyContent: 'center',
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.sm,
     marginBottom: spacing.xs,
   },
+  iconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   title: {
-    fontSize: 20,
-    fontWeight: '700',
-    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '600',
+    flex: 1,
   },
   message: {
-    fontSize: 15,
-    textAlign: 'center',
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: spacing.md,
+    paddingLeft: 40, // Alinha com o título (32 icon + 8 gap)
   },
   buttonsContainer: {
-    width: '100%',
+    gap: spacing.xs,
+  },
+  buttonsRow: {
+    flexDirection: 'row',
     gap: spacing.sm,
-    marginTop: spacing.sm,
   },
   button: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 40,
+  },
+  buttonFlex: {
+    flex: 1,
   },
   cancelButton: {
     backgroundColor: 'transparent',
+    borderWidth: 1,
   },
-  destructiveButton: {
-    // backgroundColor é definido dinamicamente
-  },
-  defaultButton: {
-    // backgroundColor é definido dinamicamente
+  actionButton: {
+    // backgroundColor definido dinamicamente
   },
   buttonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
 });

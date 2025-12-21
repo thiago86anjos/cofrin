@@ -6,7 +6,8 @@ import { useAuth } from "../contexts/authContext";
 import { spacing, borderRadius } from "../theme";
 import { updateUserProfile } from "../services/auth";
 import CustomAlert from "../components/CustomAlert";
-import { useCustomAlert } from "../hooks";
+import Snackbar from "../components/Snackbar";
+import { useCustomAlert, useSnackbar } from "../hooks";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MainLayout from "../components/MainLayout";
 import SimpleHeader from "../components/SimpleHeader";
@@ -16,6 +17,7 @@ export default function EditProfile({ navigation }: any) {
   const { colors } = useAppTheme();
   const { user, refreshUser } = useAuth();
   const { alertState, showAlert, hideAlert } = useCustomAlert();
+  const { snackbarState, showSnackbar, hideSnackbar } = useSnackbar();
   const insets = useSafeAreaInsets();
 
   const bottomPad = useMemo(
@@ -34,12 +36,8 @@ export default function EditProfile({ navigation }: any) {
     try {
       await updateUserProfile(name.trim());
       await refreshUser(); // Atualizar o usuário no contexto
-      showAlert('Sucesso', 'Perfil atualizado com sucesso!', [
-        {
-          text: 'OK',
-          onPress: () => navigation.goBack()
-        }
-      ]);
+      showSnackbar('Perfil atualizado!');
+      navigation.goBack();
     } catch (error) {
       console.error('Erro ao atualizar perfil:', error);
       showAlert('Erro', 'Não foi possível atualizar o perfil. Tente novamente.');
@@ -98,6 +96,13 @@ export default function EditProfile({ navigation }: any) {
       </View>
 
       <CustomAlert {...alertState} onClose={hideAlert} />
+      <Snackbar
+        visible={snackbarState.visible}
+        message={snackbarState.message}
+        type={snackbarState.type}
+        duration={snackbarState.duration}
+        onDismiss={hideSnackbar}
+      />
     </ScrollView>
     </MainLayout>
   );

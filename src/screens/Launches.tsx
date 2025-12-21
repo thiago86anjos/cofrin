@@ -5,7 +5,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCustomAlert } from "../hooks/useCustomAlert";
+import { useSnackbar } from "../hooks/useSnackbar";
 import CustomAlert from "../components/CustomAlert";
+import Snackbar from "../components/Snackbar";
 import TransactionsList, { TransactionListItem } from '../components/transactions/TransactionsList';
 import CreditCardBillItem from '../components/transactions/CreditCardBillItem';
 import AddTransactionModal, { EditableTransaction } from '../components/transactions/AddTransactionModal';
@@ -39,6 +41,7 @@ const MONTHS = [
 
 export default function Launches() {
   const { alertState, showAlert, hideAlert } = useCustomAlert();
+  const { snackbarState, showSnackbar, hideSnackbar } = useSnackbar();
   const { colors } = useAppTheme();
   const { refreshKey, triggerRefresh } = useTransactionRefresh();
   const { user } = useAuth();
@@ -379,6 +382,7 @@ export default function Launches() {
       setEditModalVisible(false);
       setEditingTransaction(null);
       triggerRefresh();
+      showSnackbar('Lançamento excluído!');
     } else {
       showAlert('Erro', 'Não foi possível excluir o lançamento');
     }
@@ -391,7 +395,7 @@ export default function Launches() {
       setEditModalVisible(false);
       setEditingTransaction(null);
       triggerRefresh();
-      showAlert('Sucesso', `${count} lançamento(s) excluído(s)`);
+      showSnackbar(`${count} lançamento(s) excluído(s)`);
     } else {
       showAlert('Erro', 'Não foi possível excluir a série de lançamentos');
     }
@@ -655,6 +659,13 @@ export default function Launches() {
         message={alertState.message}
         buttons={alertState.buttons}
         onClose={hideAlert}
+      />
+      <Snackbar
+        visible={snackbarState.visible}
+        message={snackbarState.message}
+        type={snackbarState.type}
+        duration={snackbarState.duration}
+        onDismiss={hideSnackbar}
       />
     </MainLayout>
   );
