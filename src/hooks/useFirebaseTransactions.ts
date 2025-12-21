@@ -127,10 +127,17 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
     data: UpdateTransactionInput
   ): Promise<boolean> => {
     try {
-      const oldTransaction = transactions.find(t => t.id === transactionId);
+      // Primeiro tentar encontrar no estado local
+      let oldTransaction = transactions.find(t => t.id === transactionId);
+      
+      // Se não encontrou no estado local, buscar do Firebase
+      // (pode acontecer se a transação é de outro mês)
       if (!oldTransaction) {
-        setError('Transação não encontrada');
-        return false;
+        oldTransaction = await transactionService.getTransactionById(transactionId) ?? undefined;
+        if (!oldTransaction) {
+          setError('Transação não encontrada');
+          return false;
+        }
       }
 
       await transactionService.updateTransaction(transactionId, data, oldTransaction);
@@ -185,13 +192,22 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
     }
   };
 
-  // Filtrar por tipo (excluir transações de cartão de crédito)
-  const incomeTransactions = transactions.filter(t => t.type === 'income' && !t.creditCardId);
-  const expenseTransactions = transactions.filter(t => t.type === 'expense' && !t.creditCardId);
+  // Filtrar por tipo
+  // Excluir: transações de cartão (aparecem nas faturas e só impactam quando a fatura é paga)
+  // Mas INCLUIR pagamentos de fatura (creditCardBillId), pois são saídas reais da conta
+  const incomeTransactions = transactions.filter(t => 
+    t.type === 'income' && 
+    (!t.creditCardId || t.creditCardBillId)
+  );
+  const expenseTransactions = transactions.filter(t => 
+    t.type === 'expense' && 
+    (!t.creditCardId || t.creditCardBillId)
+  );
   const transferTransactions = transactions.filter(t => t.type === 'transfer');
 
   // Calcular totais do mês atual (apenas concluídos para o saldo real)
-  // Transações de cartão NÃO são contabilizadas aqui (apenas quando a fatura é paga)
+  // Transações de cartão NÃO são contabilizadas aqui (aparecem via fatura)
+  // Pagamentos de fatura (creditCardBillId) SÃO contabilizados como despesa real
   const totalIncome = incomeTransactions
     .filter(t => t.status === 'completed')
     .reduce((sum, t) => sum + t.amount, 0);
@@ -229,6 +245,7 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
 // Hook para totais do mês
 export function useMonthTotals(month: number, year: number) {
   const { user } = useAuth();
+  const { refreshKey } = useTransactionRefresh();
   const [totals, setTotals] = useState({ income: 0, expense: 0, balance: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -257,6 +274,13 @@ export function useMonthTotals(month: number, year: number) {
   useEffect(() => {
     loadTotals();
   }, [loadTotals]);
+
+  // Recarregar quando ocorrerem mudanças globais (criar/editar/excluir/pagar fatura)
+  useEffect(() => {
+    if (refreshKey > 0) {
+      loadTotals();
+    }
+  }, [refreshKey, loadTotals]);
 
   return {
     ...totals,

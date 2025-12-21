@@ -8,6 +8,10 @@ import { Account, ACCOUNT_TYPE_LABELS } from '../../types/firebase';
 
 interface Props {
   accounts?: Account[];
+  username?: string;
+  totalBalance?: number;
+  totalIncome?: number;
+  totalExpense?: number;
   onAccountPress?: (account: Account) => void;
   onAddPress?: () => void;
 }
@@ -33,13 +37,34 @@ const getAccountColor = (type: string): string => {
   }
 };
 
-// Cor roxa escura para títulos principais
-const primaryDark = '#4A2FA8';
+// Cor cinza chumbo moderna para o título
+const titleGray = '#6B7280';
 // Fundo mais claro para visual moderno
 const lightBg = '#FAFAFA';
 
-export default function AccountsCard({ accounts = [], onAccountPress, onAddPress }: Props) {
+export default function AccountsCard({ 
+  accounts = [], 
+  username = 'Usuário',
+  totalBalance,
+  onAccountPress, 
+  onAddPress 
+}: Props) {
   const { colors } = useAppTheme();
+
+  // Determinar saudação baseada na hora
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return { text: 'Bom dia', icon: 'weather-sunny' as const };
+    if (hour >= 12 && hour < 18) return { text: 'Boa tarde', icon: 'weather-partly-cloudy' as const };
+    return { text: 'Boa noite', icon: 'weather-night' as const };
+  };
+
+  const greeting = getGreeting();
+  
+  // Se totalBalance for fornecido via prop, usa ele. Caso contrário, calcula.
+  const displayTotalBalance = totalBalance !== undefined 
+    ? totalBalance 
+    : accounts.reduce((sum, account) => sum + (account.balance || 0), 0);
 
   // Componente de item da conta (compacto e moderno)
   const AccountItem = ({ account }: { account: Account }) => {
@@ -96,70 +121,136 @@ export default function AccountsCard({ accounts = [], onAccountPress, onAddPress
     );
   };
 
-  // Calcular saldo total
-  const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
-
   return (
-    <View style={[styles.card, { backgroundColor: '#fff' }, getShadow(colors)]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.titleSection}>
-          <Text style={[styles.title, { color: primaryDark }]}>
+    <View style={styles.container}>
+      {/* Saudação */}
+      <View style={styles.greetingSection}>
+        <View style={styles.greetingRow}>
+          <Text style={[styles.greeting, { color: colors.text }]}>
+            {greeting.text}, {username}
+          </Text>
+          <MaterialCommunityIcons 
+            name={greeting.icon} 
+            size={28} 
+            color={colors.text} 
+            style={styles.greetingIcon}
+          />
+        </View>
+      </View>
+
+      {/* Card Principal */}
+      <View style={[styles.card, { borderColor: colors.border }, getShadow(colors)]}>
+        {/* Header com título e saldo geral */}
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: titleGray }]}>
             Onde está meu dinheiro
           </Text>
-          {accounts.length > 0 && (
-            <Text style={[styles.subtitle, { color: '#9CA3AF' }]}>
-              Saldo total: {formatCurrencyBRL(totalBalance)}
+          
+          {/* Saldo Geral - Destaque */}
+          <View style={styles.totalBalanceSection}>
+            <Text style={[styles.totalBalanceLabel, { color: colors.textMuted }]}>
+              Saldo geral
             </Text>
-          )}
+            <Text style={[
+              styles.totalBalanceValue, 
+              { color: displayTotalBalance >= 0 ? colors.income : colors.expense }
+            ]}>
+              {formatCurrencyBRL(displayTotalBalance)}
+            </Text>
+          </View>
         </View>
-      </View>
 
-      {/* Lista de contas */}
-      <View style={styles.accountsList}>
-        {accounts.map((account) => (
-          <AccountItem key={account.id} account={account} />
-        ))}
-      </View>
+        {/* Separador */}
+        {accounts.length > 0 && (
+          <View style={[styles.separator, { backgroundColor: colors.border }]} />
+        )}
 
-      {/* Mensagem vazia */}
-      {accounts.length === 0 && (
-        <View style={styles.emptyState}>
-          <MaterialCommunityIcons name="wallet-plus" size={48} color="#9CA3AF" />
-          <Text style={[styles.emptyText, { color: '#9CA3AF' }]}>
-            Nenhuma conta cadastrada
-          </Text>
-        </View>
-      )}
+        {/* Lista de contas */}
+        {accounts.length > 0 && (
+          <View style={styles.accountsList}>
+            <Text style={[styles.accountsTitle, { color: titleGray }]}>
+              Contas
+            </Text>
+            {accounts.map((account) => (
+              <AccountItem key={account.id} account={account} />
+            ))}
+          </View>
+        )}
+
+        {/* Mensagem vazia */}
+        {accounts.length === 0 && (
+          <View style={styles.emptyState}>
+            <MaterialCommunityIcons name="wallet-plus" size={48} color="#9CA3AF" />
+            <Text style={[styles.emptyText, { color: '#9CA3AF' }]}>
+              Nenhuma conta cadastrada
+            </Text>
+          </View>
+        )}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    gap: 16,
+  },
+  greetingSection: {
+    gap: 4,
+    paddingHorizontal: 4,
+  },
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  greetingIcon: {
+    marginLeft: 8,
+  },
+  greeting: {
+    fontSize: 28,
+    fontWeight: '800',
+    lineHeight: 36,
+    letterSpacing: -0.5,
+  },
   card: {
     padding: 24,
     borderRadius: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
+    borderWidth: 1,
+    backgroundColor: '#FFFFFF',
   },
   header: {
-    marginBottom: 16,
-  },
-  titleSection: {
-    gap: 4,
+    gap: 16,
   },
   title: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
   },
-  subtitle: {
-    fontSize: 13,
+  totalBalanceSection: {
+    gap: 4,
+  },
+  totalBalanceLabel: {
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    fontWeight: '500',
+  },
+  totalBalanceValue: {
+    fontSize: 32,
+    fontWeight: '700',
+    lineHeight: 38,
+  },
+  separator: {
+    height: 1,
+    marginVertical: 8,
   },
   accountsList: {
     gap: 12,
+    marginTop: 8,
+  },
+  accountsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4,
   },
   accountItem: {
     borderRadius: 16,

@@ -130,9 +130,28 @@ export async function unarchiveCreditCard(cardId: string): Promise<void> {
 }
 
 // Deletar cartão
-export async function deleteCreditCard(cardId: string): Promise<void> {
+export async function deleteCreditCard(cardId: string): Promise<number> {
+  // Buscar todas as transações associadas ao cartão
+  const transactionsRef = collection(db, COLLECTIONS.TRANSACTIONS);
+  const q = query(
+    transactionsRef,
+    where('creditCardId', '==', cardId)
+  );
+  
+  const snapshot = await getDocs(q);
+  const transactionsCount = snapshot.docs.length;
+  
+  // Deletar todas as transações do cartão
+  const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+  await Promise.all(deletePromises);
+  
+  console.log(`🗑️ ${transactionsCount} transações deletadas junto com o cartão`);
+  
+  // Deletar o cartão
   const docRef = doc(db, COLLECTIONS.CREDIT_CARDS, cardId);
   await deleteDoc(docRef);
+  
+  return transactionsCount;
 }
 
 // Atualizar uso do cartão (adicionar ou remover valor)

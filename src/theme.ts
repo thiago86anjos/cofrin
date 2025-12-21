@@ -100,7 +100,7 @@ export const shadows = {
     shadowOpacity: 0.08,
     shadowRadius: 4,
     // Android
-    elevation: 2,
+    elevation: 1,
   },
   lg: {
     // iOS
@@ -109,7 +109,7 @@ export const shadows = {
     shadowOpacity: 0.1,
     shadowRadius: 8,
     // Android
-    elevation: 4,
+    elevation: 2,
   },
 };
 

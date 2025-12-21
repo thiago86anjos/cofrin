@@ -352,6 +352,8 @@ export async function unpayBill(
   }
 
   // Deletar a transação de pagamento, se existir
+  // IMPORTANTE: Isso deve ser feito ANTES de atualizar a fatura
+  // Se falhar por permissão, o erro vai propagar e não vamos atualizar a fatura
   if (paymentTransactionId) {
     const transactionDocRef = doc(transactionsRef, paymentTransactionId);
     const transactionSnapshot = await getDoc(transactionDocRef);
@@ -359,6 +361,7 @@ export async function unpayBill(
       const transactionData = transactionSnapshot.data() as Transaction;
       // Importar e usar a função de deletar transação
       const { deleteTransaction } = await import('./transactionService');
+      // Isso vai deletar a transação e reverter o saldo automaticamente
       await deleteTransaction({ id: paymentTransactionId, ...transactionData } as Transaction);
     }
   }
@@ -372,8 +375,8 @@ export async function unpayBill(
     updatedAt: now,
   });
 
-  // Reverter débito na conta (adicionar o valor de volta)
-  await updateAccountBalance(paidFromAccountId, amount);
+  // NOTA: Não chamamos updateAccountBalance aqui pois deleteTransaction já reverte
+  // o saldo automaticamente para transações completed sem creditCardId
 
   // Recalcular uso do cartão com base nas transações da fatura e restaurar
   const transactions = await getCreditCardTransactionsByMonth(userId, creditCardId, month, year);
@@ -402,6 +405,32 @@ export async function isBillPaid(
 
   const snapshot = await getDocs(q);
   return snapshot.docs.length > 0;
+}
+
+// ==========================================
+// BUSCAR FATURAS PENDENTES DO USUÁRIO
+// ==========================================
+
+// Retorna um Map com chave "creditCardId-month-year" para rápida verificação
+export async function getPendingBillsMap(
+  userId: string
+): Promise<Map<string, boolean>> {
+  const q = query(
+    billsRef,
+    where('userId', '==', userId),
+    where('isPaid', '==', false)
+  );
+
+  const snapshot = await getDocs(q);
+  const pendingMap = new Map<string, boolean>();
+
+  snapshot.docs.forEach(doc => {
+    const bill = doc.data() as CreditCardBill;
+    const key = `${bill.creditCardId}-${bill.month}-${bill.year}`;
+    pendingMap.set(key, true);
+  });
+
+  return pendingMap;
 }
 
 // ==========================================

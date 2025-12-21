@@ -3,28 +3,29 @@
 // ==========================================
 
 import {
-    collection,
-    doc,
-    addDoc,
-    updateDoc,
-    deleteDoc,
-    getDocs,
-    getDoc,
-    query,
-    where, Timestamp
+  collection,
+  doc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  getDocs,
+  getDoc,
+  query,
+  where, Timestamp
 } from 'firebase/firestore';
 import { db, COLLECTIONS } from './firebase';
 import {
-    Transaction,
-    CreateTransactionInput,
-    UpdateTransactionInput,
-    TransactionType,
+  Transaction,
+  CreateTransactionInput,
+  UpdateTransactionInput,
+  TransactionType,
 } from '../types/firebase';
 import { updateAccountBalance } from './accountService';
 import { getCategoryById } from './categoryService';
 import { getAccountById } from './accountService';
 import { getCreditCardById, updateCreditCardUsage, recalculateCreditCardUsage } from './creditCardService';
 import { addToGoalProgress, removeFromGoalProgress } from './goalService';
+import { getPendingBillsMap } from './creditCardBillService';
 
 const transactionsRef = collection(db, COLLECTIONS.TRANSACTIONS);
 
@@ -460,160 +461,189 @@ export async function updateTransaction(
   data: UpdateTransactionInput,
   oldTransaction: Transaction
 ): Promise<void> {
-  // Determinar estados antigos e novos
-  const oldWasCompleted = oldTransaction.status === 'completed';
-  const newStatus = data.status ?? oldTransaction.status;
-  const newWillBeCompleted = newStatus === 'completed';
-  
-  const oldType = oldTransaction.type;
-  const newType = data.type ?? oldTransaction.type;
-  
-  const oldAmount = oldTransaction.amount;
-  const newAmount = data.amount ?? oldTransaction.amount;
-  
-  const oldAccountId = oldTransaction.accountId;
-  const newAccountId = data.accountId !== undefined ? data.accountId : oldTransaction.accountId;
-  
-  const oldToAccountId = oldTransaction.toAccountId;
-  const newToAccountId = data.toAccountId !== undefined ? data.toAccountId : oldTransaction.toAccountId;
-  
-  const oldCreditCardId = oldTransaction.creditCardId;
-  const newCreditCardId = data.creditCardId !== undefined ? data.creditCardId : oldTransaction.creditCardId;
-
-  const oldGoalId = oldTransaction.goalId;
-  const hasGoal = !!oldGoalId;
-
-  // ===== REVERTER IMPACTOS DA TRANSAÇÃO ANTIGA =====
-  if (oldWasCompleted) {
-    // Reverter progresso da meta se tinha goalId e estava completa
-    if (hasGoal && oldGoalId) {
-      await removeFromGoalProgress(oldGoalId, oldAmount);
-    }
-
-    if (oldCreditCardId) {
-      // Reverter uso do cartão de crédito antigo
-      const oldUsageAmount = oldType === 'expense' ? oldAmount : -oldAmount;
-      await updateCreditCardUsage(oldCreditCardId, -oldUsageAmount);
-    } else if (oldAccountId) {
-      // Reverter saldo da conta antiga
-      await updateBalancesForTransaction(
-        {
-          type: oldType,
-          amount: oldAmount,
-          accountId: oldAccountId,
-          toAccountId: oldToAccountId,
-        } as any,
-        true // reverse = true
-      );
-    }
-  }
-
-  // ===== ATUALIZAR DOCUMENTO NO FIRESTORE =====
-  const docRef = doc(db, COLLECTIONS.TRANSACTIONS, transactionId);
-  
-  const updateData: any = {
-    ...data,
-    updatedAt: Timestamp.now(),
-  };
-
-  // Buscar nomes atualizados se os IDs mudaram
   try {
-    // accountName
-    if (data.accountId !== undefined && data.accountId !== oldAccountId) {
-      if (data.accountId) {
-        const account = await getAccountById(data.accountId);
-        if (account) {
-          updateData.accountName = account.name;
-        }
-      } else {
-        updateData.accountName = null;
+    // Determinar estados antigos e novos
+    const oldWasCompleted = oldTransaction.status === 'completed';
+    const newStatus = data.status ?? oldTransaction.status;
+    const newWillBeCompleted = newStatus === 'completed';
+    
+    const oldType = oldTransaction.type;
+    const newType = data.type ?? oldTransaction.type;
+    
+    const oldAmount = oldTransaction.amount;
+    const newAmount = data.amount ?? oldTransaction.amount;
+    
+    const oldAccountId = oldTransaction.accountId;
+    const newAccountId = data.accountId !== undefined ? data.accountId : oldTransaction.accountId;
+    
+    const oldToAccountId = oldTransaction.toAccountId;
+    const newToAccountId = data.toAccountId !== undefined ? data.toAccountId : oldTransaction.toAccountId;
+    
+    const oldCreditCardId = oldTransaction.creditCardId;
+    const newCreditCardId = data.creditCardId !== undefined ? data.creditCardId : oldTransaction.creditCardId;
+
+    const oldGoalId = oldTransaction.goalId;
+    const hasGoal = !!oldGoalId;
+
+    // ===== REVERTER IMPACTOS DA TRANSAÇÃO ANTIGA =====
+    if (oldWasCompleted) {
+      // Reverter progresso da meta se tinha goalId e estava completa
+      if (hasGoal && oldGoalId) {
+        await removeFromGoalProgress(oldGoalId, oldAmount);
+      }
+
+      if (oldCreditCardId) {
+        // Reverter uso do cartão de crédito antigo
+        const oldUsageAmount = oldType === 'expense' ? oldAmount : -oldAmount;
+        await updateCreditCardUsage(oldCreditCardId, -oldUsageAmount);
+      } else if (oldAccountId) {
+        // Reverter saldo da conta antiga
+        await updateBalancesForTransaction(
+          {
+            type: oldType,
+            amount: oldAmount,
+            accountId: oldAccountId,
+            toAccountId: oldToAccountId,
+          } as any,
+          true // reverse = true
+        );
       }
     }
 
-    // categoryName e categoryIcon
-    if (data.categoryId !== undefined && data.categoryId !== oldTransaction.categoryId) {
-      if (data.categoryId) {
-        const category = await getCategoryById(data.categoryId);
-        if (category) {
-          updateData.categoryName = category.name;
-          updateData.categoryIcon = category.icon;
+    // ===== ATUALIZAR DOCUMENTO NO FIRESTORE =====
+    const docRef = doc(db, COLLECTIONS.TRANSACTIONS, transactionId);
+    
+    const updateData: any = {
+      ...data,
+      updatedAt: Timestamp.now(),
+    };
+
+    // Buscar nomes atualizados se os IDs mudaram
+    try {
+      // accountName
+      if (data.accountId !== undefined && data.accountId !== oldAccountId) {
+        if (data.accountId) {
+          const account = await getAccountById(data.accountId);
+          if (account) {
+            updateData.accountName = account.name;
+          }
+        } else {
+          updateData.accountName = null;
         }
-      } else {
-        updateData.categoryName = null;
-        updateData.categoryIcon = null;
+      }
+
+      // categoryName e categoryIcon
+      if (data.categoryId !== undefined && data.categoryId !== oldTransaction.categoryId) {
+        if (data.categoryId) {
+          const category = await getCategoryById(data.categoryId);
+          if (category) {
+            updateData.categoryName = category.name;
+            updateData.categoryIcon = category.icon;
+          }
+        } else {
+          updateData.categoryName = null;
+          updateData.categoryIcon = null;
+        }
+      }
+
+      // toAccountName (para transferências)
+      if (data.toAccountId !== undefined && data.toAccountId !== oldToAccountId) {
+        if (data.toAccountId) {
+          const toAccount = await getAccountById(data.toAccountId);
+          if (toAccount) {
+            updateData.toAccountName = toAccount.name;
+          }
+        } else {
+          updateData.toAccountName = null;
+        }
+      }
+
+      // creditCardName
+      if (data.creditCardId !== undefined && data.creditCardId !== oldCreditCardId) {
+        if (data.creditCardId) {
+          const creditCard = await getCreditCardById(data.creditCardId);
+          if (creditCard) {
+            updateData.creditCardName = creditCard.name;
+          }
+        } else {
+          updateData.creditCardName = null;
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao buscar nomes durante atualização:', error);
+      // Continua mesmo se houver erro ao buscar nomes
+    }
+
+    // Atualizar mês/ano se a data mudou
+    if (data.date) {
+      const transactionDate = data.date.toDate();
+      updateData.month = transactionDate.getMonth() + 1;
+      updateData.year = transactionDate.getFullYear();
+    }
+
+    // Se está removendo o cartão explicitamente (mudando para conta)
+    if (data.creditCardId === null || data.creditCardId === '') {
+      updateData.creditCardId = null;
+      updateData.creditCardName = null;
+    }
+
+    // Remover campos undefined (Firestore não aceita undefined)
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) {
+        delete updateData[key];
+      }
+    });
+
+    await updateDoc(docRef, updateData);
+
+    // ===== APLICAR IMPACTOS DA TRANSAÇÃO NOVA =====
+    if (newWillBeCompleted) {
+      // Adicionar progresso à meta se tem goalId e ficou completa
+      if (hasGoal && oldGoalId) {
+        await addToGoalProgress(oldGoalId, newAmount);
+      }
+
+      if (newCreditCardId) {
+        // Aplicar uso no novo cartão de crédito
+        const newUsageAmount = newType === 'expense' ? newAmount : -newAmount;
+        await updateCreditCardUsage(newCreditCardId, newUsageAmount);
+      } else if (newAccountId) {
+        // Aplicar saldo na nova conta
+        await updateBalancesForTransaction({
+          type: newType,
+          amount: newAmount,
+          accountId: newAccountId,
+          toAccountId: newToAccountId,
+        } as any);
       }
     }
 
-    // toAccountName (para transferências)
-    if (data.toAccountId !== undefined && data.toAccountId !== oldToAccountId) {
-      if (data.toAccountId) {
-        const toAccount = await getAccountById(data.toAccountId);
-        if (toAccount) {
-          updateData.toAccountName = toAccount.name;
-        }
-      } else {
-        updateData.toAccountName = null;
-      }
-    }
-
-    // creditCardName
-    if (data.creditCardId !== undefined && data.creditCardId !== oldCreditCardId) {
-      if (data.creditCardId) {
-        const creditCard = await getCreditCardById(data.creditCardId);
-        if (creditCard) {
-          updateData.creditCardName = creditCard.name;
-        }
-      } else {
-        updateData.creditCardName = null;
+    // ===== RECALCULAR USO DO CARTÃO SE A DATA MUDOU DE MÊS =====
+    // Se é transação de cartão e a data mudou, recalcular totalmente
+    if (oldCreditCardId && data.date) {
+      const oldMonth = oldTransaction.month;
+      const oldYear = oldTransaction.year;
+      const newMonth = updateData.month;
+      const newYear = updateData.year;
+      
+      // Se mudou de mês/ano, recalcular
+      if (oldMonth !== newMonth || oldYear !== newYear) {
+        await recalculateCreditCardUsage(oldTransaction.userId, oldCreditCardId);
       }
     }
   } catch (error) {
-    console.error('Erro ao buscar nomes durante atualização:', error);
-    // Continua mesmo se houver erro ao buscar nomes
-  }
-
-  // Atualizar mês/ano se a data mudou
-  if (data.date) {
-    const transactionDate = data.date.toDate();
-    updateData.month = transactionDate.getMonth() + 1;
-    updateData.year = transactionDate.getFullYear();
-  }
-
-  // Se está removendo o cartão explicitamente (mudando para conta)
-  if (data.creditCardId === null || data.creditCardId === '') {
-    updateData.creditCardId = null;
-    updateData.creditCardName = null;
-  }
-
-  // Remover campos undefined (Firestore não aceita undefined)
-  Object.keys(updateData).forEach(key => {
-    if (updateData[key] === undefined) {
-      delete updateData[key];
-    }
-  });
-
-  await updateDoc(docRef, updateData);
-
-  // ===== APLICAR IMPACTOS DA TRANSAÇÃO NOVA =====
-  if (newWillBeCompleted) {
-    // Adicionar progresso à meta se tem goalId e ficou completa
-    if (hasGoal && oldGoalId) {
-      await addToGoalProgress(oldGoalId, newAmount);
-    }
-
-    if (newCreditCardId) {
-      // Aplicar uso no novo cartão de crédito
-      const newUsageAmount = newType === 'expense' ? newAmount : -newAmount;
-      await updateCreditCardUsage(newCreditCardId, newUsageAmount);
-    } else if (newAccountId) {
-      // Aplicar saldo na nova conta
-      await updateBalancesForTransaction({
-        type: newType,
-        amount: newAmount,
-        accountId: newAccountId,
-        toAccountId: newToAccountId,
-      } as any);
-    }
+    console.error('❌ ERRO EM updateTransaction:', error);
+    console.error('📝 Data recebida:', JSON.stringify(data, null, 2));
+    console.error('📦 Transação antiga:', JSON.stringify({
+      id: oldTransaction.id,
+      type: oldTransaction.type,
+      amount: oldTransaction.amount,
+      month: oldTransaction.month,
+      year: oldTransaction.year,
+      accountId: oldTransaction.accountId,
+      creditCardId: oldTransaction.creditCardId,
+    }, null, 2));
+    throw error;
   }
 }
 
@@ -622,6 +652,10 @@ export async function updateTransaction(
 // ==========================================
 
 export async function deleteTransaction(transaction: Transaction): Promise<void> {
+  // IMPORTANTE: Deletar primeiro para evitar estado inconsistente se falhar por permissão
+  const docRef = doc(db, COLLECTIONS.TRANSACTIONS, transaction.id);
+  await deleteDoc(docRef);
+
   // Reverter saldos apenas se status era 'completed' e não era cartão de crédito
   if (!transaction.creditCardId && transaction.status === 'completed') {
     await updateBalancesForTransaction(
@@ -634,10 +668,6 @@ export async function deleteTransaction(transaction: Transaction): Promise<void>
   if (transaction.goalId && transaction.status === 'completed') {
     await removeFromGoalProgress(transaction.goalId, transaction.amount);
   }
-
-  // Deletar transação
-  const docRef = doc(db, COLLECTIONS.TRANSACTIONS, transaction.id);
-  await deleteDoc(docRef);
 
   // Se for transação de cartão de crédito, recalcular o valor usado
   if (transaction.creditCardId && transaction.userId) {
@@ -690,6 +720,14 @@ export async function deleteTransactionSeries(
 // ==========================================
 
 // Calcular totais do mês
+// LÓGICA DE CONTA CORRENTE:
+// - Calcula APENAS a movimentação do mês específico
+// - Receitas somam, despesas subtraem
+// - Transferências são ignoradas (apenas movem saldo entre contas)
+// - Pagamentos de fatura são ignorados (são transferências internas)
+// - Transações de cartão com fatura pendente são ignoradas
+// - Apenas transações 'completed' entram no cálculo
+// - O saldo se propaga, os lançamentos não
 export async function getMonthTotals(
   userId: string,
   month: number,
@@ -697,11 +735,25 @@ export async function getMonthTotals(
 ): Promise<{ income: number; expense: number; balance: number }> {
   const transactions = await getTransactionsByMonth(userId, month, year);
   
+  // Buscar faturas pendentes para excluir transações de cartão com fatura não paga
+  const pendingBills = await getPendingBillsMap(userId);
+  
   let income = 0;
   let expense = 0;
 
   for (const t of transactions) {
     if (t.status !== 'completed') continue;
+    
+    // Ignorar transações de cartão com fatura pendente
+    // Essas transações só devem impactar o saldo quando a fatura for paga
+    // IMPORTANTE: Pagamentos de fatura (creditCardBillId) NÃO são ignorados,
+    // pois representam dinheiro real saindo da conta
+    if (t.creditCardId && t.month && t.year) {
+      const billKey = `${t.creditCardId}-${t.month}-${t.year}`;
+      if (pendingBills.has(billKey)) {
+        continue; // Fatura pendente - não conta no saldo realizado
+      }
+    }
     
     if (t.type === 'income') {
       income += t.amount;
@@ -725,10 +777,23 @@ export async function getExpensesByCategory(
 ): Promise<Map<string, { categoryId: string; categoryName: string; categoryIcon: string; total: number }>> {
   const transactions = await getTransactionsByType(userId, 'expense', month, year);
   
+  // Buscar faturas pendentes
+  const pendingBills = await getPendingBillsMap(userId);
+  
   const byCategory = new Map<string, { categoryId: string; categoryName: string; categoryIcon: string; total: number }>();
 
   for (const t of transactions) {
     if (t.status !== 'completed' || !t.categoryId) continue;
+    
+    // Pagamentos de fatura não têm categoria, então já são filtrados pela condição acima
+    
+    // Ignorar transações de cartão com fatura pendente
+    if (t.creditCardId && t.month && t.year) {
+      const billKey = `${t.creditCardId}-${t.month}-${t.year}`;
+      if (pendingBills.has(billKey)) {
+        continue; // Fatura pendente - não conta em despesas
+      }
+    }
 
     const existing = byCategory.get(t.categoryId);
     if (existing) {
@@ -795,12 +860,25 @@ export async function getCategoryExpensesOverTime(
     t.year >= startYear && t.year <= endYear
   );
 
+  // Buscar faturas pendentes
+  const pendingBills = await getPendingBillsMap(userId);
+
   // Agrupar por mês
   const monthlyMap = new Map<string, Transaction[]>();
   const yearlyMap = new Map<number, Transaction[]>();
 
   for (const t of transactions) {
     if (t.status !== 'completed' || !t.categoryId) continue;
+    
+    // Pagamentos de fatura não têm categoria, já filtrados acima
+    
+    // Ignorar transações de cartão com fatura pendente
+    if (t.creditCardId && t.month && t.year) {
+      const billKey = `${t.creditCardId}-${t.month}-${t.year}`;
+      if (pendingBills.has(billKey)) {
+        continue; // Fatura pendente - não conta
+      }
+    }
 
     // Mensal
     const monthKey = `${t.year}-${String(t.month).padStart(2, '0')}`;
@@ -890,7 +968,15 @@ export async function getCategoryExpensesOverTime(
 // ==========================================
 
 // Buscar saldo acumulado até antes de um mês específico
-// Isso retorna o saldo de todos os meses anteriores ao mês/ano especificado
+// LÓGICA DE CONTA CORRENTE:
+// - Retorna o saldo CONSOLIDADO de todos os meses anteriores
+// - Cada movimentação é contada APENAS UMA VEZ
+// - Este saldo funciona como "saldo inicial" do mês consultado
+// - Pagamentos de fatura não são duplicados
+// - Transações de cartão com fatura pendente não entram
+// - Transferências são ignoradas (não afetam saldo total)
+// NOTA: Idealmente, isso deveria vir de snapshots mensais salvos,
+// mas por enquanto recalcula toda vez (funcional, mas não otimizado)
 export async function getCarryOverBalance(
   userId: string,
   beforeMonth: number,
@@ -908,11 +994,21 @@ export async function getCarryOverBalance(
     ...doc.data(),
   })) as Transaction[];
 
+  // Buscar faturas pendentes
+  const pendingBills = await getPendingBillsMap(userId);
+
   let carryOver = 0;
 
   for (const t of transactions) {
     // Apenas lançamentos concluídos entram no saldo histórico
     if (t.status !== 'completed') continue;
+    
+    // Ignorar transações de cartão de crédito (compras)
+    // O impacto no saldo bancário é dado pelo PAGAMENTO DA FATURA (creditCardBillId)
+    // ou se a fatura ainda não foi paga, o dinheiro ainda está na conta.
+    if (t.creditCardId) {
+      continue;
+    }
     
     // Verificar se a transação é de um mês ANTERIOR ao mês especificado
     const isBeforeMonth = 
@@ -1170,7 +1266,11 @@ export async function getDebitExpenses(
   const transactions = await getTransactionsByType(userId, 'expense', month, year);
   
   return transactions
-    .filter(t => t.status !== 'cancelled' && !t.creditCardId)
+    .filter(t => 
+      t.status === 'completed' && 
+      !t.creditCardId
+      // Pagamentos de fatura (creditCardBillId) são incluídos nas despesas da conta
+    )
     .reduce((sum, t) => sum + t.amount, 0);
 }
 
@@ -1183,7 +1283,7 @@ export async function getCreditExpenses(
   const transactions = await getTransactionsByType(userId, 'expense', month, year);
   
   return transactions
-    .filter(t => t.status !== 'cancelled' && t.creditCardId)
+    .filter(t => t.status === 'completed' && t.creditCardId)
     .reduce((sum, t) => sum + t.amount, 0);
 }
 
@@ -1301,4 +1401,162 @@ export async function getMonthReport(
     previousMonth,
     debtPercentage
   };
+}
+
+// ==========================================
+// MOVIMENTAÇÃO DE TRANSAÇÕES ENTRE FATURAS
+// ==========================================
+
+/**
+ * Obtém o último dia válido de um mês
+ * @param month Mês (1-12)
+ * @param year Ano
+ * @returns Último dia do mês (28-31)
+ */
+function getLastDayOfMonth(month: number, year: number): number {
+  // new Date(year, month, 0) retorna o último dia do mês anterior
+  return new Date(year, month, 0).getDate();
+}
+
+/**
+ * Ajusta o dia para o último dia válido do mês de destino
+ * Exemplo: dia 31 em um mês com 30 dias → retorna 30
+ * @param day Dia original
+ * @param targetMonth Mês de destino (1-12)
+ * @param targetYear Ano de destino
+ * @returns Dia ajustado
+ */
+function adjustDayForMonth(day: number, targetMonth: number, targetYear: number): number {
+  const lastDay = getLastDayOfMonth(targetMonth, targetYear);
+  return Math.min(day, lastDay);
+}
+
+/**
+ * Move uma transação de cartão de crédito para o mês anterior
+ * Mantém o dia da transação, ajustando se necessário (ex: 31 → 30)
+ * @param transactionId ID da transação a ser movida
+ * @throws Error se a transação não for de cartão de crédito
+ */
+export async function moveTransactionToPreviousBill(transactionId: string): Promise<void> {
+  const docRef = doc(transactionsRef, transactionId);
+  const snapshot = await getDoc(docRef);
+  
+  if (!snapshot.exists()) {
+    throw new Error('Transação não encontrada');
+  }
+
+  const transaction = { id: snapshot.id, ...snapshot.data() } as Transaction;
+
+  // Validar que é uma transação de cartão
+  if (!transaction.creditCardId) {
+    throw new Error('Apenas transações de cartão de crédito podem ser movidas entre faturas');
+  }
+
+  // Armazenar valores originais antes de atualizar
+  const originalMonth = transaction.month;
+  const originalYear = transaction.year;
+  const creditCardId = transaction.creditCardId;
+
+  // Calcular mês/ano anterior
+  let newMonth = transaction.month - 1;
+  let newYear = transaction.year;
+  
+  if (newMonth < 1) {
+    newMonth = 12;
+    newYear -= 1;
+  }
+
+  // Obter o dia atual da transação
+  const currentDate = transaction.date.toDate();
+  const day = currentDate.getDate();
+  
+  // Ajustar dia se necessário (ex: 31 de março → 28/29 de fevereiro)
+  const adjustedDay = adjustDayForMonth(day, newMonth, newYear);
+  
+  // Criar nova data mantendo hora/minuto/segundo
+  const newDate = new Date(
+    newYear,
+    newMonth - 1, // JavaScript usa mês 0-indexed
+    adjustedDay,
+    currentDate.getHours(),
+    currentDate.getMinutes(),
+    currentDate.getSeconds(),
+    currentDate.getMilliseconds()
+  );
+
+  // Atualizar transação
+  await updateDoc(docRef, {
+    date: Timestamp.fromDate(newDate),
+    month: newMonth,
+    year: newYear,
+    updatedAt: Timestamp.now(),
+  });
+
+  // Recalcular uso do cartão (recalcula todas as transações do cartão)
+  await recalculateCreditCardUsage(transaction.userId, creditCardId);
+}
+
+/**
+ * Move uma transação de cartão de crédito para o próximo mês
+ * Mantém o dia da transação, ajustando se necessário (ex: 31 → 30)
+ * @param transactionId ID da transação a ser movida
+ * @throws Error se a transação não for de cartão de crédito
+ */
+export async function moveTransactionToNextBill(transactionId: string): Promise<void> {
+  const docRef = doc(transactionsRef, transactionId);
+  const snapshot = await getDoc(docRef);
+  
+  if (!snapshot.exists()) {
+    throw new Error('Transação não encontrada');
+  }
+
+  const transaction = { id: snapshot.id, ...snapshot.data() } as Transaction;
+
+  // Validar que é uma transação de cartão
+  if (!transaction.creditCardId) {
+    throw new Error('Apenas transações de cartão de crédito podem ser movidas entre faturas');
+  }
+
+  // Armazenar valores originais antes de atualizar
+  const originalMonth = transaction.month;
+  const originalYear = transaction.year;
+  const creditCardId = transaction.creditCardId;
+
+  // Calcular próximo mês/ano
+  let newMonth = transaction.month + 1;
+  let newYear = transaction.year;
+  
+  if (newMonth > 12) {
+    newMonth = 1;
+    newYear += 1;
+  }
+
+  // Obter o dia atual da transação
+  const currentDate = transaction.date.toDate();
+  const day = currentDate.getDate();
+  
+  // Ajustar dia se necessário (ex: 31 de janeiro → 28/29 de fevereiro)
+  const adjustedDay = adjustDayForMonth(day, newMonth, newYear);
+  
+  // Criar nova data mantendo hora/minuto/segundo
+  const newDate = new Date(
+    newYear,
+    newMonth - 1, // JavaScript usa mês 0-indexed
+    adjustedDay,
+    currentDate.getHours(),
+    currentDate.getMinutes(),
+    currentDate.getSeconds(),
+    currentDate.getMilliseconds()
+  );
+
+  // Atualizar transação
+  await updateDoc(docRef, {
+    date: Timestamp.fromDate(newDate),
+    month: newMonth,
+    year: newYear,
+    updatedAt: Timestamp.now(),
+  });
+
+  // Recalcular uso do cartão (recalcula todas as transações do cartão)
+  await recalculateCreditCardUsage(transaction.userId, creditCardId);
 }

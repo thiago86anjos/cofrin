@@ -208,6 +208,7 @@ export default function CreditCardBillDetails() {
               showAlert('Sucesso', 'Fatura paga com sucesso!', [{ text: 'OK' }]);
               setPayModalVisible(false);
               loadBillDetails(); // Recarregar dados
+              triggerRefresh(); // Atualizar Home/Resumo/Relatórios/Contas
             } catch (error) {
               console.error('Erro ao pagar fatura:', error);
               showAlert('Erro', 'Não foi possível pagar a fatura', [{ text: 'OK' }]);
@@ -402,6 +403,7 @@ export default function CreditCardBillDetails() {
                           await unpayBill(bill.id);
                           showAlert('Sucesso', 'Pagamento desfeito com sucesso', [{ text: 'OK' }]);
                           loadBillDetails();
+                          triggerRefresh(); // Atualizar Home/Resumo/Relatórios/Contas
                         } catch (err) {
                           console.error('Erro ao desfazer pagamento:', err);
                           showAlert('Erro', 'Não foi possível desfazer o pagamento', [{ text: 'OK' }]);

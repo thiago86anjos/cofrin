@@ -10,7 +10,6 @@ import { useGoal } from "../hooks/useGoal";
 import { useTransactionRefresh } from "../contexts/transactionRefreshContext";
 import { useEffect, useMemo, useCallback, useState } from "react";
 import MainLayout from "../components/MainLayout";
-import HomeOverview from "../components/home/HomeOverview";
 import AccountsCard from "../components/home/AccountsCard";
 import ExpensesByCategoryCard from "../components/ExpensesByCategoryCard";
 import CreditCardsCard from "../components/home/CreditCardsCard";
@@ -212,19 +211,13 @@ export default function Home() {
       >
         <View style={styles.centeredContainer}>
           <View style={styles.content}>
-            {/* 1. Saudação + Hero Card - Resumo do Mês */}
-            <HomeOverview
-              username={userName}
-              revenue={totalIncome}
-              expenses={totalExpense}
-              onSaveTransaction={triggerRefresh}
-            />
-
-            <View style={{ height: 24 }} />
-
-            {/* 2. Onde está meu dinheiro */}
+            {/* 1. Onde está meu dinheiro + Saudação + Resumo */}
             <AccountsCard 
               accounts={accounts}
+              totalBalance={totalAccountsBalance}
+              totalIncome={totalIncome}
+              totalExpense={totalExpense}
+              username={userName}
               onAccountPress={handleAccountPress}
               onAddPress={() => navigation.navigate('ConfigureAccounts')}
             />
@@ -240,7 +233,7 @@ export default function Home() {
 
             <View style={{ height: 24 }} />
 
-            {/* 4. Meta financeira */}
+            {/* 4. Meta Financeira */}
             <GoalCard 
               goal={goal}
               progressPercentage={progressPercentage}

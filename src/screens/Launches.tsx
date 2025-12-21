@@ -217,15 +217,19 @@ export default function Launches() {
     let pendingIncome = 0;
     let pendingExpense = 0;
 
-    // Contar transações normais (exclui transações de cartão individuais)
+    // Contar transações normais
+    // Exclui: transações de cartão (aparecem nas faturas)
     transactions
-      .filter((t: Transaction) => !t.creditCardId) // Exclui apenas transações de cartão, mas INCLUI pagamentos de fatura
+      .filter((t: Transaction) => 
+        !t.creditCardId              // Exclui transações de cartão
+      )
       .forEach((t: Transaction) => {
         if (t.status === 'cancelled') return;
         
         if (t.status === 'completed') {
           if (t.type === 'income') completedIncome += t.amount;
           else if (t.type === 'expense') completedExpense += t.amount;
+          // Transferências não afetam saldo total (apenas movem entre contas)
         } else {
           // pending
           if (t.type === 'income') pendingIncome += t.amount;
