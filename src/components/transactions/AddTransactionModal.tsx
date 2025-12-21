@@ -831,7 +831,8 @@ export default function AddTransactionModal({
     // Render category picker
     if (activePicker === 'category') {
       const filteredCategories = categories.filter(c => 
-        type === 'despesa' ? c.type === 'expense' : c.type === 'income'
+        (type === 'despesa' ? c.type === 'expense' : c.type === 'income') &&
+        !c.isMetaCategory && c.name !== 'Meta'
       );
       
       return (

@@ -3,25 +3,25 @@
 // ==========================================
 
 import {
-  collection,
-  doc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  getDocs,
-  getDoc,
-  query,
-  where, Timestamp,
-  writeBatch
+    collection,
+    doc,
+    addDoc,
+    updateDoc,
+    deleteDoc,
+    getDocs,
+    getDoc,
+    query,
+    where, Timestamp,
+    writeBatch
 } from 'firebase/firestore';
 import { db, COLLECTIONS } from './firebase';
 import {
-  Category,
-  CreateCategoryInput,
-  UpdateCategoryInput,
-  CategoryType,
-  DEFAULT_EXPENSE_CATEGORIES,
-  DEFAULT_INCOME_CATEGORIES,
+    Category,
+    CreateCategoryInput,
+    UpdateCategoryInput,
+    CategoryType,
+    DEFAULT_EXPENSE_CATEGORIES,
+    DEFAULT_INCOME_CATEGORIES,
 } from '../types/firebase';
 
 const categoriesRef = collection(db, COLLECTIONS.CATEGORIES);
@@ -109,6 +109,11 @@ export async function updateCategory(
   const category = await getCategoryById(categoryId);
   if (category?.isDefault && category.name === 'Renda') {
     throw new Error('A categoria Renda não pode ser editada pois é usada para cálculos de relatórios.');
+  }
+  
+  // Proteger categoria Meta de edições
+  if (category?.isMetaCategory || category?.name === 'Meta') {
+    throw new Error('A categoria Meta não pode ser editada pois é usada pelo sistema para lançamentos de objetivos.');
   }
   
   const docRef = doc(db, COLLECTIONS.CATEGORIES, categoryId);
