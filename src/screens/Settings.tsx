@@ -106,8 +106,8 @@ export default function Settings({ navigation }: any) {
     try {
       // Importar serviços necessários
       const { deleteDoc, collection, query, where, getDocs } = await import('firebase/firestore');
-      const { deleteUser } = await import('firebase/auth');
-      const { db, COLLECTIONS } = await import('../services/firebase');
+      const { deleteUser, reauthenticateWithCredential, EmailAuthProvider, GoogleAuthProvider, reauthenticateWithPopup } = await import('firebase/auth');
+      const { db, COLLECTIONS, auth } = await import('../services/firebase');
 
       // Deletar todas as coleções do usuário
       const collectionsToDelete = [
@@ -133,7 +133,38 @@ export default function Settings({ navigation }: any) {
 
       // Deletar a conta do Firebase Auth
       if (user) {
-        await deleteUser(user as any);
+        try {
+          await deleteUser(user as any);
+        } catch (authError: any) {
+          // Se precisar de reautenticação, tentar reautenticar
+          if (authError.code === 'auth/requires-recent-login') {
+            const currentUser = auth.currentUser;
+            if (currentUser) {
+              // Verificar o provedor de login
+              const providerId = currentUser.providerData[0]?.providerId;
+              
+              if (providerId === 'google.com') {
+                // Reautenticar com Google
+                const provider = new GoogleAuthProvider();
+                await reauthenticateWithPopup(currentUser, provider);
+              } else {
+                // Para email/senha, mostrar mensagem para fazer logout e login novamente
+                showAlert(
+                  'Sessão expirada',
+                  'Por segurança, faça logout e login novamente para deletar sua conta.',
+                  [{ text: 'OK', style: 'default' }]
+                );
+                setDeleting(false);
+                return;
+              }
+              
+              // Tentar deletar novamente após reautenticação
+              await deleteUser(currentUser);
+            }
+          } else {
+            throw authError;
+          }
+        }
       }
 
       // Nota: O logout é automático após deletar a conta do Firebase Auth
