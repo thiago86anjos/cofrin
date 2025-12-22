@@ -190,7 +190,7 @@ export default function Home() {
   };
 
   const handleAddCreditCard = () => {
-    navigation.navigate('CreditCards');
+    navigation.navigate('CreditCards', { openCreate: true });
   };
 
   // Refresh quando refreshKey mudar

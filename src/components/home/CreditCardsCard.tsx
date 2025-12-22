@@ -227,6 +227,16 @@ export default function CreditCardsCard({ cards = [], totalBills = 0, totalIncom
           <Text style={[styles.emptyText, { color: colors.textMuted }]}>
             Nenhum cartão cadastrado
           </Text>
+          <Pressable
+            onPress={onAddPress}
+            style={({ pressed }) => [
+              styles.emptyButton,
+              { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
+            ]}
+          >
+            <MaterialCommunityIcons name="plus" size={18} color="#fff" />
+            <Text style={styles.emptyButtonText}>Cadastrar cartão</Text>
+          </Pressable>
         </View>
       )}
 
@@ -434,6 +444,20 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
+  },
+  emptyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    marginTop: 4,
+  },
+  emptyButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   // Estilos do ícone de status
   titleRow: {

@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Modal, Platform } from "react-native";
+import { useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppTheme } from "../contexts/themeContext";
@@ -22,6 +23,7 @@ import { updateCreditCard as updateCreditCardService } from "../services/creditC
 import { useTransactionRefresh } from "../contexts/transactionRefreshContext";
 
 export default function CreditCards({ navigation }: any) {
+  const route = useRoute<any>();
   const { colors } = useAppTheme();
   const { user } = useAuth();
   const { alertState, showAlert, hideAlert } = useCustomAlert();
@@ -63,6 +65,19 @@ export default function CreditCards({ navigation }: any) {
   } = useCreditCards();
   
   const { activeAccounts } = useAccounts();
+
+  // Abrir modal de criação automaticamente se vier da Home com openCreate=true
+  useEffect(() => {
+    if (route.params?.openCreate && activeAccounts.length > 0 && !loading) {
+      // Pequeno delay para garantir que os estados estejam prontos
+      const timer = setTimeout(() => {
+        openCreateModal();
+        // Limpar o parâmetro para não reabrir ao voltar
+        navigation.setParams({ openCreate: undefined });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [route.params?.openCreate, activeAccounts.length, loading]);
 
   // Calcular total usado
   const totalUsed = activeCards.reduce((sum, card) => sum + (card.currentUsed || 0), 0);
