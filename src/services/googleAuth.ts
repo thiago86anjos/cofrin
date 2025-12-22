@@ -1,7 +1,7 @@
 import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
 import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { auth } from "./firebase";
 import { createDefaultCategories } from "./categoryService";
 import { createDefaultAccount, getAllAccounts } from "./accountService";
@@ -11,6 +11,7 @@ WebBrowser.maybeCompleteAuthSession();
 
 export function useGoogleAuth(onLogin?: () => void) {
   const { showAlert } = useCustomAlert();
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     expoClientId: "1026415452462-bnqbtkpks7pts26n6l4eg22en1pradau.apps.googleusercontent.com",
@@ -28,6 +29,9 @@ export function useGoogleAuth(onLogin?: () => void) {
       const { id_token } = response.params;
 
       console.log("Google Response Params:", response.params);
+      
+      // Manter loading ativo durante toda a autenticação
+      setIsAuthenticating(true);
 
       const credential = GoogleAuthProvider.credential(id_token);
 
@@ -60,6 +64,7 @@ export function useGoogleAuth(onLogin?: () => void) {
         .catch((err) => {
           if (mounted) {
             console.error("Erro no login Google:", err);
+            setIsAuthenticating(false);
             showAlert(
               "Erro no Login",
               `Falha ao fazer login com Google: ${err.message || err.code || "Erro desconhecido"}`,
@@ -67,6 +72,9 @@ export function useGoogleAuth(onLogin?: () => void) {
             );
           }
         });
+    } else if (response?.type === "cancel" || response?.type === "dismiss") {
+      // Usuário cancelou o login
+      setIsAuthenticating(false);
     }
 
     return () => {
@@ -74,5 +82,20 @@ export function useGoogleAuth(onLogin?: () => void) {
     };
   }, [response]);
 
-  return { request, promptAsync };
+  // Wrapper do promptAsync que inicia o estado de autenticação
+  const startGoogleAuth = useCallback(async () => {
+    setIsAuthenticating(true);
+    try {
+      const result = await promptAsync();
+      // Se o usuário fechou o popup sem completar, resetar o loading
+      if (result?.type !== 'success') {
+        setIsAuthenticating(false);
+      }
+    } catch (error) {
+      setIsAuthenticating(false);
+      throw error;
+    }
+  }, [promptAsync]);
+
+  return { request, promptAsync: startGoogleAuth, isAuthenticating };
 }

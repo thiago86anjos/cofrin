@@ -17,7 +17,6 @@ export default function Login({ navigation }: any) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [emailLoading, setEmailLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showReset, setShowReset] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
@@ -25,7 +24,7 @@ export default function Login({ navigation }: any) {
   const [resetResult, setResetResult] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
-  const { request, promptAsync } = useGoogleAuth();
+  const { request, promptAsync, isAuthenticating: googleLoading } = useGoogleAuth();
 
   const loading = emailLoading || googleLoading;
 
@@ -59,13 +58,10 @@ export default function Login({ navigation }: any) {
   async function handleGoogleLogin() {
     setError(null);
     if (!request) return;
-    setGoogleLoading(true);
     try {
       await promptAsync();
     } catch (err: any) {
       setError("Erro ao entrar com Google. Tente novamente.");
-    } finally {
-      setGoogleLoading(false);
     }
   }
 
