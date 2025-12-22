@@ -12,7 +12,6 @@ import MainLayout from "../components/MainLayout";
 import SimpleHeader from "../components/SimpleHeader";
 import { useAuth } from "../contexts/authContext";
 import { spacing, borderRadius, getShadow } from "../theme";
-import { getModalContainerStyle } from "../utils/modalLayout";
 import { useCreditCards } from "../hooks/useCreditCards";
 import { useAccounts } from "../hooks/useAccounts";
 import { CreditCard } from "../types/firebase";
@@ -29,13 +28,6 @@ export default function CreditCards({ navigation }: any) {
   const { triggerRefresh } = useTransactionRefresh();
   const insets = useSafeAreaInsets();
   
-  const [name, setName] = useState('');
-  const [limit, setLimit] = useState('');
-  const [closingDay, setClosingDay] = useState('');
-  const [dueDay, setDueDay] = useState('');
-  const [selectedAccountId, setSelectedAccountId] = useState('');
-  const [selectedAccountName, setSelectedAccountName] = useState('');
-  const [showAccountPicker, setShowAccountPicker] = useState(false);
   const [saving, setSaving] = useState(false);
   
   // Estado para loading overlay (operações longas)
@@ -45,16 +37,18 @@ export default function CreditCards({ navigation }: any) {
     progress: null as { current: number; total: number } | null,
   });
 
-  // Estado para modal de edição
-  const [editModalVisible, setEditModalVisible] = useState(false);
+  // Estado para modal unificada (criar/editar)
+  const [modalVisible, setModalVisible] = useState(false);
+  const [isCreateMode, setIsCreateMode] = useState(false);
   const [editingCard, setEditingCard] = useState<CreditCard | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editLimit, setEditLimit] = useState('');
-  const [editClosingDay, setEditClosingDay] = useState('');
-  const [editDueDay, setEditDueDay] = useState('');
-  const [editAccountId, setEditAccountId] = useState('');
-  const [editAccountName, setEditAccountName] = useState('');
-  const [showEditAccountPicker, setShowEditAccountPicker] = useState(false);
+  const [cardName, setCardName] = useState('');
+  const [cardLimit, setCardLimit] = useState('');
+  const [cardClosingDay, setCardClosingDay] = useState('');
+  const [cardDueDay, setCardDueDay] = useState('');
+  const [cardAccountId, setCardAccountId] = useState('');
+  const [cardAccountName, setCardAccountName] = useState('');
+  const [showAccountPicker, setShowAccountPicker] = useState(false);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   // Hooks do Firebase
   const { 
@@ -103,30 +97,33 @@ export default function CreditCards({ navigation }: any) {
           { text: 'Cancelar', style: 'cancel' },
           { 
             text: 'Criar conta', 
-            onPress: () => navigation.navigate('ConfigureAccounts'),
+            onPress: () => {
+              setModalVisible(false);
+              navigation.navigate('ConfigureAccounts');
+            },
           },
         ]
       );
       return;
     }
 
-    if (!name.trim()) {
+    if (!cardName.trim()) {
       showAlert('Erro', 'Informe o nome do cartão', [{ text: 'OK', style: 'default' }]);
       return;
     }
 
-    if (!limit.trim() || parseValue(limit) <= 0) {
+    if (!cardLimit.trim() || parseValue(cardLimit) <= 0) {
       showAlert('Erro', 'Informe o limite do cartão', [{ text: 'OK', style: 'default' }]);
       return;
     }
 
-    if (!selectedAccountId) {
+    if (!cardAccountId) {
       showAlert('Erro', 'Selecione a conta de pagamento da fatura', [{ text: 'OK', style: 'default' }]);
       return;
     }
     
-    const closingDayNum = parseInt(closingDay) || 1;
-    const dueDayNum = parseInt(dueDay) || 10;
+    const closingDayNum = parseInt(cardClosingDay) || 1;
+    const dueDayNum = parseInt(cardDueDay) || 10;
     
     if (closingDayNum < 1 || closingDayNum > 31 || dueDayNum < 1 || dueDayNum > 31) {
       showAlert('Erro', 'Os dias devem estar entre 1 e 31', [{ text: 'OK', style: 'default' }]);
@@ -136,25 +133,21 @@ export default function CreditCards({ navigation }: any) {
     setSaving(true);
     try {
       const cardData: any = {
-        name: name.trim(),
+        name: cardName.trim(),
         icon: 'credit-card',
         color: '#3B82F6',
-        limit: parseValue(limit),
+        limit: parseValue(cardLimit),
         closingDay: closingDayNum,
         dueDay: dueDayNum,
-        paymentAccountId: selectedAccountId,
+        paymentAccountId: cardAccountId,
         isArchived: false,
       };
 
       const result = await createCreditCard(cardData);
 
       if (result) {
-        setName('');
-        setLimit('');
-        setClosingDay('');
-        setDueDay('');
-        setSelectedAccountId('');
-        setSelectedAccountName('');
+        setModalVisible(false);
+        resetModalState();
         triggerRefresh();
         showSnackbar('Cartão cadastrado com sucesso!');
       } else {
@@ -167,28 +160,68 @@ export default function CreditCards({ navigation }: any) {
     }
   }
 
+  // Resetar estado do modal
+  function resetModalState() {
+    setCardName('');
+    setCardLimit('');
+    setCardClosingDay('');
+    setCardDueDay('');
+    setCardAccountId('');
+    setCardAccountName('');
+    setEditingCard(null);
+    setIsCreateMode(false);
+  }
+
+  // Abrir modal para criar novo cartão
+  function openCreateModal() {
+    // Verificar se há contas cadastradas antes de abrir
+    if (activeAccounts.length === 0) {
+      showAlert(
+        'Conta necessária',
+        'Para cadastrar um cartão de crédito, você precisa ter pelo menos uma conta cadastrada para pagamento da fatura.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { 
+            text: 'Criar conta', 
+            onPress: () => navigation.navigate('ConfigureAccounts'),
+          },
+        ]
+      );
+      return;
+    }
+    resetModalState();
+    setIsCreateMode(true);
+    // Definir conta padrão se houver apenas uma
+    if (activeAccounts.length === 1) {
+      setCardAccountId(activeAccounts[0].id);
+      setCardAccountName(activeAccounts[0].name);
+    }
+    setModalVisible(true);
+  }
+
   // Arquivar cartão foi removido do fluxo.
 
   // Abrir modal de edição
   function openEditModal(card: CreditCard) {
     const account = activeAccounts.find(a => a.id === card.paymentAccountId);
     setEditingCard(card);
-    setEditName(card.name);
+    setIsCreateMode(false);
+    setCardName(card.name);
     // Formatar limite para exibição (1234.56 → "1.234,56")
-    setEditLimit(card.limit.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-    setEditClosingDay(card.closingDay.toString());
-    setEditDueDay(card.dueDay.toString());
-    setEditAccountId(card.paymentAccountId || '');
-    setEditAccountName(account?.name || '');
-    setEditModalVisible(true);
+    setCardLimit(card.limit.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    setCardClosingDay(card.closingDay.toString());
+    setCardDueDay(card.dueDay.toString());
+    setCardAccountId(card.paymentAccountId || '');
+    setCardAccountName(account?.name || '');
+    setModalVisible(true);
   }
 
   // Salvar edição
   async function handleSaveEdit() {
-    if (!editingCard || !editName.trim() || !user?.uid) return;
+    if (!editingCard || !cardName.trim() || !user?.uid) return;
 
-    const closingDayNum = parseInt(editClosingDay) || 1;
-    const dueDayNum = parseInt(editDueDay) || 10;
+    const closingDayNum = parseInt(cardClosingDay) || 1;
+    const dueDayNum = parseInt(cardDueDay) || 10;
     
     if (closingDayNum < 1 || closingDayNum > 31 || dueDayNum < 1 || dueDayNum > 31) {
       showAlert('Erro', 'Os dias devem estar entre 1 e 31', [{ text: 'OK', style: 'default' }]);
@@ -198,15 +231,15 @@ export default function CreditCards({ navigation }: any) {
     setSaving(true);
     try {
       const updateData: any = {
-        name: editName.trim(),
-        limit: parseValue(editLimit),
+        name: cardName.trim(),
+        limit: parseValue(cardLimit),
         closingDay: closingDayNum,
         dueDay: dueDayNum,
       };
       
       // Só adiciona paymentAccountId se tiver valor, senão remove
-      if (editAccountId) {
-        updateData.paymentAccountId = editAccountId;
+      if (cardAccountId) {
+        updateData.paymentAccountId = cardAccountId;
       } else {
         updateData.paymentAccountId = null; // Remove do documento
       }
@@ -214,8 +247,8 @@ export default function CreditCards({ navigation }: any) {
       const result = await updateCreditCard(editingCard.id, updateData);
 
       if (result) {
-        setEditModalVisible(false);
-        setEditingCard(null);
+        setModalVisible(false);
+        resetModalState();
         triggerRefresh();
         showSnackbar('Cartão atualizado!');
       } else {
@@ -270,8 +303,8 @@ export default function CreditCards({ navigation }: any) {
               );
               
               // Fechar modal e atualizar lista
-              setEditModalVisible(false);
-              setEditingCard(null);
+              setModalVisible(false);
+              resetModalState();
             } catch (err) {
               showAlert('Erro', 'Ocorreu um erro ao resetar o cartão', [{ text: 'OK', style: 'default' }]);
             } finally {
@@ -306,7 +339,7 @@ export default function CreditCards({ navigation }: any) {
           style: 'destructive',
           onPress: async () => {
             // Fechar modal primeiro
-            setEditModalVisible(false);
+            setModalVisible(false);
             
             // Mostrar loading overlay se houver muitas transações
             if (transactionCount > 5) {
@@ -445,112 +478,247 @@ export default function CreditCards({ navigation }: any) {
           </View>
         )}
 
-        {/* Novo cartão */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-            CADASTRAR NOVO CARTÃO
-          </Text>
-          <View style={[styles.card, { backgroundColor: colors.card }, getShadow(colors)]}>
-            {/* Nome */}
-            <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.text }]}>Nome do cartão</Text>
-              <View style={[styles.inputContainer, { borderColor: colors.border }]}>
-                <TextInput
-                  value={name}
-                  onChangeText={setName}
-                  placeholder="Ex: Nubank, Itaú Platinum..."
-                  placeholderTextColor={colors.textMuted}
-                  style={[styles.input, { color: colors.text }]}
-                />
-              </View>
-            </View>
-
-            {/* Limite */}
-            <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.text }]}>Limite</Text>
-              <View style={[styles.inputContainer, { borderColor: colors.border }]}>
-                <Text style={[styles.currency, { color: colors.textMuted }]}>R$</Text>
-                <TextInput
-                  value={limit}
-                  onChangeText={(v) => setLimit(formatCurrency(v))}
-                  placeholder="0,00"
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="numeric"
-                  style={[styles.input, { color: colors.text }]}
-                />
-              </View>
-            </View>
-
-            {/* Datas */}
-            <View style={styles.rowFormGroup}>
-              <View style={[styles.formGroup, { flex: 1 }]}>
-                <Text style={[styles.label, { color: colors.text }]}>Dia fechamento</Text>
-                <View style={[styles.inputContainer, { borderColor: colors.border }]}>
-                  <TextInput
-                    value={closingDay}
-                    onChangeText={setClosingDay}
-                    placeholder="10"
-                    placeholderTextColor={colors.textMuted}
-                    keyboardType="numeric"
-                    maxLength={2}
-                    style={[styles.input, { color: colors.text }]}
-                  />
-                </View>
-              </View>
-              <View style={[styles.formGroup, { flex: 1 }]}>
-                <Text style={[styles.label, { color: colors.text }]}>Dia vencimento</Text>
-                <View style={[styles.inputContainer, { borderColor: colors.border }]}>
-                  <TextInput
-                    value={dueDay}
-                    onChangeText={setDueDay}
-                    placeholder="17"
-                    placeholderTextColor={colors.textMuted}
-                    keyboardType="numeric"
-                    maxLength={2}
-                    style={[styles.input, { color: colors.text }]}
-                  />
-                </View>
-              </View>
-            </View>
-
-            {/* Conta de pagamento */}
-            <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.text }]}>Conta de pagamento</Text>
-              <Pressable 
-                onPress={() => setShowAccountPicker(true)}
-                style={[styles.selectButton, { borderColor: colors.border }]}
-              >
-                <Text style={[
-                  styles.selectText, 
-                  { color: selectedAccountName ? colors.text : colors.textMuted }
-                ]}>
-                  {selectedAccountName || 'Selecione a conta'}
-                </Text>
-                <MaterialCommunityIcons name="chevron-down" size={20} color={colors.textMuted} />
-              </Pressable>
-            </View>
-
-            {/* Botão */}
-            <Pressable
-              onPress={handleCreate}
-              disabled={saving || !name.trim()}
-              style={({ pressed }) => [
-                styles.createButton,
-                { backgroundColor: colors.primary },
-                pressed && { opacity: 0.9 },
-                (saving || !name.trim()) && { opacity: 0.6 },
-              ]}
-            >
-              <MaterialCommunityIcons name="plus" size={20} color="#fff" />
-              <Text style={styles.createButtonText}>
-                {saving ? 'Criando...' : 'Cadastrar cartão'}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
+        {/* Botão para cadastrar novo cartão */}
+        <Pressable
+          onPress={openCreateModal}
+          style={({ pressed }) => [
+            styles.addCardButton,
+            { backgroundColor: colors.primary },
+            pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+          ]}
+        >
+          <MaterialCommunityIcons name="plus" size={22} color="#fff" />
+          <Text style={styles.addCardButtonText}>Cadastrar novo cartão</Text>
+        </Pressable>
           </View>
         </View>
       </ScrollView>
+
+      {/* Modal unificada para Criar/Editar Cartão */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setModalVisible(false)}
+        statusBarTranslucent
+      >
+        <View style={[styles.fullscreenModal, { backgroundColor: colors.bg, paddingTop: insets.top }]}>
+          {/* Header moderno com botão de fechar */}
+          <View style={[styles.fullscreenHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.fullscreenTitle, { color: colors.text }]}>
+              {isCreateMode ? 'Novo Cartão' : 'Editar Cartão'}
+            </Text>
+            <Pressable 
+              onPress={() => setModalVisible(false)} 
+              style={({ pressed }) => [
+                styles.closeButton,
+                { backgroundColor: colors.grayLight },
+                pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] },
+              ]}
+            >
+              <MaterialCommunityIcons name="close" size={22} color={colors.text} />
+            </Pressable>
+          </View>
+          
+          <ScrollView 
+            style={styles.fullscreenContent}
+            contentContainerStyle={styles.fullscreenContentContainer}
+            showsVerticalScrollIndicator={false}
+          >
+              {/* Nome */}
+              <View style={styles.formGroup}>
+                <Text style={[styles.label, { color: colors.text }]}>Nome do cartão</Text>
+                <View style={[
+                  styles.inputContainer, 
+                  { 
+                    borderColor: focusedField === 'name' ? colors.primary : colors.border, 
+                    backgroundColor: colors.card 
+                  }
+                ]}>
+                  <TextInput
+                    value={cardName}
+                    onChangeText={setCardName}
+                    onFocus={() => setFocusedField('name')}
+                    onBlur={() => setFocusedField(null)}
+                    placeholder="Ex: Nubank, Itaú..."
+                    placeholderTextColor={colors.textMuted}
+                    style={[styles.input, { color: colors.text }]}
+                  />
+                </View>
+              </View>
+
+              {/* Limite */}
+              <View style={styles.formGroup}>
+                <Text style={[styles.label, { color: colors.text }]}>Limite</Text>
+                <View style={[
+                  styles.inputContainer, 
+                  { 
+                    borderColor: focusedField === 'limit' ? colors.primary : colors.border, 
+                    backgroundColor: colors.card 
+                  }
+                ]}>
+                  <Text style={[styles.currency, { color: colors.textMuted }]}>R$</Text>
+                  <TextInput
+                    value={cardLimit}
+                    onChangeText={(v) => setCardLimit(formatCurrency(v))}
+                    onFocus={() => setFocusedField('limit')}
+                    onBlur={() => setFocusedField(null)}
+                    placeholder="0,00"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="numeric"
+                    style={[styles.input, { color: colors.text }]}
+                  />
+                </View>
+              </View>
+
+              {/* Dias lado a lado */}
+              <View style={styles.daysRow}>
+                <View style={styles.dayField}>
+                  <Text style={[styles.label, { color: colors.text }]}>Fecha dia</Text>
+                  <View style={[
+                    styles.inputContainer, 
+                    { 
+                      borderColor: focusedField === 'closingDay' ? colors.primary : colors.border, 
+                      backgroundColor: colors.card 
+                    }
+                  ]}>
+                    <TextInput
+                      value={cardClosingDay}
+                      onChangeText={setCardClosingDay}
+                      onFocus={() => setFocusedField('closingDay')}
+                      onBlur={() => setFocusedField(null)}
+                      placeholder="10"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="numeric"
+                      maxLength={2}
+                      style={[styles.input, styles.centeredInput, { color: colors.text }]}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.dayField}>
+                  <Text style={[styles.label, { color: colors.text }]}>Vence dia</Text>
+                  <View style={[
+                    styles.inputContainer, 
+                    { 
+                      borderColor: focusedField === 'dueDay' ? colors.primary : colors.border, 
+                      backgroundColor: colors.card 
+                    }
+                  ]}>
+                    <TextInput
+                      value={cardDueDay}
+                      onChangeText={setCardDueDay}
+                      onFocus={() => setFocusedField('dueDay')}
+                      onBlur={() => setFocusedField(null)}
+                      placeholder="17"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="numeric"
+                      maxLength={2}
+                      style={[styles.input, styles.centeredInput, { color: colors.text }]}
+                    />
+                  </View>
+                </View>
+              </View>
+
+              {/* Conta de pagamento */}
+              <View style={styles.formGroup}>
+                <View style={styles.labelWithHelp}>
+                  <Text style={[styles.label, { color: colors.text }]}>Conta de pagamento</Text>
+                  <Pressable
+                    onPress={() => showAlert(
+                      'Conta de pagamento',
+                      'Quando você pagar a fatura deste cartão, o valor será debitado automaticamente desta conta.',
+                      [{ text: 'Entendi', style: 'default' }]
+                    )}
+                  >
+                    <Text style={[styles.helpLink, { color: colors.primary }]}>saiba mais</Text>
+                  </Pressable>
+                </View>
+                <Pressable 
+                  onPress={() => setShowAccountPicker(true)}
+                  style={[styles.selectButton, { borderColor: colors.border, backgroundColor: colors.card }]}
+                >
+                  <Text style={[
+                    styles.selectText, 
+                    { color: cardAccountName ? colors.text : colors.textMuted }
+                  ]}>
+                    {cardAccountName || 'Selecione a conta'}
+                  </Text>
+                  <MaterialCommunityIcons name="chevron-down" size={20} color={colors.textMuted} />
+                </Pressable>
+              </View>
+
+              {/* Ações */}
+              <View style={styles.modalActionsColumn}>
+                {/* Botão de Resetar - apenas no modo edição */}
+                {!isCreateMode && (
+                  <Pressable
+                    onPress={handleResetCard}
+                    style={({ pressed }) => [
+                      styles.resetButton,
+                      { backgroundColor: colors.warning + '15', borderColor: colors.warning },
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    <MaterialCommunityIcons name="refresh" size={20} color={colors.warning} />
+                    <View style={styles.resetButtonText}>
+                      <Text style={[styles.actionButtonText, { color: colors.warning }]}>Resetar cartão</Text>
+                      <Text style={[styles.resetHint, { color: colors.textMuted }]}>
+                        Exclui todos os lançamentos e zera a fatura
+                      </Text>
+                    </View>
+                  </Pressable>
+                )}
+
+                {/* Botões de Confirmar e Excluir/Cancelar */}
+                <View style={styles.modalActions}>
+                  {isCreateMode ? (
+                    <Pressable
+                      onPress={() => setModalVisible(false)}
+                      style={({ pressed }) => [
+                        styles.actionButton,
+                        styles.cancelButton,
+                        { borderColor: colors.border },
+                        pressed && { opacity: 0.7 },
+                      ]}
+                    >
+                      <Text style={[styles.actionButtonText, { color: colors.textSecondary }]}>Cancelar</Text>
+                    </Pressable>
+                  ) : (
+                    <Pressable
+                      onPress={handleDeleteFromModal}
+                      style={({ pressed }) => [
+                        styles.actionButton,
+                        styles.deleteButtonStyle,
+                        { borderColor: colors.expense },
+                        pressed && { opacity: 0.7 },
+                      ]}
+                    >
+                      <MaterialCommunityIcons name="delete-outline" size={20} color={colors.expense} />
+                      <Text style={[styles.actionButtonText, { color: colors.expense }]}>Excluir</Text>
+                    </Pressable>
+                  )}
+
+                  <Pressable
+                    onPress={isCreateMode ? handleCreate : handleSaveEdit}
+                    disabled={saving || !cardName.trim()}
+                    style={({ pressed }) => [
+                      styles.actionButton,
+                      { backgroundColor: colors.primary, borderColor: colors.primary },
+                      pressed && { opacity: 0.9 },
+                      (saving || !cardName.trim()) && { opacity: 0.6 },
+                    ]}
+                  >
+                    <MaterialCommunityIcons name="check" size={20} color="#fff" />
+                    <Text style={[styles.actionButtonText, { color: '#fff' }]}>
+                      {saving ? 'Salvando...' : (isCreateMode ? 'Cadastrar' : 'Confirmar')}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            </ScrollView>
+          </View>
+      </Modal>
 
       {/* Modal de seleção de conta */}
       <Modal
@@ -565,231 +733,35 @@ export default function CreditCards({ navigation }: any) {
         >
           <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>Selecionar conta</Text>
-            {activeAccounts.length === 0 ? (
-              <Text style={[styles.emptyText, { color: colors.textMuted, padding: spacing.md }]}>
-                Nenhuma conta cadastrada
-              </Text>
-            ) : (
-              activeAccounts.map((account) => (
-                <Pressable
-                  key={account.id}
-                  onPress={() => {
-                    setSelectedAccountId(account.id);
-                    setSelectedAccountName(account.name);
-                    setShowAccountPicker(false);
-                  }}
-                  style={[styles.modalOption, { borderBottomColor: colors.border }]}
-                >
-                  <MaterialCommunityIcons name="bank" size={20} color={colors.primary} />
-                  <Text style={[styles.modalOptionText, { color: colors.text }]}>{account.name}</Text>
-                  {selectedAccountId === account.id && (
-                    <MaterialCommunityIcons name="check" size={20} color={colors.primary} />
-                  )}
-                </Pressable>
-              ))
-            )}
-          </View>
-        </Pressable>
-      </Modal>
-
-      {/* Modal de Edição do Cartão */}
-      <Modal
-        visible={editModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setEditModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={Platform.OS === 'web' ? { alignItems: 'center', width: '100%' } : undefined}>
-          <View style={[getModalContainerStyle(colors), { backgroundColor: colors.card }]}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-            {/* Header do Modal */}
-            <View style={styles.editModalHeader}>
-              <Text style={[styles.editModalTitle, { color: colors.text }]}>Editar Cartão</Text>
-              <Pressable onPress={() => setEditModalVisible(false)} hitSlop={12}>
-                <MaterialCommunityIcons name="close" size={24} color={colors.textMuted} />
+            {!isCreateMode && (
+              <Pressable
+                onPress={() => {
+                  setCardAccountId('');
+                  setCardAccountName('');
+                  setShowAccountPicker(false);
+                }}
+                style={[styles.modalOption, { borderBottomColor: colors.border }]}
+              >
+                <MaterialCommunityIcons name="close-circle-outline" size={20} color={colors.textMuted} />
+                <Text style={[styles.modalOptionText, { color: colors.textMuted }]}>Nenhuma conta</Text>
+                {cardAccountId === '' && (
+                  <MaterialCommunityIcons name="check" size={20} color={colors.primary} />
+                )}
               </Pressable>
-            </View>
-              {/* Nome */}
-              <View style={styles.formGroup}>
-                <Text style={[styles.label, { color: colors.text }]}>Nome do cartão</Text>
-                <View style={[styles.inputContainer, { borderColor: colors.border }]}>
-                  <TextInput
-                    value={editName}
-                    onChangeText={setEditName}
-                    placeholder="Nome do cartão"
-                    placeholderTextColor={colors.textMuted}
-                    style={[styles.input, { color: colors.text }]}
-                  />
-                </View>
-              </View>
-
-              {/* Limite e Datas - Layout responsivo */}
-              <View style={styles.limitDatesRow}>
-                {/* Limite */}
-                <View style={styles.limitField}>
-                  <Text style={[styles.label, { color: colors.text }]}>Limite</Text>
-                  <View style={[styles.inputContainer, { borderColor: colors.border }]}>
-                    <Text style={[styles.currency, { color: colors.textMuted }]}>R$</Text>
-                    <TextInput
-                      value={editLimit}
-                      onChangeText={(v) => setEditLimit(formatCurrency(v))}
-                      placeholder="0,00"
-                      placeholderTextColor={colors.textMuted}
-                      keyboardType="numeric"
-                      style={[styles.input, { color: colors.text }]}
-                    />
-                  </View>
-                </View>
-
-                {/* Dia fechamento */}
-                <View style={styles.dateField}>
-                  <Text style={[styles.label, { color: colors.text }]}>Dia fechamento</Text>
-                  <View style={[styles.inputContainer, { borderColor: colors.border }]}>
-                    <TextInput
-                      value={editClosingDay}
-                      onChangeText={setEditClosingDay}
-                      placeholder="10"
-                      placeholderTextColor={colors.textMuted}
-                      keyboardType="numeric"
-                      maxLength={2}
-                      style={[styles.input, { color: colors.text }]}
-                    />
-                  </View>
-                </View>
-
-                {/* Dia vencimento */}
-                <View style={styles.dateField}>
-                  <Text style={[styles.label, { color: colors.text }]}>Dia vencimento</Text>
-                  <View style={[styles.inputContainer, { borderColor: colors.border }]}>
-                    <TextInput
-                      value={editDueDay}
-                      onChangeText={setEditDueDay}
-                      placeholder="17"
-                      placeholderTextColor={colors.textMuted}
-                      keyboardType="numeric"
-                      maxLength={2}
-                      style={[styles.input, { color: colors.text }]}
-                    />
-                  </View>
-                </View>
-              </View>
-
-              {/* Conta de pagamento */}
-              <View style={styles.formGroup}>
-                <Text style={[styles.label, { color: colors.text }]}>Conta de pagamento</Text>
-                <Pressable 
-                  onPress={() => setShowEditAccountPicker(true)}
-                  style={[styles.selectButton, { borderColor: colors.border }]}
-                >
-                  <Text style={[
-                    styles.selectText, 
-                    { color: editAccountName ? colors.text : colors.textMuted }
-                  ]}>
-                    {editAccountName || 'Selecione a conta'}
-                  </Text>
-                  <MaterialCommunityIcons name="chevron-down" size={20} color={colors.textMuted} />
-                </Pressable>
-              </View>
-
-              {/* Ações */}
-              <View style={styles.modalActionsColumn}>
-                {/* Botão de Resetar */}
-                <Pressable
-                  onPress={handleResetCard}
-                  style={({ pressed }) => [
-                    styles.resetButton,
-                    { backgroundColor: colors.warning + '15', borderColor: colors.warning },
-                    pressed && { opacity: 0.7 },
-                  ]}
-                >
-                  <MaterialCommunityIcons name="refresh" size={20} color={colors.warning} />
-                  <View style={styles.resetButtonText}>
-                    <Text style={[styles.actionButtonText, { color: colors.warning }]}>Resetar cartão</Text>
-                    <Text style={[styles.resetHint, { color: colors.textMuted }]}>
-                      Exclui todos os lançamentos e zera a fatura
-                    </Text>
-                  </View>
-                </Pressable>
-
-                {/* Botões de Confirmar e Excluir */}
-                <View style={styles.modalActions}>
-                  <Pressable
-                    onPress={handleDeleteFromModal}
-                    style={({ pressed }) => [
-                      styles.actionButton,
-                      styles.deleteButton,
-                      { borderColor: colors.expense },
-                      pressed && { opacity: 0.7 },
-                    ]}
-                  >
-                    <MaterialCommunityIcons name="delete-outline" size={20} color={colors.expense} />
-                    <Text style={[styles.actionButtonText, { color: colors.expense }]}>Excluir</Text>
-                  </Pressable>
-
-                  <Pressable
-                    onPress={handleSaveEdit}
-                    disabled={saving || !editName.trim()}
-                    style={({ pressed }) => [
-                      styles.actionButton,
-                      { backgroundColor: colors.primary, borderColor: colors.primary },
-                      pressed && { opacity: 0.9 },
-                      (saving || !editName.trim()) && { opacity: 0.6 },
-                    ]}
-                  >
-                    <MaterialCommunityIcons name="check" size={20} color="#fff" />
-                    <Text style={[styles.actionButtonText, { color: '#fff' }]}>
-                      {saving ? 'Salvando...' : 'Confirmar'}
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-            </ScrollView>
-          </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Modal de seleção de conta para edição */}
-      <Modal
-        visible={showEditAccountPicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowEditAccountPicker(false)}
-      >
-        <Pressable 
-          style={styles.modalOverlay}
-          onPress={() => setShowEditAccountPicker(false)}
-        >
-          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Selecionar conta</Text>
-            <Pressable
-              onPress={() => {
-                setEditAccountId('');
-                setEditAccountName('');
-                setShowEditAccountPicker(false);
-              }}
-              style={[styles.modalOption, { borderBottomColor: colors.border }]}
-            >
-              <MaterialCommunityIcons name="close-circle-outline" size={20} color={colors.textMuted} />
-              <Text style={[styles.modalOptionText, { color: colors.textMuted }]}>Nenhuma conta</Text>
-              {editAccountId === '' && (
-                <MaterialCommunityIcons name="check" size={20} color={colors.primary} />
-              )}
-            </Pressable>
+            )}
             {activeAccounts.map((account) => (
               <Pressable
                 key={account.id}
                 onPress={() => {
-                  setEditAccountId(account.id);
-                  setEditAccountName(account.name);
-                  setShowEditAccountPicker(false);
+                  setCardAccountId(account.id);
+                  setCardAccountName(account.name);
+                  setShowAccountPicker(false);
                 }}
                 style={[styles.modalOption, { borderBottomColor: colors.border }]}
               >
                 <MaterialCommunityIcons name="bank" size={20} color={colors.primary} />
                 <Text style={[styles.modalOptionText, { color: colors.text }]}>{account.name}</Text>
-                {editAccountId === account.id && (
+                {cardAccountId === account.id && (
                   <MaterialCommunityIcons name="check" size={20} color={colors.primary} />
                 )}
               </Pressable>
@@ -944,29 +916,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   formGroup: {
-    padding: spacing.md,
-    paddingBottom: 0,
-  },
-  rowFormGroup: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    paddingHorizontal: spacing.md,
-  },
-  // Layout responsivo para Limite + Datas
-  limitDatesRow: {
-    flexDirection: Platform.OS === 'web' ? 'row' : 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-    padding: spacing.md,
-    paddingBottom: 0,
-  },
-  limitField: {
-    flex: Platform.OS === 'web' ? 2 : 1,
-    minWidth: Platform.OS === 'web' ? 200 : '100%',
-  },
-  dateField: {
-    flex: 1,
-    minWidth: Platform.OS === 'web' ? 120 : 100,
+    marginBottom: spacing.md,
   },
   label: {
     fontSize: 14,
@@ -984,30 +934,15 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     fontSize: 16,
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+      },
+    }),
   },
   currency: {
     fontSize: 16,
     marginRight: spacing.sm,
-  },
-  brandGrid: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingRight: spacing.md,
-  },
-  brandOption: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderRadius: borderRadius.md,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    minWidth: 70,
-    maxWidth: 80,
-  },
-  brandLabel: {
-    fontSize: 10,
-    marginTop: 4,
-    textAlign: 'center',
   },
   selectButton: {
     flexDirection: 'row',
@@ -1021,24 +956,65 @@ const styles = StyleSheet.create({
   selectText: {
     fontSize: 16,
   },
-  createButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    margin: spacing.md,
-    paddingVertical: 14,
-    borderRadius: borderRadius.md,
-    gap: spacing.sm,
-  },
-  createButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
+  },
+  // Fullscreen modal styles
+  fullscreenModal: {
+    flex: 1,
+    overflow: 'hidden',
+  },
+  fullscreenHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+  },
+  fullscreenTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fullscreenContent: {
+    flex: 1,
+  },
+  fullscreenContentContainer: {
+    padding: spacing.lg,
+    paddingBottom: spacing.xl * 2,
+    maxWidth: '100%',
+  },
+  // Days row
+  daysRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  dayField: {
+    flex: 1,
+  },
+  centeredInput: {
+    textAlign: 'center',
+  },
+  // Label with help
+  labelWithHelp: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  helpLink: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   modalContent: {
     borderTopLeftRadius: borderRadius.xl,
@@ -1060,41 +1036,6 @@ const styles = StyleSheet.create({
   modalOptionText: {
     fontSize: 16,
     flex: 1,
-  },
-  // Estilos do modal de edição
-  editModalContent: {
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
-    maxHeight: '90%',
-  },
-  editModalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
-  },
-  editModalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  editModalBody: {
-    padding: spacing.md,
-    paddingTop: 0,
-  },
-  brandOptionSmall: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderRadius: borderRadius.md,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    minWidth: 60,
-    maxWidth: 70,
-  },
-  brandLabelSmall: {
-    fontSize: 9,
-    marginTop: 2,
-    textAlign: 'center',
   },
   helpText: {
     fontSize: 11,
@@ -1134,11 +1075,29 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: spacing.xs,
   },
-  deleteButton: {
+  deleteButtonStyle: {
+    backgroundColor: 'transparent',
+  },
+  cancelButton: {
     backgroundColor: 'transparent',
   },
   actionButtonText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  // Botão de adicionar cartão
+  addCardButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: borderRadius.lg,
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  addCardButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
