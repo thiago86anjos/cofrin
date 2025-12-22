@@ -11,6 +11,7 @@ import { useAllGoals } from "../hooks/useAllGoals";
 import { useTransactionRefresh } from "../contexts/transactionRefreshContext";
 import { useEffect, useMemo, useCallback, useState } from "react";
 import MainLayout from "../components/MainLayout";
+import HomeShimmer from "../components/home/HomeShimmer";
 import AccountsCard from "../components/home/AccountsCard";
 import TransactionsByCategoryCard from "../components/TransactionsByCategoryCard";
 import CreditCardsCard from "../components/home/CreditCardsCard";
@@ -43,7 +44,8 @@ export default function Home() {
     totalIncome, 
     totalExpense,
     balance,
-    refresh 
+    refresh,
+    loading: loadingTransactions,
   } = useTransactions({ 
     month: currentMonth, 
     year: currentYear 
@@ -53,10 +55,10 @@ export default function Home() {
   const { report } = useMonthReport(currentMonth, currentYear);
 
   // Hook de contas do Firebase
-  const { accounts, refresh: refreshAccounts } = useAccounts();
+  const { accounts, refresh: refreshAccounts, loading: loadingAccounts } = useAccounts();
 
   // Hook de cartões de crédito do Firebase
-  const { activeCards, refresh: refreshCreditCards } = useCreditCards();
+  const { activeCards, refresh: refreshCreditCards, loading: loadingCards } = useCreditCards();
 
   // Hook de gastos por categoria
   const { expenses: categoryExpenses } = useExpensesByCategory(currentMonth, currentYear);
@@ -69,6 +71,9 @@ export default function Home() {
   
   // Hook de todas as metas (para validar duplicatas)
   const { goals: allGoals, refresh: refreshAllGoals } = useAllGoals();
+
+  // Determinar se ainda está carregando dados iniciais
+  const isLoading = loadingTransactions || loadingAccounts || loadingCards;
 
   // Estado do modal de criação de meta
   const [showGoalModal, setShowGoalModal] = useState(false);
@@ -221,16 +226,20 @@ export default function Home() {
       >
         <View style={styles.centeredContainer}>
           <View style={styles.content}>
-            {/* 1. Onde está meu dinheiro + Saudação + Resumo */}
-            <AccountsCard 
-              accounts={accounts}
-              totalBalance={totalAccountsBalance}
-              totalIncome={totalIncome}
-              totalExpense={totalExpense}
-              username={userName}
-              onAccountPress={handleAccountPress}
-              onAddPress={() => navigation.navigate('ConfigureAccounts')}
-            />
+            {isLoading ? (
+              <HomeShimmer />
+            ) : (
+              <>
+                {/* 1. Onde está meu dinheiro + Saudação + Resumo */}
+                <AccountsCard 
+                  accounts={accounts}
+                  totalBalance={totalAccountsBalance}
+                  totalIncome={totalIncome}
+                  totalExpense={totalExpense}
+                  username={userName}
+                  onAccountPress={handleAccountPress}
+                  onAddPress={() => navigation.navigate('ConfigureAccounts')}
+                />
 
             <View style={{ height: 24 }} />
 
@@ -287,6 +296,8 @@ export default function Home() {
                 progressPercentage={progressPercentage}
                 accounts={accounts}
               />
+            )}
+              </>
             )}
           </View>
         </View>
