@@ -16,7 +16,7 @@ import MainLayout from "../components/MainLayout";
 import HomeShimmer from "../components/home/HomeShimmer";
 import AccountsCard from "../components/home/AccountsCard";
 import UpcomingFlowsCard from "../components/home/UpcomingFlowsCard";
-import TransactionsByCategoryCard from "../components/TransactionsByCategoryCard";
+import TopCategoriesCard from "../components/TopCategoriesCard";
 import CreditCardsCard from "../components/home/CreditCardsCard";
 import GoalCard from "../components/home/GoalCard";
 import CreateGoalModal from "../components/CreateGoalModal";
@@ -327,16 +327,12 @@ export default function Home() {
 
             <View style={{ height: 24 }} />
 
-            {/* 5. Transações por Categoria (com filtro) */}
-            <TransactionsByCategoryCard
+            {/* 5. Resumo por Categoria */}
+            <TopCategoriesCard
               expenses={categoryExpenses}
               incomes={categoryIncomes}
               totalExpenses={report?.expense || totalExpense}
               totalIncomes={report?.income || totalIncome}
-              maxItems={5}
-              showTitle={true}
-              initialFilter="expense"
-              showFilterToggle={true}
             />
 
             {/* Modais */}
