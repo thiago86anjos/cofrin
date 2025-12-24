@@ -1,4 +1,6 @@
 import { View, StyleSheet, ScrollView, useWindowDimensions } from "react-native";
+import { Text } from "react-native-paper";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../contexts/authContext";
@@ -34,6 +36,14 @@ export default function Home() {
   const insets = useSafeAreaInsets();
   const isNarrow = width < 700;
   const userName = user?.displayName || user?.email?.split("@")?.[0] || "Usuário";
+
+  // Determinar saudação baseada na hora
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return { text: 'Bom dia', icon: 'weather-sunny' as const };
+    if (hour >= 12 && hour < 18) return { text: 'Boa tarde', icon: 'weather-partly-cloudy' as const };
+    return { text: 'Boa noite', icon: 'weather-night' as const };
+  };
 
   // Mês atual para buscar transações
   const today = new Date();
@@ -256,7 +266,33 @@ export default function Home() {
               <HomeShimmer />
             ) : (
               <>
-                {/* 1. Onde está meu dinheiro + Saudação + Resumo */}
+                {/* Saudação */}
+                <View style={styles.greetingSection}>
+                  <View style={styles.greetingRow}>
+                    <Text style={[styles.greeting, { color: colors.text }]}>
+                      {getGreeting().text}, {userName}
+                    </Text>
+                    <MaterialCommunityIcons 
+                      name={getGreeting().icon} 
+                      size={28} 
+                      color={colors.text} 
+                      style={styles.greetingIcon}
+                    />
+                  </View>
+                </View>
+
+                <View style={{ height: 16 }} />
+
+                {/* Card de contas a receber/pagar */}
+                <UpcomingFlowsCard
+                  incomeTransactions={pendingIncomes}
+                  expenseTransactions={pendingExpenses}
+                  loading={loadingPending}
+                />
+
+                <View style={{ height: 24 }} />
+
+                {/* 1. Onde está meu dinheiro */}
                 <AccountsCard 
                   accounts={accounts}
                   totalBalance={totalAccountsBalance}
@@ -265,14 +301,7 @@ export default function Home() {
                   username={userName}
                   onAccountPress={handleAccountPress}
                   onAddPress={() => navigation.navigate('ConfigureAccounts')}
-                />
-
-                <View style={{ height: 24 }} />
-
-                <UpcomingFlowsCard
-                  incomeTransactions={pendingIncomes}
-                  expenseTransactions={pendingExpenses}
-                  loading={loadingPending}
+                  showGreeting={false}
                 />
 
             <View style={{ height: 24 }} />
@@ -348,5 +377,21 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 24,
+  },
+  greetingSection: {
+    paddingHorizontal: 4,
+  },
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  greetingIcon: {
+    marginLeft: 8,
+  },
+  greeting: {
+    fontSize: 28,
+    fontWeight: '800',
+    lineHeight: 36,
+    letterSpacing: -0.5,
   },
 });

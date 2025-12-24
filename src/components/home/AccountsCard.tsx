@@ -14,6 +14,7 @@ interface Props {
   totalExpense?: number;
   onAccountPress?: (account: Account) => void;
   onAddPress?: () => void;
+  showGreeting?: boolean;
 }
 
 // Cores e ícones para os tipos de conta
@@ -47,7 +48,8 @@ export default function AccountsCard({
   username = 'Usuário',
   totalBalance,
   onAccountPress, 
-  onAddPress 
+  onAddPress,
+  showGreeting = true,
 }: Props) {
   const { colors } = useAppTheme();
 
@@ -124,19 +126,21 @@ export default function AccountsCard({
   return (
     <View style={styles.container}>
       {/* Saudação */}
-      <View style={styles.greetingSection}>
-        <View style={styles.greetingRow}>
-          <Text style={[styles.greeting, { color: colors.text }]}>
-            {greeting.text}, {username}
-          </Text>
-          <MaterialCommunityIcons 
-            name={greeting.icon} 
-            size={28} 
-            color={colors.text} 
-            style={styles.greetingIcon}
-          />
+      {showGreeting && (
+        <View style={styles.greetingSection}>
+          <View style={styles.greetingRow}>
+            <Text style={[styles.greeting, { color: colors.text }]}>
+              {greeting.text}, {username}
+            </Text>
+            <MaterialCommunityIcons 
+              name={greeting.icon} 
+              size={28} 
+              color={colors.text} 
+              style={styles.greetingIcon}
+            />
+          </View>
         </View>
-      </View>
+      )}
 
       {/* Card Principal */}
       <View style={[styles.card, { borderColor: colors.border }, getShadow(colors)]}>
