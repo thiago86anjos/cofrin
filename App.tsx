@@ -8,7 +8,13 @@ import { Provider as PaperProvider, DefaultTheme } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useMemo, useEffect, useState } from 'react';
 import { useFonts, Roboto_400Regular, Roboto_700Bold } from '@expo-google-fonts/roboto';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Platform } from 'react-native';
+import { initPWA } from './src/utils/pwaInit';
+
+// Inicializa PWA o mais cedo possível (apenas web)
+if (Platform.OS === 'web') {
+  initPWA();
+}
 
 let RecoilRootImpl: any = ({ children }: any) => <>{children}</>;
 try {

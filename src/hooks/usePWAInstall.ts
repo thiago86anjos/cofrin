@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Platform } from 'react-native';
 import { isMobileWeb, isStandalone, isIOS, isAndroidWeb } from '../utils/platform';
+import { triggerInstallPrompt, hasInstallPrompt } from '../utils/pwaInit';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-// Declaração global para o prompt capturado no index.html
+// Declaração global para o prompt capturado
 declare global {
   interface Window {
     deferredPWAPrompt: BeforeInstallPromptEvent | null;
@@ -34,7 +35,7 @@ interface UsePWAInstallResult {
  * Funciona apenas na web mobile, não faz nada em desktop ou apps nativos
  */
 export function usePWAInstall(): UsePWAInstallResult {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [promptAvailable, setPromptAvailable] = useState(false);
   const [wasInstallHandled, setWasInstallHandled] = useState(false);
   const [debugInfo, setDebugInfo] = useState('Inicializando...');
 
@@ -52,93 +53,59 @@ export function usePWAInstall(): UsePWAInstallResult {
 
     // Log de debug
     const info = `Mobile: ${isWebMobile}, Installed: ${isAlreadyInstalled}, iOS: ${isIOSDevice}, Android: ${isAndroidDevice}`;
-    console.log('[PWA Install]', info);
+    console.log('[usePWAInstall]', info);
     setDebugInfo(info);
 
     // Só roda na web mobile e se não estiver instalado
-    if (!isWebMobile || isAlreadyInstalled) {
+    if (!isWebMobile || isAlreadyInstalled || isIOSDevice) {
       return;
     }
 
-    // Não precisa escutar evento no iOS (não suporta beforeinstallprompt)
-    if (isIOSDevice) {
-      return;
+    // Verifica se o prompt já está disponível
+    if (hasInstallPrompt()) {
+      console.log('[usePWAInstall] Prompt já disponível!');
+      setPromptAvailable(true);
+      setDebugInfo('Prompt disponível!');
     }
 
-    // Verifica se o prompt já foi capturado globalmente (no index.html)
-    if (window.deferredPWAPrompt) {
-      console.log('[PWA Install] Prompt já estava capturado globalmente!');
-      setDeferredPrompt(window.deferredPWAPrompt);
-      setDebugInfo('Prompt disponível (global)!');
-    }
-
-    // Escuta evento customizado quando o prompt é capturado
+    // Escuta evento quando o prompt fica disponível
     const handlePromptReady = () => {
-      console.log('[PWA Install] pwa-prompt-ready recebido!');
-      if (window.deferredPWAPrompt) {
-        setDeferredPrompt(window.deferredPWAPrompt);
-        setDebugInfo('Prompt disponível!');
-      }
-    };
-
-    // Também escuta o evento original (caso dispare depois)
-    const handleBeforeInstallPrompt = (e: Event) => {
-      console.log('[PWA Install] beforeinstallprompt recebido!');
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-      window.deferredPWAPrompt = e as BeforeInstallPromptEvent;
+      console.log('[usePWAInstall] pwa-prompt-ready recebido!');
+      setPromptAvailable(true);
       setDebugInfo('Prompt disponível!');
     };
 
     const handleAppInstalled = () => {
-      console.log('[PWA Install] App instalado!');
-      setDeferredPrompt(null);
-      window.deferredPWAPrompt = null;
+      console.log('[usePWAInstall] App instalado!');
+      setPromptAvailable(false);
       setWasInstallHandled(true);
     };
 
     window.addEventListener('pwa-prompt-ready', handlePromptReady);
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
       window.removeEventListener('pwa-prompt-ready', handlePromptReady);
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, [isWebMobile, isAlreadyInstalled, isIOSDevice, isAndroidDevice]);
 
   const install = useCallback(async (): Promise<boolean> => {
-    // Tenta pegar o prompt do state ou do global
-    const prompt = deferredPrompt || window.deferredPWAPrompt;
-    
-    if (!prompt) {
-      // Se não tem prompt, abre instruções manuais
-      console.log('[PWA Install] Sem prompt, mostrando instrução manual');
-      alert('Para instalar o Cofrin:\n\n1. Toque no menu (⋮) do Chrome\n2. Selecione "Adicionar à tela inicial"\n3. Confirme a instalação');
-      return false;
+    // Usa a função centralizada do pwaInit
+    if (hasInstallPrompt()) {
+      console.log('[usePWAInstall] Usando triggerInstallPrompt...');
+      const result = await triggerInstallPrompt();
+      if (result) {
+        setWasInstallHandled(true);
+      }
+      return result;
     }
 
-    try {
-      console.log('[PWA Install] Disparando prompt nativo...');
-      // Mostra o prompt de instalação
-      await prompt.prompt();
-      
-      // Aguarda a escolha do usuário
-      const choiceResult = await prompt.userChoice;
-      console.log('[PWA Install] Escolha:', choiceResult.outcome);
-      
-      // Limpa o prompt (só pode ser usado uma vez)
-      setDeferredPrompt(null);
-      window.deferredPWAPrompt = null;
-      setWasInstallHandled(true);
-      
-      return choiceResult.outcome === 'accepted';
-    } catch (error) {
-      console.error('[PWA Install] Erro ao instalar:', error);
-      return false;
-    }
-  }, [deferredPrompt]);
+    // Fallback: instruções manuais
+    console.log('[usePWAInstall] Sem prompt, mostrando instrução manual');
+    alert('Para instalar o Cofrin:\n\n1. Toque no menu (⋮) do Chrome\n2. Selecione "Adicionar à tela inicial"\n3. Confirme a instalação');
+    return false;
+  }, []);
 
   // Não mostra nada se não for web mobile ou já estiver instalado
   if (!isWebMobile || isAlreadyInstalled) {
@@ -153,7 +120,7 @@ export function usePWAInstall(): UsePWAInstallResult {
   }
 
   return {
-    canInstall: deferredPrompt !== null || window.deferredPWAPrompt !== null,
+    canInstall: promptAvailable || hasInstallPrompt(),
     isAndroid: isAndroidDevice && !wasInstallHandled,
     showIOSInstructions: isIOSDevice && !wasInstallHandled,
     install,
