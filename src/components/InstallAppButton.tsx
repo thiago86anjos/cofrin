@@ -12,7 +12,7 @@ import { isMobileWeb, isStandalone } from '../utils/platform';
  * - Desktop/Nativo: Não renderiza nada
  */
 export function InstallAppButton(): React.ReactElement | null {
-  const { canInstall, showIOSInstructions, install, wasInstallHandled } = usePWAInstall();
+  const { canInstall, isAndroid, showIOSInstructions, install, wasInstallHandled } = usePWAInstall();
 
   // Não renderiza fora da web
   if (Platform.OS !== 'web') {
@@ -29,7 +29,7 @@ export function InstallAppButton(): React.ReactElement | null {
     return null;
   }
 
-  // Não renderiza se o usuário já lidou com a instalação
+  // Não renderiza se o usuário já lidou com a instalação (exceto iOS que sempre mostra)
   if (wasInstallHandled && !showIOSInstructions) {
     return null;
   }
@@ -51,8 +51,8 @@ export function InstallAppButton(): React.ReactElement | null {
     );
   }
 
-  // Android: Mostra botão de instalação
-  if (canInstall) {
+  // Android: Mostra botão de instalação (sempre que for Android, mesmo sem prompt)
+  if (isAndroid) {
     return (
       <Pressable
         onPress={install}
@@ -69,7 +69,7 @@ export function InstallAppButton(): React.ReactElement | null {
     );
   }
 
-  // Nada para mostrar (prompt ainda não disponível)
+  // Nada para mostrar
   return null;
 }
 
