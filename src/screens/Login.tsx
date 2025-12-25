@@ -381,6 +381,7 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E0E0E0',
@@ -406,6 +407,14 @@ const styles = StyleSheet.create({
   eyeButton: {
     padding: 8,
     marginLeft: 4,
+    ...Platform.select({
+      web: {
+        alignSelf: 'center',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      },
+    }),
   },
   forgotPasswordLink: {
     alignSelf: 'flex-start',

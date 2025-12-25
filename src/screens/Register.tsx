@@ -276,6 +276,7 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#EEF1F4',
     borderRadius: 12,
     marginBottom: 12,
@@ -290,10 +291,23 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 16,
     color: '#2E2E2E',
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+      },
+    }),
   },
   eyeButton: {
     padding: 8,
     marginLeft: 4,
+    ...Platform.select({
+      web: {
+        alignSelf: 'center',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      },
+    }),
   },
   fieldLabel: {
     fontSize: 11,
