@@ -139,6 +139,7 @@ export default function AddToGoalModal({ visible, onClose, onSave, goal, progres
           <ScrollView 
             contentContainerStyle={[styles.modalBody, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
             {/* Info da meta */}
             <View style={[styles.goalInfo, { backgroundColor: colors.card }]}>
@@ -307,7 +308,6 @@ export default function AddToGoalModal({ visible, onClose, onSave, goal, progres
 const styles = StyleSheet.create({
   fullscreenModal: {
     flex: 1,
-    overflow: 'hidden',
   },
   fullscreenHeader: {
     flexDirection: 'row',
@@ -329,7 +329,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   modalBody: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
   },
   goalInfo: {
     padding: spacing.md,
@@ -387,10 +388,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   accountsScroll: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
+    marginHorizontal: 0,
   },
   accountsList: {
     gap: spacing.sm,
+    paddingHorizontal: 0,
   },
   accountCard: {
     paddingHorizontal: spacing.md,
