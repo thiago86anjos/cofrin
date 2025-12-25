@@ -5,13 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../contexts/authContext";
 import { useAppTheme } from "../contexts/themeContext";
-import { useTransactions, useExpensesByCategory, useIncomesByCategory, useMonthReport, usePendingFutureTransactions } from "../hooks/useFirebaseTransactions";
-import { useAccounts } from "../hooks/useAccounts";
-import { useCreditCards } from "../hooks/useCreditCards";
-import { useGoal } from "../hooks/useGoal";
-import { useAllGoals } from "../hooks/useAllGoals";
-import { useTransactionRefresh } from "../contexts/transactionRefreshContext";
-import React, { useEffect, useMemo, useCallback, useState, lazy, Suspense, useDeferredValue } from "react";
+import { useHomeData } from "../hooks/useHomeData";
+import React, { useCallback, useState, useEffect, lazy, Suspense, useDeferredValue } from "react";
 import MainLayout from "../components/MainLayout";
 import {
   UpcomingFlowsCardShimmer,
@@ -25,7 +20,6 @@ import { UpcomingFlowsCard } from "../components/home";
 import TopCategoriesCard from "../components/TopCategoriesCard";
 import CreditCardsCard from "../components/home/CreditCardsCard";
 import GoalCard from "../components/home/GoalCard";
-import { ACCOUNT_TYPE_LABELS } from "../types/firebase";
 import { Timestamp } from "firebase/firestore";
 import * as goalService from "../services/goalService";
 import * as transactionService from "../services/transactionService";
@@ -39,7 +33,6 @@ export default function Home() {
   const { user } = useAuth();
   const { colors } = useAppTheme();
   const { width } = useWindowDimensions();
-  const { refreshKey, triggerRefresh } = useTransactionRefresh();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const isNarrow = width < 700;
@@ -58,53 +51,48 @@ export default function Home() {
   const currentMonth = today.getMonth() + 1;
   const currentYear = today.getFullYear();
 
-  // Hook do Firebase - totalIncome e totalExpense já consideram apenas status === 'completed'
-  const { 
-    totalIncome, 
-    totalExpense,
-    refresh,
-    loading: loadingTransactions,
-  } = useTransactions({ 
-    month: currentMonth, 
-    year: currentYear 
-  });
-
-  // Hook para transações pendentes futuras (para o card de próximos fluxos)
+  // Hook consolidado - reduz ~14 queries para ~6 queries Firebase
   const {
-    incomeTransactions: pendingIncomes,
-    expenseTransactions: pendingExpenses,
-    loading: loadingPending,
-    refresh: refreshPending,
-  } = usePendingFutureTransactions();
-
-  // Hook de relatório do mês (inclui despesas de cartão corretamente)
-  const { report } = useMonthReport(currentMonth, currentYear);
-
-  // Hook de contas do Firebase
-  const { accounts, refresh: refreshAccounts, loading: loadingAccounts } = useAccounts();
-
-  // Hook de cartões de crédito do Firebase
-  const { activeCards, refresh: refreshCreditCards, loading: loadingCards } = useCreditCards();
-
-  // Hook de gastos por categoria
-  const { expenses: categoryExpenses, loading: loadingCategoryExpenses } = useExpensesByCategory(currentMonth, currentYear);
-
-  // Hook de receitas por categoria
-  const { incomes: categoryIncomes, loading: loadingCategoryIncomes } = useIncomesByCategory(currentMonth, currentYear);
-
-  // Hook de meta financeira
-  const { goal, progressPercentage, refresh: refreshGoal, loading: loadingGoal } = useGoal();
-  
-  // Hook de todas as metas (para validar duplicatas)
-  const { goals: allGoals, refresh: refreshAllGoals } = useAllGoals();
+    // Transações
+    pendingIncomes,
+    pendingExpenses,
+    totalIncome,
+    totalExpense,
+    
+    // Categorias
+    expensesByCategory: categoryExpenses,
+    incomesByCategory: categoryIncomes,
+    
+    // Contas
+    accounts,
+    totalAccountsBalance,
+    
+    // Cartões
+    activeCards,
+    
+    // Metas
+    primaryGoal: goal,
+    allGoals,
+    progressPercentage,
+    
+    // Loading states
+    loadingPending,
+    loadingAccounts,
+    loadingCards,
+    loadingGoal,
+    loadingCategories,
+    
+    // Refresh functions
+    refresh,
+    refreshAccounts,
+    refreshCards: refreshCreditCards,
+    refreshGoals,
+  } = useHomeData(currentMonth, currentYear);
 
   // Usar useDeferredValue para dados não críticos (evita bloquear UI)
   const deferredCategoryExpenses = useDeferredValue(categoryExpenses);
   const deferredCategoryIncomes = useDeferredValue(categoryIncomes);
   const deferredGoal = useDeferredValue(goal);
-
-  // Loading por seção para carregamento progressivo
-  const loadingCategories = loadingCategoryExpenses || loadingCategoryIncomes;
 
   // Retry automático para novos usuários (dados iniciais podem estar sendo criados)
   const [retryCount, setRetryCount] = useState(0);
@@ -158,8 +146,7 @@ export default function Home() {
         isActive: true,
       }, true); // Definir como principal (primeira meta)
     }
-    refreshGoal();
-    refreshAllGoals();
+    refreshGoals();
   };
 
   // Adicionar valor à meta (debita da conta selecionada e cria transação)
@@ -191,8 +178,7 @@ export default function Home() {
     
     // Atualizar dados
     refresh(); // Atualiza transações
-    refreshGoal();
-    refreshAllGoals();
+    refreshGoals();
     refreshAccounts();
   };
 
@@ -200,26 +186,9 @@ export default function Home() {
   const handleDeleteGoal = async () => {
     if (!goal || !user) return;
     await goalService.deleteGoal(goal.id, user.uid);
-    refreshGoal();
-    refreshAllGoals();
+    refreshGoals();
     refresh(); // Atualiza transações pois podem ter sido modificadas
   };
-
-  // Calcular saldo total das contas e formatar para o componente
-  const { totalAccountsBalance, formattedAccounts } = useMemo(() => {
-    const total = accounts
-      .filter(acc => acc.includeInTotal)
-      .reduce((sum, acc) => sum + acc.balance, 0);
-    
-    const formatted = accounts.map(acc => ({
-      id: acc.id,
-      name: acc.name,
-      type: ACCOUNT_TYPE_LABELS[acc.type] || acc.type,
-      balance: acc.balance,
-    }));
-
-    return { totalAccountsBalance: total, formattedAccounts: formatted };
-  }, [accounts]);
 
   // Navegar para lançamentos com filtro de conta
   const handleAccountPress = useCallback((account: { id?: string; name: string }) => {
@@ -253,23 +222,12 @@ export default function Home() {
   const navigateToManageGoals = useCallback(() => navigation.navigate('ManageGoals'), [navigation]);
   const navigateToConfigureAccounts = useCallback(() => navigation.navigate('ConfigureAccounts'), [navigation]);
 
-  // Refresh quando refreshKey mudar
-  useEffect(() => {
-    if (refreshKey > 0) {
-      refresh();
-      refreshAccounts();
-      refreshCreditCards();
-      refreshPending();
-    }
-  }, [refreshKey]);
-
   // Refresh quando a tela ganhar foco (ex: voltar de Lançamentos)
   useFocusEffect(
     useCallback(() => {
       refresh();
       refreshAccounts();
       refreshCreditCards();
-      refreshPending();
     }, [])
   );
 
@@ -367,8 +325,8 @@ export default function Home() {
               <TopCategoriesCard
                 expenses={deferredCategoryExpenses}
                 incomes={deferredCategoryIncomes}
-                totalExpenses={report?.expense || totalExpense}
-                totalIncomes={report?.income || totalIncome}
+                totalExpenses={totalExpense}
+                totalIncomes={totalIncome}
               />
             )}
 
