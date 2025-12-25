@@ -26,7 +26,7 @@ import { useSnackbar } from '../../hooks/useSnackbar';
 import CustomAlert from '../CustomAlert';
 import Snackbar from '../Snackbar';
 import LoadingOverlay from '../LoadingOverlay';
-import { TransactionType, RecurrenceType, CreateTransactionInput } from '../../types/firebase';
+import { TransactionType, RecurrenceType, CreateTransactionInput, CATEGORY_ICONS } from '../../types/firebase';
 import { useTransactionRefresh } from '../../contexts/transactionRefreshContext';
 import { validateBillForTransaction } from '../../services/creditCardBillService';
 import { useAuth } from '../../contexts/authContext';
@@ -136,7 +136,7 @@ export default function AddTransactionModal({
   const { user } = useAuth();
 
   // Firebase hooks
-  const { categories, refresh: refreshCategories } = useCategories();
+  const { categories, refresh: refreshCategories, createCategory } = useCategories();
   const { activeAccounts, refresh: refreshAccounts } = useAccounts();
   const { activeCards, refresh: refreshCreditCards } = useCreditCards();
   const { createTransaction, updateTransaction } = useTransactions();
@@ -155,6 +155,12 @@ export default function AddTransactionModal({
   // Category state
   const [categoryId, setCategoryId] = useState('');
   const [categoryName, setCategoryName] = useState('Outros');
+  
+  // Create category inline state
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryIcon, setNewCategoryIcon] = useState('');
+  const [savingCategory, setSavingCategory] = useState(false);
   
   // Account state
   const [accountId, setAccountId] = useState('');
@@ -900,11 +906,167 @@ export default function AddTransactionModal({
 
     // Render category picker
     if (activePicker === 'category') {
+      const categoryType = type === 'despesa' ? 'expense' : 'income';
       const filteredCategories = categories.filter(c => 
-        (type === 'despesa' ? c.type === 'expense' : c.type === 'income') &&
+        c.type === categoryType &&
         !c.isMetaCategory && c.name !== 'Meta'
       );
+      const typeColor = type === 'despesa' ? colors.expense : colors.income;
+      const availableIcons = CATEGORY_ICONS[categoryType];
       
+      // Handler para criar categoria
+      const handleCreateCategory = async () => {
+        if (!newCategoryName.trim()) {
+          showSnackbar('Digite um nome para a categoria');
+          return;
+        }
+        if (!newCategoryIcon) {
+          showSnackbar('Selecione um ícone para a categoria');
+          return;
+        }
+        
+        setSavingCategory(true);
+        try {
+          const newCategory = await createCategory({
+            name: newCategoryName.trim(),
+            type: categoryType,
+            icon: newCategoryIcon,
+          });
+          
+          if (newCategory) {
+            // Selecionar a nova categoria
+            setCategoryId(newCategory.id);
+            setCategoryName(newCategory.name);
+            showSnackbar(`Categoria "${newCategory.name}" criada!`);
+            
+            // Resetar estado e fechar picker
+            setIsCreatingCategory(false);
+            setNewCategoryName('');
+            setNewCategoryIcon('');
+            setActivePicker('none');
+          }
+        } catch (error) {
+          showSnackbar('Erro ao criar categoria');
+        } finally {
+          setSavingCategory(false);
+        }
+      };
+      
+      // Se estiver no modo de criar categoria
+      if (isCreatingCategory) {
+        return (
+          <View style={[styles.pickerContainer, { backgroundColor: colors.card }]}>
+            <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
+              <Pressable 
+                onPress={() => {
+                  setIsCreatingCategory(false);
+                  setNewCategoryName('');
+                  setNewCategoryIcon('');
+                }} 
+                hitSlop={12}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
+              >
+                <MaterialCommunityIcons name="arrow-left" size={20} color={colors.textMuted} />
+                <Text style={[styles.pickerTitle, { color: colors.text }]}>Nova Categoria</Text>
+              </Pressable>
+              <Pressable onPress={() => {
+                setIsCreatingCategory(false);
+                setNewCategoryName('');
+                setNewCategoryIcon('');
+                setActivePicker('none');
+              }} hitSlop={12}>
+                <MaterialCommunityIcons name="close" size={24} color={colors.textMuted} />
+              </Pressable>
+            </View>
+            
+            <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
+              {/* Campo de nome */}
+              <View style={styles.createCategoryForm}>
+                <Text style={[styles.createCategoryLabel, { color: colors.text }]}>Nome da categoria</Text>
+                <View style={[styles.createCategoryInput, { borderColor: colors.border }]}>
+                  <TextInput
+                    value={newCategoryName}
+                    onChangeText={setNewCategoryName}
+                    placeholder={type === 'despesa' ? 'Ex: Streaming, Academia...' : 'Ex: Freelance, Bônus...'}
+                    placeholderTextColor={colors.textMuted}
+                    style={[styles.createCategoryInputText, { color: colors.text }]}
+                    autoFocus
+                    maxLength={30}
+                  />
+                </View>
+              </View>
+              
+              {/* Seleção de ícone */}
+              <View style={styles.createCategoryForm}>
+                <Text style={[styles.createCategoryLabel, { color: colors.text }]}>Escolha um ícone</Text>
+                <View style={styles.iconGrid}>
+                  {availableIcons.map((icon) => (
+                    <Pressable
+                      key={icon}
+                      onPress={() => setNewCategoryIcon(icon)}
+                      style={[
+                        styles.iconOption,
+                        { 
+                          borderColor: newCategoryIcon === icon ? typeColor : colors.border,
+                          backgroundColor: newCategoryIcon === icon ? typeColor + '15' : 'transparent',
+                        },
+                      ]}
+                    >
+                      <MaterialCommunityIcons 
+                        name={icon as any} 
+                        size={22} 
+                        color={newCategoryIcon === icon ? typeColor : colors.textMuted} 
+                      />
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+              
+              {/* Preview */}
+              {newCategoryName.trim() && newCategoryIcon && (
+                <View style={[styles.createCategoryPreview, { borderColor: colors.border }]}>
+                  <Text style={[styles.createCategoryPreviewLabel, { color: colors.textMuted }]}>Preview:</Text>
+                  <View style={styles.createCategoryPreviewChip}>
+                    <View style={[styles.createCategoryPreviewIcon, { backgroundColor: typeColor + '20' }]}>
+                      <MaterialCommunityIcons 
+                        name={newCategoryIcon as any} 
+                        size={16} 
+                        color={typeColor} 
+                      />
+                    </View>
+                    <Text style={[styles.createCategoryPreviewName, { color: colors.text }]}>
+                      {newCategoryName.trim()}
+                    </Text>
+                  </View>
+                </View>
+              )}
+              
+              {/* Botão de criar */}
+              <Pressable
+                onPress={handleCreateCategory}
+                disabled={savingCategory || !newCategoryName.trim() || !newCategoryIcon}
+                style={({ pressed }) => [
+                  styles.createCategoryButton,
+                  { backgroundColor: typeColor },
+                  (savingCategory || !newCategoryName.trim() || !newCategoryIcon) && { opacity: 0.5 },
+                  pressed && { opacity: 0.8 },
+                ]}
+              >
+                {savingCategory ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <MaterialCommunityIcons name="check" size={18} color="#fff" />
+                    <Text style={styles.createCategoryButtonText}>Criar categoria</Text>
+                  </>
+                )}
+              </Pressable>
+            </ScrollView>
+          </View>
+        );
+      }
+      
+      // Picker normal com botão de adicionar
       return (
         <View style={[styles.pickerContainer, { backgroundColor: colors.card }]}>
           <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
@@ -914,6 +1076,26 @@ export default function AddTransactionModal({
             </Pressable>
           </View>
           <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
+            {/* Botão de criar nova categoria */}
+            <Pressable
+              onPress={() => setIsCreatingCategory(true)}
+              style={({ pressed }) => [
+                styles.createCategoryOption,
+                { backgroundColor: pressed ? colors.primaryBg : 'transparent', borderColor: colors.primary },
+              ]}
+            >
+              <View style={[styles.createCategoryIconCircle, { backgroundColor: colors.primaryBg }]}>
+                <MaterialCommunityIcons name="plus" size={18} color={colors.primary} />
+              </View>
+              <Text style={[styles.createCategoryOptionText, { color: colors.primary }]}>
+                Nova categoria de {type === 'despesa' ? 'despesa' : 'receita'}
+              </Text>
+            </Pressable>
+            
+            {/* Divisor */}
+            <View style={[styles.pickerDivider, { backgroundColor: colors.border }]} />
+            
+            {/* Lista de categorias existentes */}
             {filteredCategories.map((cat) => (
               <Pressable
                 key={cat.id}
@@ -2041,5 +2223,106 @@ const styles = StyleSheet.create({
   },
   goalBannerSubtext: {
     fontSize: 12,
+  },
+  // Create category inline styles
+  createCategoryOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+  },
+  createCategoryIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  createCategoryOptionText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  createCategoryForm: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  createCategoryLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: spacing.sm,
+  },
+  createCategoryInput: {
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  createCategoryInputText: {
+    fontSize: 15,
+  },
+  iconGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  iconOption: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.md,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  createCategoryPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+  },
+  createCategoryPreviewLabel: {
+    fontSize: 12,
+  },
+  createCategoryPreviewChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  createCategoryPreviewIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  createCategoryPreviewName: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  createCategoryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+  },
+  createCategoryButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
