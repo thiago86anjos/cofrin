@@ -34,7 +34,9 @@ export default function TransactionsList({ items = [], onEditItem, onStatusPress
   // group by date (simple grouping: same date string -> header)
   const groups: Record<string, TransactionListItem[]> = {};
   items.forEach((t) => {
-    const date = new Date(t.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
+    // Parse date string as UTC to avoid timezone shift
+    const dateObj = new Date(t.date + 'T12:00:00Z');
+    const date = dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
     if (!groups[date]) groups[date] = [];
     groups[date].push(t);
   });

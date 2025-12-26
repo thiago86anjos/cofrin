@@ -69,8 +69,6 @@ export default function CreateMonthlyGoalModal({ visible, onClose, onSave, exist
       setError('Selecione uma categoria');
       return;
     }
-
-    console.log('[CreateMonthlyGoalModal] Valor em centavos:', amount);
     
     // O campo amount está em centavos (ex: "100" = R$ 1,00)
     const amountInCents = parseInt(amount);
@@ -81,18 +79,8 @@ export default function CreateMonthlyGoalModal({ visible, onClose, onSave, exist
     
     // Converter centavos para reais
     const numAmount = amountInCents / 100;
-    console.log('[CreateMonthlyGoalModal] Valor convertido para reais:', numAmount);
-
-    console.log('[CreateMonthlyGoalModal] handleSave chamado:', {
-      type,
-      categoryId,
-      targetAmount: numAmount,
-      existingGoal: !!existingGoal
-    });
     
     const result = await onSave({ type, categoryId, targetAmount: numAmount });
-    
-    console.log('[CreateMonthlyGoalModal] Resultado do onSave:', result);
     
     if (result.success) {
       // Sucesso: o parent já fecha o modal

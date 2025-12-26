@@ -98,13 +98,6 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
     const fetchCurrentBills = async () => {
       if (!user?.uid || cards.length === 0) return;
       
-      console.log('🔍 Buscando transações do mês atual:', { 
-        userId: user.uid, 
-        month: currentMonth, 
-        year: currentYear,
-        cardsCount: cards.length 
-      });
-      
       const billsMap: Record<string, number> = {};
       
       for (const card of cards) {
@@ -120,12 +113,6 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
           // Calcular total da fatura
           const totalAmount = calculateBillTotal(transactions);
           
-          console.log(`💳 Fatura do cartão ${card.name}:`, { 
-            cardId: card.id, 
-            transactionsCount: transactions.length,
-            totalAmount 
-          });
-          
           billsMap[card.id] = totalAmount;
         } catch (error) {
           console.error(`Erro ao buscar fatura do cartão ${card.id}:`, error);
@@ -133,7 +120,7 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
         }
       }
       
-      console.log('📊 Faturas carregadas:', billsMap);
+
       setCurrentBills(billsMap);
     };
     
@@ -160,13 +147,6 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
   const CardItem = ({ card, index }: { card: CreditCard; index: number }) => {
     const cardColor = getCardColor(card.name, card.color);
     const billAmount = currentBills[card.id] || 0;
-    
-    console.log(`🎴 Renderizando cartão ${card.name}:`, { 
-      cardId: card.id, 
-      billAmount, 
-      currentBills,
-      hasValue: currentBills[card.id] !== undefined 
-    });
     
     // Determinar status da fatura
     const today = new Date().getDate();

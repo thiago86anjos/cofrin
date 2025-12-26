@@ -189,8 +189,6 @@ export async function getCurrentMonthlyGoals(userId: string): Promise<Goal[]> {
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
 
-  console.log('[monthlyGoalService] getCurrentMonthlyGoals - buscando metas do mês:', { currentMonth, currentYear });
-
   const goalsRef = collection(db, COLLECTIONS.GOALS);
   const goalsQuery = query(
     goalsRef,
@@ -207,8 +205,6 @@ export async function getCurrentMonthlyGoals(userId: string): Promise<Goal[]> {
     id: doc.id,
     ...doc.data()
   })) as Goal[];
-  
-  console.log('[monthlyGoalService] getCurrentMonthlyGoals - metas carregadas:', goals.map(g => ({ id: g.id, targetAmount: g.targetAmount, categoryName: g.categoryName })));
   
   return goals;
 }

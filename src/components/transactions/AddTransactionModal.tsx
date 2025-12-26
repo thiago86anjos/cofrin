@@ -744,9 +744,15 @@ export default function AddTransactionModal({
             : parsed
         );
 
-        // Criar data com horário meio-dia para evitar problemas de timezone
-        const dateWithNoon = new Date(transactionDate);
-        dateWithNoon.setHours(12, 0, 0, 0);
+        // Criar data local (sem UTC) com horário meio-dia
+        const localDate = new Date(transactionDate);
+        // Criar uma nova data usando os componentes locais (ano, mês, dia) e setar meio-dia
+        const dateWithNoon = new Date(
+          localDate.getFullYear(),
+          localDate.getMonth(),
+          localDate.getDate(),
+          12, 0, 0, 0
+        );
 
         const data: CreateTransactionInput = {
           type: firebaseType,

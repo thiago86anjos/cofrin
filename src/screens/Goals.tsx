@@ -38,7 +38,7 @@ export default function Goals() {
   const { refreshKey } = useTransactionRefresh();
   const { goals: monthlyGoals, loading, create, update, remove, refresh } = useMonthlyGoals();
   
-  console.log('[Goals] monthlyGoals atualizadas:', monthlyGoals.map(g => ({ id: g.id, targetAmount: g.targetAmount })));
+
   const { goals: allGoals, refresh: refreshLongTermGoals } = useAllGoals();
   // Filtrar apenas metas de longo prazo (goalType não definido ou vazio)
   const allLongTermGoals = allGoals.filter(goal => !goal.goalType || goal.goalType === '');
@@ -86,7 +86,7 @@ export default function Goals() {
     categoryId: string;
     targetAmount: number;
   }) => {
-    console.log('[Goals] handleCreateMonthlyGoal chamado:', { data, selectedMonthlyGoal });
+
     const category = categories.find(c => c.id === data.categoryId);
     if (!category) return { success: false, error: 'Categoria não encontrada' };
 
@@ -94,9 +94,9 @@ export default function Goals() {
     
     // Se tem selectedMonthlyGoal, é edição. Senão, é criação
     if (selectedMonthlyGoal) {
-      console.log('[Goals] Modo edição - chamando update');
+
       result = await update(selectedMonthlyGoal.id, data.targetAmount);
-      console.log('[Goals] Resultado do update:', result);
+
       if (result.success) {
         setShowMonthlyGoalModal(false);
         setSelectedMonthlyGoal(null);
@@ -104,7 +104,7 @@ export default function Goals() {
       }
       return result;
     } else {
-      console.log('[Goals] Modo criação - chamando create');
+
       result = await create(data.categoryId, data.type, data.targetAmount, category.name);
       if (result.success) {
         setShowMonthlyGoalModal(false);
@@ -514,8 +514,7 @@ interface MonthlyGoalsContentProps {
 }
 
 function MonthlyGoalsContent({ goals, categories, loading, colors, getPercentage, onEdit }: MonthlyGoalsContentProps) {
-  console.log('[MonthlyGoalsContent] Renderizando com goals:', goals.map(g => ({ id: g.id, targetAmount: g.targetAmount })));
-  
+
   if (loading) {
     return (
       <View style={styles.emptyContainer}>
