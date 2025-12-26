@@ -49,7 +49,7 @@ export default memo(function TopCategoriesCard({
       <View style={[styles.iconCircle, { backgroundColor: primaryBg }]}>
         <MaterialCommunityIcons name="chart-donut" size={20} color={primary} />
       </View>
-      <Text style={[styles.title, { color: primaryDark }]}>Gastos por categorias</Text>
+      <Text style={[styles.title, { color: primaryDark }]}>Entenda seu dinheiro</Text>
       <MaterialCommunityIcons name="chevron-right" size={22} color={colors.textMuted} />
     </Pressable>
   );
