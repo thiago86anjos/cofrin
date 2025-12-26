@@ -399,7 +399,7 @@ export default function CreditCardBillDetails() {
               <View style={styles.dateInfo}>
                 <Text style={[styles.dateLabel, { color: colors.textMuted }]}>Vencimento</Text>
                 <Text style={[styles.dateValue, { color: colors.text }]}>
-                  {bill?.dueDate ? bill.dueDate.toDate().toLocaleDateString('pt-BR') : '-'}
+                  Dia {bill?.creditCard?.dueDay || '-'}
                 </Text>
               </View>
             </View>
