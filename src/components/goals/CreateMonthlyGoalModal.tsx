@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   categoryCard: {
-    width: '18%',
+    width: '23%',
     aspectRatio: 1,
     borderRadius: borderRadius.md,
     borderWidth: 2,
