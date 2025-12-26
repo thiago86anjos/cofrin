@@ -30,7 +30,7 @@ export default memo(function GoalCard({ onPress }: Props) {
       <View style={[styles.iconCircle, { backgroundColor: primaryBg }]}>
         <MaterialCommunityIcons name="target" size={20} color={primary} />
       </View>
-      <Text style={[styles.title, { color: primaryDark }]}>Acompanhar metas financeiras</Text>
+      <Text style={[styles.title, { color: primaryDark }]}>Minhas metas financeiras</Text>
       <MaterialCommunityIcons name="chevron-right" size={22} color={colors.textMuted} />
     </Pressable>
   );
