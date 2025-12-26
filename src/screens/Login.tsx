@@ -413,16 +413,12 @@ const styles = StyleSheet.create({
     }),
   },
   eyeButton: {
-    padding: 8,
-    marginLeft: 4,
-    ...Platform.select({
-      web: {
-        alignSelf: 'center',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      },
-    }),
+    padding: 4,
+    marginLeft: 0,
+    marginRight: -4,
+    alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   forgotPasswordLink: {
     alignSelf: 'flex-start',
