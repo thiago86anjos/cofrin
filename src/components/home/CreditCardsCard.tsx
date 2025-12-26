@@ -143,6 +143,14 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
     return (totalUsed / totalIncome) * 100;
   }, [totalUsed, totalIncome]);
 
+  // Filtrar apenas cartões com fatura pendente no mês atual
+  const cardsWithPendingBills = useMemo(() => {
+    return cards.filter(card => {
+      const billAmount = currentBills[card.id] || 0;
+      return billAmount > 0;
+    });
+  }, [cards, currentBills]);
+
   // Componente de item do cartão (layout minimalista)
   const CardItem = ({ card, index }: { card: CreditCard; index: number }) => {
     const cardColor = getCardColor(card.name, card.color);
@@ -230,7 +238,7 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
             <Text style={[styles.title, { color: primaryDark }]}>
               Meus cartões
             </Text>
-            {cards.length > 0 && totalUsed > 0 && (
+            {cardsWithPendingBills.length > 0 && totalUsed > 0 && (
               <Pressable 
                 onPress={() => setShowStatusModal(true)}
                 style={({ pressed }) => [
@@ -251,28 +259,18 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
 
       {/* Lista de cartões */}
       <View style={styles.cardsList}>
-        {cards.map((card, index) => (
+        {cardsWithPendingBills.map((card, index) => (
           <CardItem key={card.id} card={card} index={index} />
         ))}
       </View>
 
       {/* Mensagem vazia */}
-      {cards.length === 0 && (
+      {cardsWithPendingBills.length === 0 && (
         <View style={styles.emptyState}>
-          <MaterialCommunityIcons name="credit-card-plus" size={48} color={colors.textMuted} />
+          <MaterialCommunityIcons name="credit-card-check" size={48} color={colors.textMuted} />
           <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-            Nenhum cartão cadastrado
+            Nenhuma fatura pendente neste mês
           </Text>
-          <Pressable
-            onPress={onAddPress}
-            style={({ pressed }) => [
-              styles.emptyButton,
-              { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
-            ]}
-          >
-            <MaterialCommunityIcons name="plus" size={18} color="#fff" />
-            <Text style={styles.emptyButtonText}>Cadastrar cartão</Text>
-          </Pressable>
         </View>
       )}
 

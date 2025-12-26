@@ -196,6 +196,8 @@ export default function Home() {
                 totalBalance={totalAccountsBalance}
                 totalIncome={totalIncome}
                 totalExpense={totalExpense}
+                pendingTransactions={[...pendingIncomes, ...pendingExpenses]}
+                creditCards={activeCards}
                 username={userName}
                 onAccountPress={handleAccountPress}
                 onAddPress={navigateToConfigureAccounts}

@@ -5,7 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppTheme } from '../../contexts/themeContext';
 import { getShadow } from '../../theme';
 import { formatCurrencyBRL } from '../../utils/format';
-import { Account } from '../../types/firebase';
+import { Account, Transaction, CreditCard } from '../../types/firebase';
 
 interface Props {
   accounts?: Account[];
@@ -13,6 +13,8 @@ interface Props {
   totalBalance?: number;
   totalIncome?: number;
   totalExpense?: number;
+  pendingTransactions?: Transaction[];
+  creditCards?: CreditCard[];
   onAccountPress?: (account: Account) => void;
   onAddPress?: () => void;
   showGreeting?: boolean;
@@ -48,11 +50,31 @@ export default memo(function AccountsCard({
   accounts = [], 
   username = 'Usuário',
   totalBalance,
+  pendingTransactions = [],
+  creditCards = [],
   onAccountPress, 
   onAddPress,
   showGreeting = true,
 }: Props) {
   const { colors } = useAppTheme();
+
+  // Filtrar apenas contas com saldo diferente de zero OU que tenham lançamentos/faturas pendentes
+  const accountsWithBalance = accounts.filter(account => {
+    // Se tem saldo, mostrar
+    if (account.balance !== 0) return true;
+    
+    // Se saldo = 0, verificar se tem lançamentos pendentes associados
+    const hasPendingTransactions = pendingTransactions.some(
+      transaction => transaction.accountId === account.id
+    );
+    
+    // Verificar se há cartões com faturas pendentes que usam esta conta para pagamento
+    const hasPendingCardBills = creditCards.some(
+      card => card.paymentAccountId === account.id && (card.currentUsed || 0) > 0
+    );
+    
+    return hasPendingTransactions || hasPendingCardBills;
+  });
 
   // Determinar saudação baseada na hora
   const getGreeting = () => {
@@ -67,7 +89,7 @@ export default memo(function AccountsCard({
   // Se totalBalance for fornecido via prop, usa ele. Caso contrário, calcula.
   const displayTotalBalance = totalBalance !== undefined 
     ? totalBalance 
-    : accounts.reduce((sum, account) => sum + (account.balance || 0), 0);
+    : accountsWithBalance.reduce((sum, account) => sum + (account.balance || 0), 0);
 
   // Componente de item da conta (minimal design)
   const AccountItem = ({ account, index }: { account: Account; index: number }) => {
@@ -160,28 +182,28 @@ export default memo(function AccountsCard({
         </View>
 
         {/* Separador */}
-        {accounts.length > 0 && (
+        {accountsWithBalance.length > 0 && (
           <View style={[styles.separator, { backgroundColor: colors.border }]} />
         )}
 
         {/* Lista de contas */}
-        {accounts.length > 0 && (
+        {accountsWithBalance.length > 0 && (
           <View style={styles.accountsList}>
             <Text style={[styles.accountsTitle, { color: titleGray }]}>
               Contas
             </Text>
-            {accounts.map((account, index) => (
+            {accountsWithBalance.map((account, index) => (
               <AccountItem key={account.id} account={account} index={index} />
             ))}
           </View>
         )}
 
         {/* Mensagem vazia */}
-        {accounts.length === 0 && (
+        {accountsWithBalance.length === 0 && (
           <View style={styles.emptyState}>
-            <MaterialCommunityIcons name="wallet-plus" size={48} color="#9CA3AF" />
+            <MaterialCommunityIcons name="wallet-outline" size={48} color="#9CA3AF" />
             <Text style={[styles.emptyText, { color: '#9CA3AF' }]}>
-              Nenhuma conta cadastrada
+              Nenhuma conta com saldo disponível
             </Text>
           </View>
         )}
