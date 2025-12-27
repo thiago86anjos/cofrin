@@ -25,6 +25,8 @@ export default function Login({ navigation }: any) {
   const [resetEmail, setResetEmail] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
   const [resetResult, setResetResult] = useState<string | null>(null);
+  const [resetCooldownUntil, setResetCooldownUntil] = useState<number>(0);
+  const [resetSecondsLeft, setResetSecondsLeft] = useState<number>(0);
   const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(true);
@@ -37,6 +39,39 @@ export default function Login({ navigation }: any) {
   useEffect(() => {
     checkNetworkConnection().then(setIsOnline);
   }, []);
+
+  useEffect(() => {
+    if (!resetCooldownUntil) {
+      setResetSecondsLeft(0);
+      return;
+    }
+
+    const update = () => {
+      const msLeft = resetCooldownUntil - Date.now();
+      setResetSecondsLeft(msLeft > 0 ? Math.ceil(msLeft / 1000) : 0);
+    };
+
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [resetCooldownUntil]);
+
+  function mapAuthError(err: any) {
+    const code: string = err?.code || "";
+    if (code.includes("auth/too-many-requests")) {
+      return "Muitas solicitações em pouco tempo. Aguarde alguns minutos e tente novamente.";
+    }
+    if (code.includes("auth/quota-exceeded")) {
+      return "Limite de envio atingido no momento. Tente novamente mais tarde.";
+    }
+    if (code.includes("auth/network-request-failed")) {
+      return "Sem conexão. Verifique sua internet e tente novamente.";
+    }
+    if (code.includes("auth/user-not-found")) {
+      return "Usuário não encontrado. Verifique o email informado.";
+    }
+    return err?.message || "Erro ao enviar o link de recuperação.";
+  }
 
   async function handleLogin() {
     setError(null);
@@ -95,6 +130,12 @@ export default function Login({ navigation }: any) {
 
   async function handleSendReset() {
     setResetResult(null);
+
+    if (resetSecondsLeft > 0) {
+      setResetResult(`Aguarde ${resetSecondsLeft}s para solicitar novamente.`);
+      return;
+    }
+
     setResetLoading(true);
     try {
       const target = resetEmail?.trim() || email?.trim();
@@ -103,15 +144,11 @@ export default function Login({ navigation }: any) {
         return;
       }
       await sendPasswordReset(target);
-      setResetResult("Link de recuperação enviado. Verifique sua caixa de entrada.");
+      setResetCooldownUntil(Date.now() + 60_000);
+      setResetResult("Link de recuperação enviado. Verifique sua caixa de entrada e a pasta de spam.");
       setShowReset(false);
     } catch (err: any) {
-      const code: string = err?.code || "";
-      let message = err?.message || "Erro ao enviar o link de recuperação.";
-      if (code.includes("auth/user-not-found")) {
-        message = "Usuário não encontrado. Verifique o email informado.";
-      }
-      setResetResult(message);
+      setResetResult(mapAuthError(err));
     } finally {
       setResetLoading(false);
     }
@@ -224,14 +261,16 @@ export default function Login({ navigation }: any) {
                 style={({ pressed }) => [
                   styles.resetButton, 
                   pressed && styles.buttonPressed, 
-                  resetLoading && styles.buttonDisabled
+                  (resetLoading || resetSecondsLeft > 0) && styles.buttonDisabled
                 ]}
-                disabled={resetLoading}
+                disabled={resetLoading || resetSecondsLeft > 0}
               >
                 {resetLoading ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.resetButtonText}>Enviar link de recuperação</Text>
+                  <Text style={styles.resetButtonText}>
+                    {resetSecondsLeft > 0 ? `Aguarde ${resetSecondsLeft}s` : 'Enviar link de recuperação'}
+                  </Text>
                 )}
               </Pressable>
               {resetResult && <Text style={styles.helperText}>{resetResult}</Text>}

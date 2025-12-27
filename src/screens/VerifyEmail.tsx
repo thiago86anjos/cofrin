@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -14,8 +14,40 @@ export default function VerifyEmail() {
   const [sending, setSending] = useState(false);
   const [checking, setChecking] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [resendCooldownUntil, setResendCooldownUntil] = useState<number>(0);
+  const [resendSecondsLeft, setResendSecondsLeft] = useState<number>(0);
 
   const email = useMemo(() => user?.email ?? '', [user?.email]);
+
+  useEffect(() => {
+    if (!resendCooldownUntil) {
+      setResendSecondsLeft(0);
+      return;
+    }
+
+    const update = () => {
+      const msLeft = resendCooldownUntil - Date.now();
+      setResendSecondsLeft(msLeft > 0 ? Math.ceil(msLeft / 1000) : 0);
+    };
+
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [resendCooldownUntil]);
+
+  function mapAuthError(err: any) {
+    const code: string = err?.code || '';
+    if (code.includes('auth/too-many-requests')) {
+      return 'Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.';
+    }
+    if (code.includes('auth/quota-exceeded')) {
+      return 'Limite de envio atingido no momento. Tente novamente mais tarde.';
+    }
+    if (code.includes('auth/network-request-failed')) {
+      return 'Sem conexão. Verifique sua internet e tente novamente.';
+    }
+    return err?.message || 'Não foi possível concluir a ação. Tente novamente.';
+  }
 
   async function handleResend() {
     if (!isOnline) {
@@ -23,13 +55,19 @@ export default function VerifyEmail() {
       return;
     }
 
+    if (resendSecondsLeft > 0) {
+      setMessage(`Aguarde ${resendSecondsLeft}s para reenviar novamente.`);
+      return;
+    }
+
     setMessage(null);
     setSending(true);
     try {
       await resendEmailVerification();
-      setMessage('E-mail de verificação reenviado. Confira sua caixa de entrada e spam.');
+      setResendCooldownUntil(Date.now() + 60_000);
+      setMessage('E-mail de verificação reenviado. Confira sua caixa de entrada e a pasta de spam.');
     } catch (err: any) {
-      setMessage(err?.message || 'Não foi possível reenviar o e-mail. Tente novamente.');
+      setMessage(mapAuthError(err));
     } finally {
       setSending(false);
     }
@@ -46,7 +84,8 @@ export default function VerifyEmail() {
     try {
       await refreshUser();
       // Caso ainda não esteja verificado, mostrar feedback explícito.
-      const stillNotVerified = !!user && user.emailVerified === false;
+      const { auth } = await import('../services/firebase');
+      const stillNotVerified = !!auth.currentUser && auth.currentUser.emailVerified === false;
       if (stillNotVerified) {
         setMessage('Ainda não identificamos a verificação. Confirme se você abriu o link no mesmo e-mail e tente novamente.');
       }
@@ -97,6 +136,8 @@ export default function VerifyEmail() {
             <MaterialCommunityIcons name="information" size={18} color={PRIMARY} />
             <Text style={styles.noticeText}>
               Abra o e-mail de verificação e clique no link. Depois volte aqui e toque em “Já verifiquei”.
+              {'\n'}
+              Se não encontrar, verifique a caixa de spam. O título do e-mail pode ser: “Confirme seu e-mail e comece a usar o Cofrin”.
             </Text>
           </View>
 
@@ -122,7 +163,7 @@ export default function VerifyEmail() {
 
           <Pressable
             onPress={handleResend}
-            disabled={sending || checking}
+            disabled={sending || checking || resendSecondsLeft > 0}
             style={({ pressed }) => [styles.secondaryButton, pressed && styles.buttonPressed, (sending || checking) && styles.buttonDisabled]}
           >
             {sending ? (
@@ -133,7 +174,9 @@ export default function VerifyEmail() {
             ) : (
               <View style={styles.buttonContent}>
                 <MaterialCommunityIcons name="send" size={20} color={PRIMARY} style={{ marginRight: 8 }} />
-                <Text style={styles.secondaryButtonText}>Reenviar e-mail</Text>
+                <Text style={styles.secondaryButtonText}>
+                  {resendSecondsLeft > 0 ? `Reenviar e-mail (${resendSecondsLeft}s)` : 'Reenviar e-mail'}
+                </Text>
               </View>
             )}
           </Pressable>
