@@ -56,7 +56,6 @@ export default function CreditCards({ navigation }: any) {
   // Hooks do Firebase
   const { 
     activeCards, 
-    totalLimit,
     loading, 
     createCreditCard,
     updateCreditCard,
@@ -92,9 +91,6 @@ export default function CreditCards({ navigation }: any) {
       }
     }
   }, [route.params?.editCardId, activeCards.length, loading]);
-
-  // Calcular total usado
-  const totalUsed = activeCards.reduce((sum, card) => sum + (card.currentUsed || 0), 0);
 
   // Converter string de valor para número
   function parseValue(value: string): number {
@@ -434,28 +430,6 @@ export default function CreditCards({ navigation }: any) {
       >
         <View style={styles.centeredContainer}>
           <View style={styles.content}>
-        {/* Resumo de limites */}
-        {activeCards.length > 0 && (
-          <View style={[styles.summaryCard, { backgroundColor: colors.primary }]}>
-            <View style={styles.summaryRow}>
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Limite total</Text>
-                <Text style={styles.summaryValue}>{formatCurrencyBRL(totalLimit)}</Text>
-              </View>
-              <View style={styles.summaryDivider} />
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Usado</Text>
-                <Text style={styles.summaryValue}>{formatCurrencyBRL(totalUsed)}</Text>
-              </View>
-              <View style={styles.summaryDivider} />
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Disponível</Text>
-                <Text style={styles.summaryValue}>{formatCurrencyBRL(totalLimit - totalUsed)}</Text>
-              </View>
-            </View>
-          </View>
-        )}
-
         {/* Cartões existentes */}
         {loading ? (
           <View style={styles.loadingContainer}>
@@ -464,9 +438,6 @@ export default function CreditCards({ navigation }: any) {
         ) : activeCards.length > 0 ? (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-              SEUS CARTÕES
-            </Text>
-            <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
               Toque para editar
             </Text>
             <View style={[styles.card, { backgroundColor: colors.card }, getShadow(colors)]}>
@@ -493,7 +464,10 @@ export default function CreditCards({ navigation }: any) {
                     <View style={styles.cardInfo}>
                       <Text style={[styles.cardName, { color: colors.text }]}>{card.name}</Text>
                       <Text style={[styles.cardDetails, { color: colors.textSecondary }]}>
-                        Limite: {formatCurrencyBRL(card.limit)} • Fecha dia {card.closingDay} • Vence dia {card.dueDay}
+                        Limite: {formatCurrencyBRL(card.limit)}
+                      </Text>
+                      <Text style={[styles.cardDetails, { color: colors.textSecondary }]}>
+                        Fecha dia {card.closingDay} • Vence dia {card.dueDay}
                       </Text>
                       <View style={styles.usageBar}>
                         <View 
@@ -531,13 +505,17 @@ export default function CreditCards({ navigation }: any) {
         <Pressable
           onPress={openCreateModal}
           style={({ pressed }) => [
-            styles.addCardButton,
-            { backgroundColor: colors.primary },
-            pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+            styles.actionRow,
+            { backgroundColor: colors.card },
+            getShadow(colors),
+            pressed && { opacity: 0.9 },
           ]}
         >
-          <MaterialCommunityIcons name="plus" size={22} color="#fff" />
-          <Text style={styles.addCardButtonText}>Cadastrar novo cartão</Text>
+          <View style={[styles.actionIconCircle, { backgroundColor: colors.primaryBg }]}>
+            <MaterialCommunityIcons name="plus" size={22} color={colors.primary} />
+          </View>
+          <Text style={[styles.actionText, { color: colors.primary }]}>Cadastrar novo cartão</Text>
+          <MaterialCommunityIcons name="chevron-right" size={22} color={colors.textMuted} />
         </Pressable>
           </View>
         </View>
@@ -834,34 +812,6 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.lg,
   },
-  summaryCard: {
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  summaryItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  summaryLabel: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.7)',
-    marginBottom: 2,
-  },
-  summaryValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  summaryDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-  },
   loadingContainer: {
     padding: spacing.xl,
     alignItems: 'center',
@@ -921,6 +871,7 @@ const styles = StyleSheet.create({
   },
   cardDetails: {
     fontSize: 13,
+    lineHeight: 18,
     marginTop: 2,
   },
   usageBar: {
@@ -959,7 +910,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     ...Platform.select({
       web: {
-        outlineStyle: 'none',
+        outlineWidth: 0,
+        outlineColor: 'transparent',
       },
     }),
   },
@@ -1108,19 +1060,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  // Botão de adicionar cartão
-  addCardButton: {
+  // Ação estilo "Metas financeiras"
+  actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
     borderRadius: borderRadius.lg,
-    gap: spacing.sm,
+    padding: spacing.md,
     marginTop: spacing.md,
   },
-  addCardButtonText: {
-    color: '#fff',
+  actionIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  actionText: {
+    flex: 1,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

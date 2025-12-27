@@ -3,7 +3,7 @@ import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from "react-
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppTheme } from "../contexts/themeContext";
 import { useAuth } from "../contexts/authContext";
-import { spacing, borderRadius } from "../theme";
+import { spacing, borderRadius, getShadow } from "../theme";
 import { updateUserProfile } from "../services/auth";
 import CustomAlert from "../components/CustomAlert";
 import Snackbar from "../components/Snackbar";
@@ -82,15 +82,20 @@ export default function EditProfile({ navigation }: any) {
             onPress={handleSave}
             disabled={loading || !name.trim()}
             style={({ pressed }) => [
-              styles.saveButton,
-              { backgroundColor: colors.primary },
+              styles.actionRow,
+              { backgroundColor: colors.card },
+              getShadow(colors),
               pressed && { opacity: 0.9 },
               (loading || !name.trim()) && { opacity: 0.6 },
             ]}
           >
-            <Text style={styles.saveButtonText}>
+            <View style={[styles.actionIconCircle, { backgroundColor: colors.primaryBg }]}>
+              <MaterialCommunityIcons name="content-save" size={20} color={colors.primary} />
+            </View>
+            <Text style={[styles.actionText, { color: colors.primary }]}>
               {loading ? 'Salvando...' : 'Salvar alterações'}
             </Text>
+            <MaterialCommunityIcons name="chevron-right" size={22} color={colors.textMuted} />
           </Pressable>
         </View>
       </View>
@@ -157,14 +162,23 @@ const styles = StyleSheet.create({
     marginLeft: spacing.sm,
     fontSize: 16,
   },
-  saveButton: {
-    paddingVertical: 14,
-    borderRadius: borderRadius.md,
+  actionRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
   },
-  saveButtonText: {
-    color: '#fff',
+  actionIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  actionText: {
+    flex: 1,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

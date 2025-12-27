@@ -625,13 +625,17 @@ export default function Categories({ navigation }: any) {
             <Pressable
               onPress={openCreateModal}
               style={({ pressed }) => [
-                styles.addCategoryButton,
-                { backgroundColor: categoryType === 'expense' ? colors.expense : colors.income },
+                styles.actionRow,
+                { backgroundColor: colors.card },
+                getShadow(colors),
                 pressed && { opacity: 0.9 },
               ]}
             >
-              <MaterialCommunityIcons name="plus" size={20} color="#fff" />
-              <Text style={styles.addCategoryButtonText}>Criar nova categoria</Text>
+              <View style={[styles.actionIconCircle, { backgroundColor: colors.primaryBg }]}>
+                <MaterialCommunityIcons name="plus" size={20} color={colors.primary} />
+              </View>
+              <Text style={[styles.actionText, { color: colors.primary }]}>Criar nova categoria</Text>
+              <MaterialCommunityIcons name="chevron-right" size={22} color={colors.textMuted} />
             </Pressable>
           </View>
         </View>
@@ -1178,21 +1182,26 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
   },
-  // Botão de adicionar categoria
-  addCategoryButton: {
+  // Ação estilo "Metas financeiras"
+  actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: spacing.lg,
-    borderRadius: borderRadius.md,
-    gap: spacing.sm,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
     marginTop: spacing.md,
   },
-  addCategoryButtonText: {
-    color: '#fff',
+  actionIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  actionText: {
+    flex: 1,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   // Modal fullscreen
   fullscreenModal: {
