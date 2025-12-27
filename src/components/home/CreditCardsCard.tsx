@@ -2,11 +2,11 @@ import { View, StyleSheet, Pressable, Modal } from 'react-native';
 import { Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useState, useMemo, memo, useEffect } from 'react';
-import { useAppTheme } from '../../contexts/themeContext';
 import { formatCurrencyBRL } from '../../utils/format';
 import { CreditCard } from '../../types/firebase';
-import { getCreditCardTransactionsByMonth, calculateBillTotal } from '../../services/creditCardBillService';
+import { getCreditCardTransactionsByMonth, calculateBillTotal, isBillPaid } from '../../services/creditCardBillService';
 import { useAuth } from '../../contexts/authContext';
+import { useTransactionRefresh } from '../../contexts/transactionRefreshContext';
 import { DS_COLORS, DS_TYPOGRAPHY, DS_ICONS, DS_CARD, DS_BADGE, DS_SPACING } from '../../theme/designSystem';
 
 interface Props {
@@ -24,6 +24,7 @@ type CardUsageStatus = {
   level: 'controlled' | 'warning' | 'alert' | 'no-income';
   message: string;
   color: string;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
 };
 
 const getCardUsageStatus = (totalUsed: number, totalIncome: number): CardUsageStatus => {
@@ -32,6 +33,7 @@ const getCardUsageStatus = (totalUsed: number, totalIncome: number): CardUsageSt
       level: 'no-income',
       message: 'Sem receitas registradas neste mês',
       color: DS_COLORS.textMuted,
+      icon: 'information-outline',
     };
   }
 
@@ -42,27 +44,57 @@ const getCardUsageStatus = (totalUsed: number, totalIncome: number): CardUsageSt
       level: 'controlled',
       message: 'Gastos controlados',
       color: DS_COLORS.success,
+      icon: 'check-circle-outline',
     };
   } else if (percentage <= 50) {
     return {
       level: 'warning',
       message: 'Cuidado, você está se aproximando do limite recomendado',
       color: DS_COLORS.warning,
+      icon: 'alert-circle-outline',
     };
   } else {
     return {
       level: 'alert',
       message: 'Atenção, gastos elevados no cartão',
       color: DS_COLORS.error,
+      icon: 'alert-octagon-outline',
     };
   }
 };
 
+type OpenBillSummary = {
+  amount: number;
+  billMonth: number;
+  billYear: number;
+  dueDate: Date;
+};
+
+function getMonthShortPtBr(month: number) {
+  const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  return months[month - 1] || '';
+}
+
+function buildDueDate(year: number, month: number, dueDay: number) {
+  const lastDay = new Date(year, month, 0).getDate();
+  const safeDay = Math.min(Math.max(dueDay, 1), lastDay);
+  return new Date(year, month - 1, safeDay);
+}
+
+function isSameDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
 export default memo(function CreditCardsCard({ cards = [], totalBills = 0, totalIncome = 0, onCardPress, onAddPress }: Props) {
-  const { colors } = useAppTheme();
   const { user } = useAuth();
+  const { refreshKey } = useTransactionRefresh();
   const [showStatusModal, setShowStatusModal] = useState(false);
-  const [currentBills, setCurrentBills] = useState<Record<string, number>>({});
+  const [openBills, setOpenBills] = useState<Record<string, OpenBillSummary>>({});
+  const [currentMonthBills, setCurrentMonthBills] = useState<Record<string, number>>({});
 
   // Mês atual
   const currentDate = new Date();
@@ -71,75 +103,118 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
 
   // Buscar faturas do mês atual para cada cartão
   useEffect(() => {
-    const fetchCurrentBills = async () => {
+    const fetchOpenBills = async () => {
       if (!user?.uid || cards.length === 0) return;
       
-      const billsMap: Record<string, number> = {};
+      const billsMap: Record<string, OpenBillSummary> = {};
+
+      const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+      const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
       
       for (const card of cards) {
         try {
-          // Buscar transações do cartão no mês atual
-          const transactions = await getCreditCardTransactionsByMonth(
-            user.uid, 
-            card.id, 
-            currentMonth, 
-            currentYear
-          );
-          
-          // Calcular total da fatura
-          const totalAmount = calculateBillTotal(transactions);
-          
-          billsMap[card.id] = totalAmount;
+          const candidates: Array<{ month: number; year: number }> = [
+            { month: currentMonth, year: currentYear },
+            { month: nextMonth, year: nextYear },
+          ];
+
+          let chosen: OpenBillSummary | undefined;
+          for (const candidate of candidates) {
+            const transactions = await getCreditCardTransactionsByMonth(
+              user.uid,
+              card.id,
+              candidate.month,
+              candidate.year
+            );
+
+            const totalAmount = calculateBillTotal(transactions);
+            if (totalAmount <= 0) continue;
+
+            const paid = await isBillPaid(user.uid, card.id, candidate.month, candidate.year);
+            if (paid) continue;
+
+            chosen = {
+              amount: totalAmount,
+              billMonth: candidate.month,
+              billYear: candidate.year,
+              dueDate: buildDueDate(candidate.year, candidate.month, card.dueDay),
+            };
+            break;
+          }
+
+          if (chosen) {
+            billsMap[card.id] = chosen;
+          }
         } catch (error) {
           console.error(`Erro ao buscar fatura do cartão ${card.id}:`, error);
-          billsMap[card.id] = 0;
         }
       }
       
-
-      setCurrentBills(billsMap);
+      setOpenBills(billsMap);
     };
     
-    fetchCurrentBills();
-  }, [cards, user?.uid, currentMonth, currentYear]);
+    fetchOpenBills();
+  }, [cards, user?.uid, currentMonth, currentYear, refreshKey]);
 
-  // Calcular total usado apenas nas faturas do mês atual
-  const totalUsed = useMemo(() => {
-    return Object.values(currentBills).reduce((sum, amount) => sum + amount, 0);
-  }, [currentBills]);
+  // Buscar totais de gastos do mês atual (independente de fatura paga/pendente/vencida)
+  useEffect(() => {
+    const fetchCurrentMonthBills = async () => {
+      if (!user?.uid || cards.length === 0) return;
+
+      const billsMap: Record<string, number> = {};
+      for (const card of cards) {
+        try {
+          const transactions = await getCreditCardTransactionsByMonth(user.uid, card.id, currentMonth, currentYear);
+          billsMap[card.id] = calculateBillTotal(transactions);
+        } catch (error) {
+          console.error(`Erro ao buscar gastos do mês do cartão ${card.id}:`, error);
+          billsMap[card.id] = 0;
+        }
+      }
+
+      setCurrentMonthBills(billsMap);
+    };
+
+    fetchCurrentMonthBills();
+  }, [cards, user?.uid, currentMonth, currentYear, refreshKey]);
+
+  // Total de gastos em cartões no mês atual (base da modal)
+  const monthTotalUsed = useMemo(() => {
+    return Object.values(currentMonthBills).reduce((sum, amount) => sum + amount, 0);
+  }, [currentMonthBills]);
 
   // Status do uso dos cartões
   const usageStatus = useMemo(() => {
-    return getCardUsageStatus(totalUsed, totalIncome, colors);
-  }, [totalUsed, totalIncome, colors]);
+    return getCardUsageStatus(monthTotalUsed, totalIncome);
+  }, [monthTotalUsed, totalIncome]);
 
   // Porcentagem de uso
   const usagePercentage = useMemo(() => {
     if (totalIncome === 0) return 0;
-    return (totalUsed / totalIncome) * 100;
-  }, [totalUsed, totalIncome]);
+    return (monthTotalUsed / totalIncome) * 100;
+  }, [monthTotalUsed, totalIncome]);
 
   // Filtrar apenas cartões com fatura pendente no mês atual
   const cardsWithPendingBills = useMemo(() => {
     return cards.filter(card => {
-      const billAmount = currentBills[card.id] || 0;
-      return billAmount > 0;
+      return !!openBills[card.id] && openBills[card.id].amount > 0;
     });
-  }, [cards, currentBills]);
+  }, [cards, openBills]);
 
   // Componente de item do cartão (layout minimalista)
   const CardItem = ({ card, index }: { card: CreditCard; index: number }) => {
-    const billAmount = currentBills[card.id] || 0;
-    
-    // Determinar status da fatura
-    const today = new Date().getDate();
-    const isPaid = billAmount === 0;
-    const isDueToday = !isPaid && today === card.dueDay;
-    const isOverdue = !isPaid && today > card.dueDay;
-    const isPending = !isPaid && today < card.dueDay;
+    const bill = openBills[card.id];
+    const billAmount = bill?.amount || 0;
+
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dueDateStart = bill ? new Date(bill.dueDate.getFullYear(), bill.dueDate.getMonth(), bill.dueDate.getDate()) : null;
+
+    const isOverdue = !!dueDateStart && dueDateStart.getTime() < todayStart.getTime();
+    const isDueToday = !!dueDateStart && isSameDay(dueDateStart, todayStart);
+    const isPending = !!dueDateStart && dueDateStart.getTime() > todayStart.getTime();
     
     const getStatusText = () => {
-      if (isPaid) return null;
       if (isOverdue) return 'Vencida';
       if (isDueToday) return 'Vence hoje';
       if (isPending) return 'Pendente';
@@ -196,7 +271,7 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
           {/* Segunda linha: vencimento + valor na mesma linha */}
           <View style={styles.cardInfo}>
             <Text style={[styles.infoLabel, { color: DS_COLORS.textMuted }]}>
-              Vencimento dia {card.dueDay}
+              {bill ? `Vencimento ${bill.dueDate.getDate()} ${getMonthShortPtBr(bill.dueDate.getMonth() + 1)}` : `Vencimento ${card.dueDay}`}
             </Text>
             <Text style={[styles.billValue, { color: getBillValueColor() }]}>
               {formatCurrencyBRL(billAmount)}
@@ -216,7 +291,7 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
             <Text style={[styles.title, DS_TYPOGRAPHY.styles.sectionTitle, { color: DS_COLORS.primary }]}>
               Meus cartões
             </Text>
-            {cardsWithPendingBills.length > 0 && totalUsed > 0 && (
+            {monthTotalUsed > 0 && (
               <Pressable 
                 onPress={() => setShowStatusModal(true)}
                 style={({ pressed }) => [
@@ -247,7 +322,7 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
         <View style={styles.emptyState}>
           <MaterialCommunityIcons name="credit-card-check" size={48} color={DS_COLORS.textMuted} />
           <Text style={[styles.emptyText, { color: DS_COLORS.textMuted }]}>
-            Nenhuma fatura pendente neste mês
+            Nenhuma fatura em aberto
           </Text>
         </View>
       )}
@@ -282,10 +357,13 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
 
             {/* Resumo dos compromissos */}
             <View style={styles.modalDetails}>
+              <Text style={[styles.modalSubtitle, { color: DS_COLORS.textMuted }]}>
+                Resumo do mês atual
+              </Text>
               <View style={styles.modalRow}>
-                <Text style={[styles.modalLabel, { color: DS_COLORS.textMuted }]}>Total em faturas:</Text>
+                <Text style={[styles.modalLabel, { color: DS_COLORS.textMuted }]}>Gastos no cartão (mês):</Text>
                 <Text style={[styles.modalValue, { color: DS_COLORS.error }]}>
-                  {formatCurrencyBRL(totalUsed)}
+                  {formatCurrencyBRL(monthTotalUsed)}
                 </Text>
               </View>
               <View style={styles.modalRow}>
@@ -309,7 +387,7 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
               <Text style={[styles.modalSectionTitle, { color: DS_COLORS.textBody }]}>
                 Por cartão (mês atual)
               </Text>
-              {cards.filter(c => (currentBills[c.id] || 0) > 0).map((card) => (
+              {cards.filter(c => (currentMonthBills[c.id] || 0) > 0).map((card) => (
                 <View key={card.id} style={styles.modalCardItem}>
                   <View style={styles.modalCardInfo}>
                     <View style={[styles.modalCardIcon, { backgroundColor: DS_COLORS.primaryLight }]}>
@@ -324,13 +402,13 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
                     </Text>
                   </View>
                   <Text style={[styles.modalCardValue, { color: DS_COLORS.error }]}>
-                    {formatCurrencyBRL(currentBills[card.id] || 0)}
+                    {formatCurrencyBRL(currentMonthBills[card.id] || 0)}
                   </Text>
                 </View>
               ))}
-              {cards.filter(c => (currentBills[c.id] || 0) > 0).length === 0 && (
+              {cards.filter(c => (currentMonthBills[c.id] || 0) > 0).length === 0 && (
                 <Text style={[styles.modalEmptyText, { color: DS_COLORS.textMuted }]}>
-                  Nenhuma fatura em aberto no mês atual
+                  Nenhum gasto no cartão neste mês
                 </Text>
               )}
             </View>
@@ -449,8 +527,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   emptyButtonText: {
-    color: DS_COLORS.textInverse,
     ...DS_TYPOGRAPHY.styles.body,
+    color: DS_COLORS.textInverse,
     fontWeight: '600',
   },
   // Estilos do ícone de status
@@ -499,6 +577,10 @@ const styles = StyleSheet.create({
   },
   modalDetails: {
     gap: DS_SPACING.md,
+  },
+  modalSubtitle: {
+    ...DS_TYPOGRAPHY.styles.label,
+    textAlign: 'center',
   },
   modalRow: {
     flexDirection: 'row',
