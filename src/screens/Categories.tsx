@@ -46,6 +46,15 @@ export default function Categories({ navigation }: any) {
   const [parentSelectOpen, setParentSelectOpen] = useState(false);
   const [pendingSubcategoryNames, setPendingSubcategoryNames] = useState<string[]>([]);
   
+  // Modal de transferência de lançamentos
+  const [transferModalVisible, setTransferModalVisible] = useState(false);
+  const [transferSourceId, setTransferSourceId] = useState('');
+  const [transferSourceName, setTransferSourceName] = useState('');
+  const [transferTargetId, setTransferTargetId] = useState('');
+  const [transferTargetCategories, setTransferTargetCategories] = useState<Category[]>([]);
+  const [transferCount, setTransferCount] = useState(0);
+  const [transferSelectOpen, setTransferSelectOpen] = useState(false);
+  
   // Estado para edição de subcategorias
   const [editingSubcategoryId, setEditingSubcategoryId] = useState<string | null>(null);
   const [editingSubcategoryName, setEditingSubcategoryName] = useState('');
@@ -81,6 +90,13 @@ export default function Categories({ navigation }: any) {
     setShowAddSubcategory(false);
     setParentSelectOpen(false);
     setPendingSubcategoryNames([]);
+    setTransferModalVisible(false);
+    setTransferSourceId('');
+    setTransferSourceName('');
+    setTransferTargetId('');
+    setTransferTargetCategories([]);
+    setTransferCount(0);
+    setTransferSelectOpen(false);
     setEditingSubcategoryId(null);
     setEditingSubcategoryName('');
     setEditingSubcategoryIcon('food');
@@ -314,6 +330,8 @@ export default function Categories({ navigation }: any) {
 
   // Deletar subcategoria
   async function handleDeleteSubcategory(subcategoryId: string, subcategoryName: string) {
+    if (!editingCategory) return;
+    
     // Verificar se há transações associadas
     try {
       const { getTransactionCountByCategory } = await import('../services/transactionService');
@@ -323,30 +341,22 @@ export default function Categories({ navigation }: any) {
       const transactionCount = await getTransactionCountByCategory(user.uid, subcategoryId);
       
       if (transactionCount > 0) {
-        // Tem transações: mostrar opção de transferir
-        // Buscar todas as categorias/subcategorias disponíveis (exceto a que será deletada)
-        const allCategoriesOfType = categoryType === 'expense' ? expenseCategories : incomeCategories;
-        const allCategories = allCategoriesOfType.filter(c => c.id !== subcategoryId);
-        const allSubcategories = subcategories.filter(s => s.id !== subcategoryId);
-        const availableTargets = [...allCategories, ...allSubcategories];
+        // Tem transações: transferir para categoria pai automaticamente
+        const parentCategoryId = editingCategory.id;
+        const parentCategoryName = editingCategory.name;
         
-        if (availableTargets.length === 0) {
-          showAlert('Erro', 'Não é possível excluir esta subcategoria pois ela possui lançamentos e não há outra categoria disponível para transferi-los.');
-          return;
-        }
-        
-        // Mostrar modal de seleção de categoria
         showAlert(
           'Transferir lançamentos',
-          `Esta subcategoria possui ${transactionCount} lançamento(s). Escolha uma categoria ou subcategoria para transferir esses lançamentos:`,
+          `Esta subcategoria possui ${transactionCount} lançamento(s). Os lançamentos serão transferidos para a categoria pai "${parentCategoryName}". Deseja continuar?`,
           [
             { text: 'Cancelar', style: 'cancel' },
-            ...availableTargets.slice(0, 3).map(target => ({
-              text: target.name,
+            { 
+              text: 'Excluir', 
+              style: 'destructive',
               onPress: async () => {
-                await confirmDeleteSubcategoryWithTransfer(subcategoryId, subcategoryName, target.id, target.name);
+                await confirmDeleteSubcategoryWithTransfer(subcategoryId, subcategoryName, parentCategoryId, parentCategoryName);
               }
-            }))
+            },
           ]
         );
       } else {
@@ -539,29 +549,21 @@ export default function Categories({ navigation }: any) {
       const transactionCount = await getTransactionCountByCategory(user.uid, categoryId);
       
       if (transactionCount > 0) {
-        // Tem transações: mostrar opção de transferir
+        // Tem transações: converter categoria em subcategoria
         const allCategoriesOfType = categoryType === 'expense' ? expenseCategories : incomeCategories;
-        const otherCategories = allCategoriesOfType.filter(c => c.id !== categoryId && c.name !== catName);
+        const otherCategories = allCategoriesOfType.filter(c => c.id !== categoryId && c.name !== catName && !c.parentId);
         
         if (otherCategories.length === 0) {
-          showAlert('Erro', 'Não é possível excluir esta categoria pois ela possui lançamentos e não há outra categoria disponível para transferi-los.');
+          showAlert('Erro', 'Não é possível converter esta categoria pois não há outra categoria pai disponível.');
           return;
         }
         
-        // Mostrar modal de seleção de categoria
-        showAlert(
-          'Transferir lançamentos',
-          `Esta categoria possui ${transactionCount} lançamento(s). Escolha uma categoria para transferir esses lançamentos:`,
-          [
-            { text: 'Cancelar', style: 'cancel' },
-            ...otherCategories.slice(0, 3).map(cat => ({
-              text: cat.name,
-              onPress: async () => {
-                await confirmDeleteWithTransfer(categoryId, catName, cat.id, cat.name);
-              }
-            }))
-          ]
-        );
+        setTransferSourceId(categoryId);
+        setTransferSourceName(catName);
+        setTransferTargetCategories(otherCategories);
+        setTransferCount(transactionCount);
+        setTransferTargetId(otherCategories[0]?.id || '');
+        setTransferModalVisible(true);
       } else {
         // Sem transações: confirmar exclusão direta
         showAlert(
@@ -596,26 +598,33 @@ export default function Categories({ navigation }: any) {
     toCategoryName: string
   ) {
     try {
-      const { transferTransactionsToCategory } = await import('../services/categoryService');
-      
       if (!user?.uid) {
         showAlert('Erro', 'Usuário não autenticado');
         return;
       }
       
-      // Transferir transações
-      const count = await transferTransactionsToCategory(user.uid, fromCategoryId, toCategoryId);
+      // Buscar categoria destino para pegar cor
+      const targetCategory = rootCategories.find(c => c.id === toCategoryId);
+      if (!targetCategory) {
+        showAlert('Erro', 'Categoria destino não encontrada');
+        return;
+      }
       
-      // Excluir categoria
-      const result = await deleteCategory(fromCategoryId);
+      // Converter categoria em subcategoria
+      const result = await updateCategory(fromCategoryId, {
+        parentId: toCategoryId,
+        icon: 'circle',
+        color: targetCategory.color || defaultAccent,
+      });
       
       if (result) {
-        showSnackbar(`${count} lançamento(s) transferidos e categoria excluída`);
+        await refresh();
+        showSnackbar(`Categoria "${fromCategoryName}" convertida em subcategoria de "${toCategoryName}"`);
       } else {
-        showAlert('Erro', 'Não foi possível excluir a categoria');
+        showAlert('Erro', 'Não foi possível converter a categoria');
       }
     } catch (error: any) {
-      showAlert('Erro', error.message || 'Erro ao excluir categoria');
+      showAlert('Erro', error.message || 'Erro ao converter categoria');
     }
   }
 
@@ -634,18 +643,12 @@ export default function Categories({ navigation }: any) {
   const defaultAccent = categoryType === 'expense' ? colors.expense : colors.income;
   const accentPalette = Array.from(
     new Set([
-      defaultAccent,
       colors.primary,
       colors.primaryLight,
-      colors.primaryDark,
-      colors.income,
-      colors.expense,
       colors.success,
+      colors.expense,
       colors.warning,
-      colors.danger,
-      // Neutros (para "cinza" e variações suaves)
       colors.gray,
-      colors.textMuted,
     ])
   );
 
@@ -1002,11 +1005,11 @@ export default function Categories({ navigation }: any) {
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.text }]}>Cor</Text>
                 <View style={styles.colorRow}>
-                  {accentPalette.map((c) => {
+                  {accentPalette.map((c, idx) => {
                     const selected = (categoryColor || defaultAccent) === c;
                     return (
                       <Pressable
-                        key={c}
+                        key={`color-${idx}-${c}`}
                         onPress={() => setCategoryColor(c)}
                         style={[
                           styles.colorSwatch,
@@ -1195,6 +1198,169 @@ export default function Categories({ navigation }: any) {
                   </Text>
                 </Pressable>
               )}
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Modal de Transferência de Lançamentos */}
+      <Modal
+        visible={transferModalVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setTransferModalVisible(false)}
+        statusBarTranslucent
+      >
+        <View style={[styles.fullscreenModal, { backgroundColor: colors.bg, paddingTop: insets.top }]}>
+          <View style={[styles.fullscreenHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              Transferir lançamentos
+            </Text>
+            <Pressable
+              onPress={() => {
+                setTransferModalVisible(false);
+                setTransferSelectOpen(false);
+              }}
+              style={({ pressed }) => [
+                styles.closeButton,
+                { backgroundColor: colors.bg === '#FFFFFF' ? '#f0f0f0' : 'rgba(255,255,255,0.1)' },
+                pressed && { transform: [{ scale: 0.95 }] },
+              ]}
+            >
+              <MaterialCommunityIcons name="close" size={22} color={colors.text} />
+            </Pressable>
+          </View>
+
+          <ScrollView 
+            style={styles.modalBody} 
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: spacing.xl }}
+          >
+            <View style={styles.formGroup}>
+              <Text style={[styles.label, { color: colors.textMuted, fontSize: 14, fontWeight: '400' }]}>
+                Esta categoria possui {transferCount} lançamento(s). Escolha uma categoria pai para converter esta categoria em subcategoria:
+              </Text>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={[styles.label, { color: colors.text }]}>Transferir para</Text>
+              <Pressable
+                onPress={() => setTransferSelectOpen((v) => !v)}
+                style={({ pressed }) => [
+                  styles.selectTrigger,
+                  {
+                    borderColor: transferSelectOpen ? colors.primary : colors.border,
+                    backgroundColor: colors.card,
+                    opacity: pressed ? 0.95 : 1,
+                  },
+                ]}
+              >
+                <View style={styles.selectTriggerLeft}>
+                  <View
+                    style={[
+                      styles.selectDot,
+                      { backgroundColor: transferTargetCategories.find(c => c.id === transferTargetId)?.color || defaultAccent },
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.selectTriggerText,
+                      { color: colors.text },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {transferTargetCategories.find(c => c.id === transferTargetId)?.name || 'Selecione uma categoria'}
+                  </Text>
+                </View>
+                <MaterialCommunityIcons
+                  name={transferSelectOpen ? 'chevron-up' : 'chevron-down'}
+                  size={20}
+                  color={colors.textMuted}
+                />
+              </Pressable>
+
+              {transferSelectOpen && (
+                <View style={[styles.selectList, { borderColor: colors.border, backgroundColor: colors.card }]}>
+                  <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
+                    {transferTargetCategories.map((cat, idx, arr) => {
+                      const selected = transferTargetId === cat.id;
+                      const catAccent = cat.color || defaultAccent;
+                      const isLast = idx === arr.length - 1;
+                      return (
+                        <Pressable
+                          key={cat.id}
+                          onPress={() => {
+                            setTransferTargetId(cat.id);
+                            setTransferSelectOpen(false);
+                          }}
+                          style={({ pressed }) => [
+                            styles.selectOption,
+                            {
+                              backgroundColor: selected ? catAccent + '15' : 'transparent',
+                              opacity: pressed ? 0.9 : 1,
+                              borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
+                              borderBottomColor: colors.border,
+                            },
+                          ]}
+                        >
+                          <View style={[styles.selectDot, { backgroundColor: catAccent }]} />
+                          <Text
+                            style={[
+                              styles.selectOptionText,
+                              { color: selected ? colors.text : colors.textSecondary },
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {cat.name}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.modalActionsColumn}>
+              <View style={styles.modalActions}>
+                <Pressable
+                  onPress={() => {
+                    setTransferModalVisible(false);
+                    setTransferSelectOpen(false);
+                  }}
+                  style={({ pressed }) => [
+                    styles.actionButton,
+                    styles.deleteButton,
+                    { borderColor: colors.border },
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <Text style={[styles.actionButtonText, { color: colors.text }]}>Cancelar</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={async () => {
+                    if (!transferTargetId) return;
+                    const targetCat = transferTargetCategories.find(c => c.id === transferTargetId);
+                    if (!targetCat) return;
+                    
+                    setTransferModalVisible(false);
+                    setTransferSelectOpen(false);
+                    
+                    await confirmDeleteWithTransfer(transferSourceId, transferSourceName, targetCat.id, targetCat.name);
+                  }}
+                  disabled={!transferTargetId}
+                  style={({ pressed }) => [
+                    styles.actionButton,
+                    { backgroundColor: colors.expense, borderColor: colors.expense },
+                    pressed && { opacity: 0.9 },
+                    !transferTargetId && { opacity: 0.6 },
+                  ]}
+                >
+                  <MaterialCommunityIcons name="check" size={20} color="#fff" />
+                  <Text style={[styles.actionButtonText, { color: '#fff' }]}>Confirmar</Text>
+                </Pressable>
+              </View>
             </View>
           </ScrollView>
         </View>

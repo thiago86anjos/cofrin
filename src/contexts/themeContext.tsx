@@ -10,9 +10,12 @@ interface ThemeColors {
   bgHeader: string;
   card: string;
   surface: string;
+  surfaceAlt: string;
+  overlay: string;
   
   // Text
   text: string;
+  textDefault: string;
   textSecondary: string;
   textMuted: string;
   textInverse: string;
@@ -39,60 +42,81 @@ interface ThemeColors {
   border: string;
   gray: string;
   grayLight: string;
+  progressBg: string;
+  
+  // Interactions
+  hoverBg: string;
+  pressedBg: string;
+  focus: string;
+  buttonDisabledBg: string;
+  buttonDisabledText: string;
 }
 
 // Tema Claro - Design System Roxo Premium
 const lightTheme: ThemeColors = {
-  bg: '#F9F8FD',           // off-white arroxeado
+  bg: '#F9F8FD',
   bgHeader: '#28043b',
   card: '#FFFFFF',
   surface: '#FFFFFF',
+  surfaceAlt: '#F1EFF9',
+  overlay: 'rgba(40, 4, 59, 0.6)',
   
   text: '#28043b',
-  textSecondary: '#322438',
+  textDefault: '#322438',
+  textSecondary: '#8A8699',
   textMuted: '#9A96B0',
   textInverse: '#FFFFFF',
   
   primary: '#28043b',
   primaryLight: '#7B5CD6',
   primaryDark: '#28043b',
-  primaryBg: '#EDE9FF',    // roxo suave
+  primaryBg: '#EDE9FF',
   
-  success: '#2FAF8E',      // verde elegante
+  success: '#2FAF8E',
   successBg: '#E8F7F3',
-  danger: '#C4572D',       // laranja escuro (SEM vermelho)
+  danger: '#C4572D',
   dangerBg: '#FFF1E8',
-  warning: '#E07A3F',      // laranja atenção
+  warning: '#E07A3F',
   warningBg: '#FFF1E8',
   
-  income: '#2FAF8E',       // verde
-  expense: '#C4572D',      // laranja escuro
+  income: '#2FAF8E',
+  expense: '#C4572D',
   
   border: '#E6E2F0',
   gray: '#9A96B0',
   grayLight: '#F1EFF9',
+  progressBg: '#E8E6F3',
+  
+  hoverBg: 'rgba(40, 4, 59, 0.05)',
+  pressedBg: 'rgba(40, 4, 59, 0.1)',
+  focus: '#7B5CD6',
+  buttonDisabledBg: '#D6D2E3',
+  buttonDisabledText: '#9A96B0',
 };
 
 // Tema Escuro - Design System Roxo Premium
 const darkTheme: ThemeColors = {
-  bg: '#0f0d1a',           // preto arroxeado
+  bg: '#0f0d1a',
   bgHeader: '#1a1528',
   card: '#1a1528',
   surface: '#252033',
+  surfaceAlt: '#1a1528',
+  overlay: 'rgba(15, 13, 26, 0.8)',
   
   text: '#f1f0f5',
+  textDefault: '#d4d1e0',
   textSecondary: '#a8a3b8',
   textMuted: '#6b6580',
   textInverse: '#0f0d1a',
   
-  primary: '#7B5CD6',      // roxo claro para dark mode
+  primary: '#7B5CD6',
   primaryLight: '#9B7EF0',
   primaryDark: '#5B3CC4',
   primaryBg: '#2a2040',
   
-  success: '#3DC9A0',      // verde claro
+  success: '#3DC9A0',
   successBg: '#1a2f2a',
-  danger: '#E07A3F',       // laranja (SEM vermelho)
+  danger: '#E07A3F',
   dangerBg: '#2f1a15',
   warning: '#F0A060',
   warningBg: '#2f2515',
@@ -103,38 +127,55 @@ const darkTheme: ThemeColors = {
   border: '#352f45',
   gray: '#6b6580',
   grayLight: '#1a1528',
+  progressBg: '#2a2040',
+  
+  hoverBg: 'rgba(123, 92, 214, 0.1)',
+  pressedBg: 'rgba(123, 92, 214, 0.2)',
+  focus: '#9B7EF0',
+  buttonDisabledBg: '#2a2040',
+  buttonDisabledText: '#6b6580',
 };
 
 // Tema Teal -> Convertido para Roxo Premium (mantém nome por compatibilidade)
 const tealTheme: ThemeColors = {
-  bg: '#F9F8FD',           // off-white arroxeado
+  bg: '#F9F8FD',
   bgHeader: '#28043b',
   card: '#FFFFFF',
   surface: '#FFFFFF',
+  surfaceAlt: '#F1EFF9',
+  overlay: 'rgba(40, 4, 59, 0.6)',
   
   text: '#28043b',
-  textSecondary: '#322438',
+  textDefault: '#322438',
+  textSecondary: '#8A8699',
   textMuted: '#9A96B0',
   textInverse: '#FFFFFF',
   
   primary: '#28043b',
   primaryLight: '#7B5CD6',
   primaryDark: '#28043b',
-  primaryBg: '#EDE9FF',    // roxo suave
+  primaryBg: '#EDE9FF',
   
-  success: '#2FAF8E',      // verde elegante
+  success: '#2FAF8E',
   successBg: '#E8F7F3',
-  danger: '#C4572D',       // laranja escuro (SEM vermelho)
+  danger: '#C4572D',
   dangerBg: '#FFF1E8',
-  warning: '#E07A3F',      // laranja atenção
+  warning: '#E07A3F',
   warningBg: '#FFF1E8',
   
-  income: '#2FAF8E',       // verde
-  expense: '#C4572D',      // laranja escuro
+  income: '#2FAF8E',
+  expense: '#C4572D',
   
   border: '#E6E2F0',
   gray: '#9A96B0',
   grayLight: '#F1EFF9',
+  progressBg: '#E8E6F3',
+  
+  hoverBg: 'rgba(40, 4, 59, 0.05)',
+  pressedBg: 'rgba(40, 4, 59, 0.1)',
+  focus: '#7B5CD6',
+  buttonDisabledBg: '#D6D2E3',
+  buttonDisabledText: '#9A96B0',
 };
 
 const themes: Record<ThemeMode, ThemeColors> = {
