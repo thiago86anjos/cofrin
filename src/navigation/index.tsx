@@ -7,6 +7,7 @@ import { View, ActivityIndicator } from "react-native";
 import Login from "../screens/Login";
 import Register from "../screens/Register";
 import Home from "../screens/Home";
+import VerifyEmail from "../screens/VerifyEmail";
 
 // Telas secundárias - lazy loaded para reduzir bundle inicial
 const Terms = lazy(() => import("../screens/Terms"));
@@ -77,7 +78,7 @@ const linking = {
 };
 
 export default function RootNavigation() {
-  const { user, loading } = useAuth();
+  const { user, loading, needsEmailVerification } = useAuth();
   const canAccessAtivosBeta = (user?.email ?? '').toLowerCase() === 'thiago.w3c@gmail.com';
 
   if (loading) {
@@ -88,29 +89,35 @@ export default function RootNavigation() {
   return (
     <NavigationContainer linking={linking}>
       {user ? (
-        // ROTAS DO USUÁRIO LOGADO
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Bem-vindo" component={Home} />
-          <Stack.Screen name="Lançamentos" component={LaunchesScreen} />
-          <Stack.Screen name="Metas do ano" component={GoalsScreen} />
-          <Stack.Screen name="Meus Objetivos" component={MyGoalsScreen} />
-          <Stack.Screen name="ManageGoals" component={ManageGoalsScreen} />
-          <Stack.Screen name="Configurações" component={SettingsScreen} />
-          <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-          <Stack.Screen name="ConfigureAccounts" component={ConfigureAccountsScreen} />
-          <Stack.Screen name="CreditCards" component={CreditCardsScreen} />
-          <Stack.Screen name="CreditCardBillDetails" component={CreditCardBillDetailsScreen} />
-          <Stack.Screen name="Categories" component={CategoriesScreen} />
-          <Stack.Screen name="CategoryDetails" component={CategoryDetailsScreen} />
-          {canAccessAtivosBeta ? (
-            <>
-              <Stack.Screen name="Minhas ações" component={MinhasAcoesScreen} />
-              <Stack.Screen name="Importar movimentações" component={ImportarMovimentacoesAtivosScreen} />
-            </>
-          ) : null}
-          <Stack.Screen name="About" component={AboutScreen} />
-          <Stack.Screen name="Education" component={EducationScreen} />
-        </Stack.Navigator>
+        needsEmailVerification ? (
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="Verifique seu e-mail" component={VerifyEmail} />
+          </Stack.Navigator>
+        ) : (
+          // ROTAS DO USUÁRIO LOGADO
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="Bem-vindo" component={Home} />
+            <Stack.Screen name="Lançamentos" component={LaunchesScreen} />
+            <Stack.Screen name="Metas do ano" component={GoalsScreen} />
+            <Stack.Screen name="Meus Objetivos" component={MyGoalsScreen} />
+            <Stack.Screen name="ManageGoals" component={ManageGoalsScreen} />
+            <Stack.Screen name="Configurações" component={SettingsScreen} />
+            <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+            <Stack.Screen name="ConfigureAccounts" component={ConfigureAccountsScreen} />
+            <Stack.Screen name="CreditCards" component={CreditCardsScreen} />
+            <Stack.Screen name="CreditCardBillDetails" component={CreditCardBillDetailsScreen} />
+            <Stack.Screen name="Categories" component={CategoriesScreen} />
+            <Stack.Screen name="CategoryDetails" component={CategoryDetailsScreen} />
+            {canAccessAtivosBeta ? (
+              <>
+                <Stack.Screen name="Minhas ações" component={MinhasAcoesScreen} />
+                <Stack.Screen name="Importar movimentações" component={ImportarMovimentacoesAtivosScreen} />
+              </>
+            ) : null}
+            <Stack.Screen name="About" component={AboutScreen} />
+            <Stack.Screen name="Education" component={EducationScreen} />
+          </Stack.Navigator>
+        )
       ) : (
         // ROTAS PÚBLICAS
         <Stack.Navigator>

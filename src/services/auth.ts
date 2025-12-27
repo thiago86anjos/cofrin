@@ -1,9 +1,11 @@
 import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
+    sendEmailVerification,
     sendPasswordResetEmail,
     signOut,
     updateProfile,
+    User,
 } from "firebase/auth";
 
 import { auth } from "./firebase";
@@ -11,9 +13,32 @@ import { createDefaultCategories } from "./categoryService";
 import { createDefaultAccount } from "./accountService";
 import { withRetry, reconnectFirestore, checkNetworkConnection } from "../utils/networkUtils";
 
+// Contas manuais criadas a partir desta data exigem verificação de e-mail.
+// Contas antigas (existentes) não são afetadas.
+const EMAIL_VERIFICATION_ENFORCED_SINCE = new Date('2025-12-27T00:00:00.000Z');
+
+export function shouldRequireEmailVerification(user: User) {
+  const isPasswordProvider = user.providerData?.some((p) => p.providerId === 'password');
+  if (!isPasswordProvider) return false;
+  if (user.emailVerified) return false;
+
+  const createdAt = user.metadata?.creationTime ? new Date(user.metadata.creationTime) : null;
+  if (!createdAt || Number.isNaN(createdAt.getTime())) return false;
+
+  return createdAt >= EMAIL_VERIFICATION_ENFORCED_SINCE;
+}
+
 export async function register(email: string, password: string) {
   const userCredential = await createUserWithEmailAndPassword(auth, email, password);
   const userId = userCredential.user.uid;
+
+  // Enviar e-mail de verificação para contas manuais novas.
+  // (Login com Google não passa por aqui.)
+  try {
+    await sendEmailVerification(userCredential.user);
+  } catch (error) {
+    console.error('Erro ao enviar verificação de e-mail:', error);
+  }
   
   // Criar categorias e conta padrão para o novo usuário
   try {
@@ -28,6 +53,12 @@ export async function register(email: string, password: string) {
   }
   
   return userCredential;
+}
+
+export async function resendEmailVerification() {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Usuário não autenticado');
+  await sendEmailVerification(user);
 }
 
 export async function login(email: string, password: string) {

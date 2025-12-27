@@ -1,4 +1,4 @@
-import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
+import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Platform } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppTheme } from "../contexts/themeContext";
 import { useAuth } from "../contexts/authContext";
@@ -100,14 +100,17 @@ export default function Settings({ navigation }: any) {
   }
 
   async function confirmDeleteAccount() {
-    if (!user?.uid) return;
-
     setDeleting(true);
     try {
       // Importar serviços necessários
       const { deleteDoc, collection, query, where, getDocs } = await import('firebase/firestore');
-      const { deleteUser, reauthenticateWithCredential, EmailAuthProvider, GoogleAuthProvider, reauthenticateWithPopup } = await import('firebase/auth');
+      const { deleteUser, GoogleAuthProvider, reauthenticateWithPopup } = await import('firebase/auth');
       const { db, COLLECTIONS, auth } = await import('../services/firebase');
+
+      const currentUser = auth.currentUser;
+      if (!currentUser?.uid) {
+        throw new Error('Usuário não autenticado');
+      }
 
       // Deletar todas as coleções do usuário
       const collectionsToDelete = [
@@ -122,7 +125,7 @@ export default function Settings({ navigation }: any) {
       for (const collectionName of collectionsToDelete) {
         const q = query(
           collection(db, collectionName),
-          where('userId', '==', user.uid)
+          where('userId', '==', currentUser.uid)
         );
         const snapshot = await getDocs(q);
         
@@ -132,21 +135,31 @@ export default function Settings({ navigation }: any) {
       }
 
       // Deletar a conta do Firebase Auth
-      if (user) {
+      if (currentUser) {
         try {
-          await deleteUser(user as any);
+          await deleteUser(currentUser);
         } catch (authError: any) {
           // Se precisar de reautenticação, tentar reautenticar
           if (authError.code === 'auth/requires-recent-login') {
-            const currentUser = auth.currentUser;
-            if (currentUser) {
+            const reauthUser = auth.currentUser;
+            if (reauthUser) {
               // Verificar o provedor de login
-              const providerId = currentUser.providerData[0]?.providerId;
+              const providerId = reauthUser.providerData[0]?.providerId;
               
               if (providerId === 'google.com') {
                 // Reautenticar com Google
+                if (Platform.OS !== 'web') {
+                  showAlert(
+                    'Sessão expirada',
+                    'Por segurança, faça logout e login novamente para deletar sua conta.',
+                    [{ text: 'OK', style: 'default' }]
+                  );
+                  setDeleting(false);
+                  return;
+                }
+
                 const provider = new GoogleAuthProvider();
-                await reauthenticateWithPopup(currentUser, provider);
+                await reauthenticateWithPopup(reauthUser, provider);
               } else {
                 // Para email/senha, mostrar mensagem para fazer logout e login novamente
                 showAlert(
@@ -159,7 +172,10 @@ export default function Settings({ navigation }: any) {
               }
               
               // Tentar deletar novamente após reautenticação
-              await deleteUser(currentUser);
+              const afterReauthUser = auth.currentUser;
+              if (afterReauthUser) {
+                await deleteUser(afterReauthUser);
+              }
             }
           } else {
             throw authError;
