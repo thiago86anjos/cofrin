@@ -164,7 +164,7 @@ export default function AddTransactionModal({
   
   // Category state
   const [categoryId, setCategoryId] = useState('');
-  const [categoryName, setCategoryName] = useState('Outros');
+  const [categoryName, setCategoryName] = useState('');
   
   // Create category inline state
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
@@ -331,26 +331,17 @@ export default function AddTransactionModal({
       // Limpar categoria para transferências
       setCategoryId('');
       setCategoryName('');
-    } else if (!editTransaction) {
-      // Atualizar categoria padrão baseado no tipo (apenas para novas transações)
+    } else if (!editTransaction && categoryId) {
+      // Verificar se a categoria atual é do tipo correto
       const categoryType = type === 'despesa' ? 'expense' : 'income';
-      const availableCategories = categories.filter(c => c.type === categoryType);
-      
-      if (availableCategories.length > 0) {
-        // Tentar manter a categoria se for do mesmo tipo, senão usar padrão
-        const currentCat = categories.find(c => c.id === categoryId);
-        if (currentCat && currentCat.type === categoryType) {
-          // Categoria atual é do tipo correto, manter
-          return;
-        }
-        
-        // Selecionar categoria padrão do novo tipo
-        const defaultCat = availableCategories.find(c => c.name === 'Outros') || availableCategories[0];
-        setCategoryId(defaultCat.id);
-        setCategoryName(defaultCat.name);
+      const currentCat = categories.find(c => c.id === categoryId);
+      if (currentCat && currentCat.type !== categoryType) {
+        // Categoria atual não é do tipo correto, limpar
+        setCategoryId('');
+        setCategoryName('');
       }
     }
-  }, [type, categories, editTransaction]);
+  }, [type, categories, editTransaction, categoryId]);
 
   // Set default account when accounts load (only for new transactions)
   useEffect(() => {
@@ -365,15 +356,7 @@ export default function AddTransactionModal({
     }
   }, [activeAccounts.length, useCreditCard, accountId, editTransaction]); // Verificar editTransaction diretamente
 
-  // Set default category when categories load (only for new transactions)
-  useEffect(() => {
-    // Não setar categoria padrão se estiver editando uma transação
-    if (categories.length > 0 && !categoryId && !editTransaction) {
-      const defaultCat = categories.find(c => c.name === 'Outros') || categories[0];
-      setCategoryId(defaultCat.id);
-      setCategoryName(defaultCat.name);
-    }
-  }, [categories.length, categoryId, editTransaction]); // Verificar editTransaction diretamente
+  // Não setar categoria padrão automaticamente - usuário deve escolher
 
   // Reset form when modal opens or populate with edit data
   useEffect(() => {
@@ -476,11 +459,9 @@ export default function AddTransactionModal({
             setToAccountName(activeAccounts[1].name);
           }
         }
-        if (categories.length > 0) {
-          const defaultCat = categories.find(c => c.name === 'Outros') || categories[0];
-          setCategoryId(defaultCat.id);
-          setCategoryName(defaultCat.name);
-        }
+        // Não definir categoria padrão - usuário deve escolher
+        setCategoryId('');
+        setCategoryName('');
       }
     }
   }, [visible, initialType, refreshCategories, refreshAccounts, refreshCreditCards, refreshKey]); // Removido editTransaction para permitir edição de tipo
@@ -910,23 +891,27 @@ export default function AddTransactionModal({
     onPress,
     subtitle,
     subtitleColor,
+    disabled,
   }: {
     label: string;
     value: string;
     icon: string;
-    onPress: () => void;
+    onPress?: () => void;
     subtitle?: string;
     subtitleColor?: string;
+    disabled?: boolean;
   }) => (
     <Pressable
-      onPress={onPress}
+      onPress={disabled ? undefined : onPress}
+      disabled={disabled}
       style={({ pressed }) => [
         styles.selectField,
         { backgroundColor: pressed ? colors.grayLight : 'transparent' },
+        disabled && { opacity: 0.5 },
       ]}
     >
-      <View style={[styles.fieldIcon, { backgroundColor: colors.grayLight }]}>
-        <MaterialCommunityIcons name={icon as any} size={20} color={colors.gray} />
+      <View style={[styles.fieldIcon, { backgroundColor: disabled ? colors.border : colors.grayLight }]}>
+        <MaterialCommunityIcons name={icon as any} size={20} color={disabled ? colors.textMuted : colors.gray} />
       </View>
       <View style={styles.fieldContent}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
@@ -938,9 +923,9 @@ export default function AddTransactionModal({
             </>
           )}
         </View>
-        <Text style={[styles.fieldValue, { color: colors.text }]}>{value}</Text>
+        <Text style={[styles.fieldValue, { color: disabled ? colors.textMuted : colors.text }]}>{value}</Text>
       </View>
-      <MaterialCommunityIcons name="chevron-right" size={20} color={colors.gray} />
+      <MaterialCommunityIcons name="chevron-right" size={20} color={disabled ? colors.border : colors.gray} />
     </Pressable>
   );
 
@@ -1876,9 +1861,10 @@ export default function AddTransactionModal({
                         <>
                           <SelectField
                             label="Categoria"
-                            value={categoryName}
+                            value={categoryName || 'Selecione uma categoria'}
                             icon="tag-outline"
-                            onPress={() => setActivePicker('category')}
+                            onPress={description.trim() ? () => setActivePicker('category') : undefined}
+                            disabled={!description.trim()}
                           />
                           <View style={[styles.dashedDivider, { borderColor: colors.border }]} />
                         </>
