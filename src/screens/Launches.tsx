@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl } from 'react-native';
-import { FAB } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,8 +21,8 @@ import { FOOTER_HEIGHT } from '../components/AppFooter';
 import { spacing, borderRadius, getShadow } from '../theme';
 import type { Transaction, TransactionStatus } from '../types/firebase';
 import {
-    generateBillsForMonth,
-    CreditCardBillWithTransactions
+  generateBillsForMonth,
+  CreditCardBillWithTransactions
 } from '../services/creditCardBillService';
 
 // Tipos dos parâmetros de navegação
@@ -50,7 +49,7 @@ export default function Launches() {
   
   // Calcular posição do summary bar considerando insets
   const summaryBottom = useMemo(
-    () => FOOTER_HEIGHT + Math.max(insets.bottom, 8) + 24,
+    () => FOOTER_HEIGHT + Math.max(insets.bottom, 8),
     [insets.bottom]
   );
   
@@ -252,7 +251,7 @@ export default function Launches() {
         account: bill.creditCardName,
         amount: -bill.totalAmount,
         type: 'paid' as const,
-        status: (bill.isPaid ? 'completed' : 'pending') as const,
+        status: bill.isPaid ? 'completed' as const : 'pending' as const,
         itemType: 'bill' as const,
         billData: bill, // Dados completos da fatura para renderização
       };
@@ -617,53 +616,55 @@ export default function Launches() {
         </ScrollView>
       </View>
 
-      {/* FAB para Saldo Previsto - wrapper para respeitar max-width */}
-      <View style={styles.fabContainer} pointerEvents="box-none">
-        <View style={styles.fabCentered} pointerEvents="box-none">
-          <FAB
-            icon="chart-line"
-            size="small"
-            style={[
-              styles.forecastFab,
-              { 
-                backgroundColor: colors.primary,
-                bottom: summaryBottom + 70,
-              }
-            ]}
-            color="#FFFFFF"
-            onPress={() => setShowForecastTooltip(!showForecastTooltip)}
-          />
-        </View>
-      </View>
-      
-      {/* Tooltip de Saldo Previsto */}
+      {/* Modal de Entenda seu Saldo */}
       {showForecastTooltip && (
         <Pressable 
-          style={styles.tooltipOverlay}
+          style={styles.modalOverlay}
           onPress={() => setShowForecastTooltip(false)}
         >
-          <View style={[styles.tooltipCard, { backgroundColor: colors.card }]}>
-            <Text style={[styles.tooltipTitle, { color: colors.text }]}>Saldo Previsto</Text>
-            <Text style={[styles.tooltipAmount, { color: forecast.forecastBalance >= 0 ? colors.income : expenseColor }]}>
-              {formatCurrencyBRL(forecast.forecastBalance)}
-            </Text>
-            <View style={[styles.tooltipDivider, { backgroundColor: colors.border }]} />
-            <View style={styles.tooltipDetails}>
-              <View style={styles.tooltipRow}>
-                <Text style={[styles.tooltipDetailLabel, { color: colors.textMuted }]}>Concluído:</Text>
-                <Text style={[styles.tooltipDetailValue, { color: forecast.realizedBalance >= 0 ? colors.income : expenseColor }]}>
+          <View style={[styles.forecastModal, { backgroundColor: colors.card }]}>
+            <Text style={[styles.forecastModalTitle, { color: colors.text }]}>Entenda seu saldo</Text>
+            
+            {/* Saldo Previsto - Destaque */}
+            <View style={styles.forecastHighlight}>
+              <Text style={[styles.forecastHighlightLabel, { color: colors.textMuted }]}>Saldo Previsto</Text>
+              <Text style={[styles.forecastModalAmount, { color: forecast.forecastBalance >= 0 ? colors.income : expenseColor }]}>
+                {formatCurrencyBRL(forecast.forecastBalance)}
+              </Text>
+            </View>
+            
+            <View style={[styles.forecastModalDivider, { backgroundColor: colors.border }]} />
+            
+            {/* Detalhamento Completo */}
+            <View style={styles.forecastModalDetails}>
+              <View style={styles.forecastModalRow}>
+                <Text style={[styles.forecastModalLabel, { color: colors.textMuted }]}>Entradas:</Text>
+                <Text style={[styles.forecastModalValue, { color: colors.income }]}>
+                  +{formatCurrencyBRL(totalIncome)}
+                </Text>
+              </View>
+              <View style={styles.forecastModalRow}>
+                <Text style={[styles.forecastModalLabel, { color: colors.textMuted }]}>Saídas:</Text>
+                <Text style={[styles.forecastModalValue, { color: expenseColor }]}>
+                  -{formatCurrencyBRL(totalExpense)}
+                </Text>
+              </View>
+              <View style={[styles.forecastModalDivider, { backgroundColor: colors.border, marginVertical: 8 }]} />
+              <View style={styles.forecastModalRow}>
+                <Text style={[styles.forecastModalLabel, { color: colors.textMuted }]}>Concluído:</Text>
+                <Text style={[styles.forecastModalValue, { color: forecast.realizedBalance >= 0 ? colors.income : expenseColor }]}>
                   {formatCurrencyBRL(forecast.realizedBalance)}
                 </Text>
               </View>
-              <View style={styles.tooltipRow}>
-                <Text style={[styles.tooltipDetailLabel, { color: colors.textMuted }]}>Entradas pendentes:</Text>
-                <Text style={[styles.tooltipDetailValue, { color: colors.income }]}>
+              <View style={styles.forecastModalRow}>
+                <Text style={[styles.forecastModalLabel, { color: colors.textMuted }]}>Entradas pendentes:</Text>
+                <Text style={[styles.forecastModalValue, { color: colors.income }]}>
                   +{formatCurrencyBRL(forecast.pendingIncome)}
                 </Text>
               </View>
-              <View style={styles.tooltipRow}>
-                <Text style={[styles.tooltipDetailLabel, { color: colors.textMuted }]}>Saídas pendentes:</Text>
-                <Text style={[styles.tooltipDetailValue, { color: expenseColor }]}>
+              <View style={styles.forecastModalRow}>
+                <Text style={[styles.forecastModalLabel, { color: colors.textMuted }]}>Saídas pendentes:</Text>
+                <Text style={[styles.forecastModalValue, { color: expenseColor }]}>
                   -{formatCurrencyBRL(forecast.pendingExpense)}
                 </Text>
               </View>
@@ -672,26 +673,33 @@ export default function Launches() {
         </Pressable>
       )}
 
-      {/* Summary Bar - Fixo acima do footer */}
+      {/* Summary Bar - Colado no footer */}
       <View style={[styles.summaryContainer, { bottom: summaryBottom }]}>
-        
-        {/* Resumo simplificado */}
-        <View style={[styles.summaryBar, { backgroundColor: colors.card }, getShadow(colors)]}>
-          <View style={styles.summaryItem}>
-            <Text style={[styles.summaryValue, { color: incomeColor }]}>{formatCurrencyBRL(totalIncome)}</Text>
-            <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>entradas</Text>
-          </View>
-          <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
-          <View style={styles.summaryItem}>
-            <Text style={[styles.summaryValue, { color: expenseColor }]}>{formatCurrencyBRL(totalExpense)}</Text>
-            <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>saídas</Text>
-          </View>
-          <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
-          <View style={styles.summaryItem}>
-            <Text style={[styles.summaryValue, { color: balance >= 0 ? colors.primary : expenseColor }]}>
-              {formatCurrencyBRL(balance)}
-            </Text>
-            <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>saldo atual</Text>
+        <View style={[styles.summaryBar, { backgroundColor: colors.card, borderTopColor: colors.border, borderBottomColor: colors.border }]}>
+          {/* Linha principal - Saldo + Botão */}
+          <View style={styles.summaryMainRow}>
+            {/* Saldo Atual */}
+            <View style={styles.summaryPrimary}>
+              <Text style={[styles.summaryLabelMain, { color: colors.textMuted }]}>saldo atual</Text>
+              <Text style={[styles.summaryAmountMain, { color: balance >= 0 ? colors.primary : expenseColor }]}>
+                {formatCurrencyBRL(balance)}
+              </Text>
+            </View>
+
+            {/* Botão Entenda seu Saldo */}
+            <Pressable
+              onPress={() => setShowForecastTooltip(true)}
+              style={({ pressed }) => [
+                styles.understandButton,
+                { backgroundColor: colors.primaryBg, borderColor: colors.primary },
+                pressed && { opacity: 0.7 }
+              ]}
+            >
+              <MaterialCommunityIcons name="chart-line" size={16} color={colors.primary} />
+              <Text style={[styles.understandButtonText, { color: colors.primary }]}>
+                Entenda seu saldo
+              </Text>
+            </Pressable>
           </View>
         </View>
       </View>
@@ -843,38 +851,77 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   summaryBar: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
+    maxWidth: 1200,
+    width: '100%',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderStyle: 'dashed',
+    paddingVertical: 10,
+    paddingHorizontal: spacing.md,
+  },
+  summaryMainRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    maxWidth: 1200,
-    width: '100%',
-    marginHorizontal: spacing.xs,
-    borderRadius: borderRadius.lg,
+    justifyContent: 'space-between',
   },
-  summaryItem: {
+  summaryPrimary: {
+    flex: 1,
+    gap: 2,
+  },
+  summaryLabelMain: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  summaryAmountMain: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  understandButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+  },
+  understandButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  forecastHighlight: {
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  forecastHighlightLabel: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  summaryCell: {
     flex: 1,
     alignItems: 'center',
   },
-  forecastFab: {
-    position: 'absolute',
-    right: 16,
+  summaryAmount: {
+    fontSize: 14,
+    fontWeight: '700',
   },
-  fabContainer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    top: 0,
+  summaryCellLabel: {
+    fontSize: 10,
+    marginTop: 1,
+  },
+  summaryDividerVertical: {
+    width: 1,
+    height: 28,
+  },
+  forecastButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
   },
-  fabCentered: {
-    maxWidth: 1200,
-    width: '100%',
-    flex: 1,
-    position: 'relative',
-  },
-  tooltipOverlay: {
+  modalOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -885,7 +932,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 100,
   },
-  tooltipCard: {
+  forecastModal: {
     width: '85%',
     maxWidth: 320,
     borderRadius: borderRadius.lg,
@@ -896,48 +943,40 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
-  tooltipTitle: {
+  forecastModalTitle: {
     fontSize: 16,
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: spacing.xs,
   },
-  tooltipAmount: {
+  forecastModalAmount: {
     fontSize: 28,
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: spacing.md,
   },
-  tooltipDivider: {
+  forecastModalDivider: {
     height: 1,
     marginVertical: spacing.md,
   },
-  tooltipDetails: {
+  forecastModalDetails: {
     gap: spacing.sm,
   },
-  tooltipRow: {
+  forecastModalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  tooltipDetailLabel: {
+  forecastModalLabel: {
     fontSize: 14,
   },
-  tooltipDetailValue: {
+  forecastModalValue: {
     fontSize: 14,
     fontWeight: '600',
   },
-  summaryDivider: {
-    width: 1,
-    height: 32,
-  },
-  summaryValue: {
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  summaryLabel: {
-    fontSize: 11,
-    marginTop: 2,
+  summaryItem: {
+    flex: 1,
+    alignItems: 'center',
   },
   statusModalOverlay: {
     flex: 1,
