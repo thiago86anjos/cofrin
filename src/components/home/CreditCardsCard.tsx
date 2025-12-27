@@ -42,7 +42,6 @@ const lightBg = '#FAFAFA';
 type CardUsageStatus = {
   level: 'controlled' | 'warning' | 'alert' | 'no-income';
   message: string;
-  icon: 'check-circle' | 'alert-circle' | 'alert' | 'information-outline';
   color: string;
 };
 
@@ -51,7 +50,6 @@ const getCardUsageStatus = (totalUsed: number, totalIncome: number, colors: any)
     return {
       level: 'no-income',
       message: 'Sem receitas registradas neste mês',
-      icon: 'information-outline',
       color: colors.textMuted,
     };
   }
@@ -62,21 +60,18 @@ const getCardUsageStatus = (totalUsed: number, totalIncome: number, colors: any)
     return {
       level: 'controlled',
       message: 'Gastos controlados',
-      icon: 'check-circle',
       color: '#22C55E', // verde
     };
   } else if (percentage <= 50) {
     return {
       level: 'warning',
       message: 'Cuidado, você está se aproximando do limite recomendado',
-      icon: 'alert-circle',
       color: '#F59E0B', // amarelo/laranja
     };
   } else {
     return {
       level: 'alert',
       message: 'Atenção, gastos elevados no cartão',
-      icon: 'alert',
       color: '#EF4444', // vermelho
     };
   }
@@ -159,22 +154,37 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
     // Determinar status da fatura
     const today = new Date().getDate();
     const isPaid = billAmount === 0;
-    const isPending = !isPaid && today <= card.dueDay;
+    const isDueToday = !isPaid && today === card.dueDay;
     const isOverdue = !isPaid && today > card.dueDay;
+    const isPending = !isPaid && today < card.dueDay;
     
     const getStatusText = () => {
       if (isPaid) return null;
       if (isOverdue) return 'Vencida';
+      if (isDueToday) return 'Vence hoje';
       if (isPending) return 'Pendente';
       return null;
     };
 
     const getStatusBadgeColors = () => {
       if (isOverdue) {
-        return { bg: colors.danger, border: colors.danger };
+        return { bg: '#EF5350', border: '#EF5350' }; // Vermelho
       }
-      // Pendente - cor laranja mais clara
-      return { bg: '#FFA726', border: '#FFA726' };
+      if (isDueToday) {
+        return { bg: '#FFA726', border: '#FFA726' }; // Laranja
+      }
+      // Pendente normal - cinza
+      return { bg: '#9E9E9E', border: '#9E9E9E' };
+    };
+    
+    const getBillValueColor = () => {
+      if (isOverdue) {
+        return '#EF5350'; // Vermelho
+      }
+      if (isDueToday) {
+        return '#F57C00'; // Laranja escuro
+      }
+      return colors.textMuted; // Cinza para pendente
     };
     
     const statusText = getStatusText();
@@ -210,19 +220,14 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
             )}
           </View>
 
-          {/* Segunda linha: vencimento (esquerda) + valor (direita) */}
+          {/* Segunda linha: vencimento + valor na mesma linha */}
           <View style={styles.cardInfo}>
-            <View style={styles.infoItemLeft}>
-              <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Vencimento</Text>
-              <Text style={[styles.infoValue, { color: colors.text }]}>
-                Dia {card.dueDay}
-              </Text>
-            </View>
-            <View style={styles.infoItemRight}>
-              <Text style={[styles.billValue, { color: billAmount > 0 ? colors.expense : colors.text }]}>
-                {formatCurrencyBRL(billAmount)}
-              </Text>
-            </View>
+            <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
+              Vencimento dia {card.dueDay}
+            </Text>
+            <Text style={[styles.billValue, { color: getBillValueColor() }]}>
+              {formatCurrencyBRL(billAmount)}
+            </Text>
           </View>
         </Pressable>
       </>
@@ -247,7 +252,7 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
                 ]}
               >
                 <MaterialCommunityIcons 
-                  name={usageStatus.icon} 
+                  name="information" 
                   size={22} 
                   color={usageStatus.color} 
                 />
@@ -454,24 +459,14 @@ const styles = StyleSheet.create({
   cardInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  infoItemLeft: {
-    gap: 2,
-  },
-  infoItemRight: {
-    alignItems: 'flex-end',
-    gap: 4,
+    alignItems: 'center',
   },
   infoLabel: {
-    fontSize: 13,
-  },
-  infoValue: {
-    fontSize: 14,
+    fontSize: 12,
   },
   billValue: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   emptyState: {
     alignItems: 'center',
