@@ -30,6 +30,34 @@ import { getPendingBillsMap, getCorrectBillForTransaction } from './creditCardBi
 const transactionsRef = collection(db, COLLECTIONS.TRANSACTIONS);
 
 // ==========================================
+// FUNÇÕES DE CACHE - Invalidar quando transações mudam
+// ==========================================
+
+// Função para limpar o cache de saldos acumulados
+// Deve ser chamada após criar/atualizar/deletar transações
+function clearCarryOverCache(userId?: string, accountId?: string) {
+  if (accountId) {
+    // Limpar apenas cache desta conta
+    for (const key of accountCarryOverCache.keys()) {
+      if (key.startsWith(accountId)) {
+        accountCarryOverCache.delete(key);
+      }
+    }
+  } else if (userId) {
+    // Limpar cache geral deste usuário
+    for (const key of carryOverCache.keys()) {
+      if (key.startsWith(userId)) {
+        carryOverCache.delete(key);
+      }
+    }
+  } else {
+    // Limpar tudo
+    carryOverCache.clear();
+    accountCarryOverCache.clear();
+  }
+}
+
+// ==========================================
 // CRIAR TRANSAÇÃO
 // ==========================================
 
@@ -154,6 +182,9 @@ export async function createTransaction(
     const usageAmount = data.type === 'expense' ? data.amount : -data.amount;
     await updateCreditCardUsage(data.creditCardId, usageAmount);
   }
+
+  // Limpar cache de saldos
+  clearCarryOverCache(userId, data.accountId);
 
   // Retornar transação criada (com os mesmos dados salvos)
   return {
@@ -695,6 +726,9 @@ export async function updateTransaction(
         await recalculateCreditCardUsage(oldTransaction.userId, oldCreditCardId);
       }
     }
+
+    // Limpar cache de saldos
+    clearCarryOverCache(oldTransaction.userId, oldTransaction.accountId);
   } catch (error) {
     console.error('❌ ERRO EM updateTransaction:', error);
     console.error('📝 Data recebida:', JSON.stringify(data, null, 2));
@@ -754,6 +788,9 @@ export async function deleteTransaction(transaction: Transaction): Promise<void>
   if (transaction.creditCardId && transaction.userId) {
     await recalculateCreditCardUsage(transaction.userId, transaction.creditCardId);
   }
+
+  // Limpar cache de saldos
+  clearCarryOverCache(transaction.userId, transaction.accountId);
 }
 
 // Buscar transações por seriesId
@@ -1519,23 +1556,38 @@ export async function getCategoryDataOverTime(
 // - Pagamentos de fatura não são duplicados
 // - Transações de cartão com fatura pendente não entram
 // - Transferências são ignoradas (não afetam saldo total)
-// NOTA: Idealmente, isso deveria vir de snapshots mensais salvos,
-// mas por enquanto recalcula toda vez (funcional, mas não otimizado)
+// OTIMIZADO: usa cache em memória e queries com filtros de data
+const carryOverCache = new Map<string, { balance: number; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+
 export async function getCarryOverBalance(
   userId: string,
   beforeMonth: number,
   beforeYear: number
 ): Promise<number> {
+  // Verificar cache
+  const cacheKey = `${userId}-${beforeMonth}-${beforeYear}`;
+  const cached = carryOverCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.balance;
+  }
+
   // Buscar todas as contas para obter a soma dos saldos iniciais
   const accounts = await getAccounts(userId);
   const totalInitialBalance = accounts
     .filter(acc => acc.includeInTotal)
     .reduce((sum, acc) => sum + (acc.initialBalance || 0), 0);
 
-  // Buscar TODAS as transações do usuário
+  // Calcular data limite (último dia do mês anterior)
+  const limitDate = new Date(beforeYear, beforeMonth - 1, 0, 23, 59, 59);
+  const limitTimestamp = Timestamp.fromDate(limitDate);
+
+  // Buscar apenas transações até a data limite + completed
   const q = query(
     transactionsRef,
-    where('userId', '==', userId)
+    where('userId', '==', userId),
+    where('date', '<=', limitTimestamp),
+    where('status', '==', 'completed')
   );
 
   const snapshot = await getDocs(q);
@@ -1544,37 +1596,26 @@ export async function getCarryOverBalance(
     ...doc.data(),
   })) as Transaction[];
 
-  // Buscar faturas pendentes
-  const pendingBills = await getPendingBillsMap(userId);
-
   // Começar com a soma dos saldos iniciais de todas as contas
   let carryOver = totalInitialBalance;
 
   for (const t of transactions) {
-    // Apenas lançamentos concluídos entram no saldo histórico
-    if (t.status !== 'completed') continue;
-    
     // Ignorar transações de cartão de crédito (compras)
     // O impacto no saldo bancário é dado pelo PAGAMENTO DA FATURA (creditCardBillId)
-    // ou se a fatura ainda não foi paga, o dinheiro ainda está na conta.
     if (t.creditCardId) {
       continue;
     }
     
-    // Verificar se a transação é de um mês ANTERIOR ao mês especificado
-    const isBeforeMonth = 
-      t.year < beforeYear || 
-      (t.year === beforeYear && t.month < beforeMonth);
-    
-    if (isBeforeMonth) {
-      if (t.type === 'income') {
-        carryOver += t.amount;
-      } else if (t.type === 'expense') {
-        carryOver -= t.amount;
-      }
-      // Transferências não afetam o saldo total (apenas movem entre contas)
+    if (t.type === 'income') {
+      carryOver += t.amount;
+    } else if (t.type === 'expense') {
+      carryOver -= t.amount;
     }
+    // Transferências não afetam o saldo total (apenas movem entre contas)
   }
+
+  // Cachear resultado
+  carryOverCache.set(cacheKey, { balance: carryOver, timestamp: Date.now() });
 
   return carryOver;
 }
@@ -1585,12 +1626,22 @@ export async function getCarryOverBalance(
 // 2. Inclui o saldo inicial (initialBalance) da conta
 // 3. Transferências PARA esta conta são positivas
 // 4. Transferências DESTA conta são negativas
+// OTIMIZADO: usa cache e queries com filtros de data
+const accountCarryOverCache = new Map<string, { balance: number; timestamp: number }>();
+
 export async function getAccountCarryOverBalance(
   userId: string,
   accountId: string,
   beforeMonth: number,
   beforeYear: number
 ): Promise<number> {
+  // Verificar cache
+  const cacheKey = `${accountId}-${beforeMonth}-${beforeYear}`;
+  const cached = accountCarryOverCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.balance;
+  }
+
   // Buscar a conta para obter o saldo inicial
   const account = await getAccountById(accountId);
   if (!account) {
@@ -1601,11 +1652,17 @@ export async function getAccountCarryOverBalance(
   // Começar com o saldo inicial da conta
   let carryOver = account.initialBalance || 0;
 
-  // Buscar transações da conta
+  // Calcular data limite (último dia do mês anterior)
+  const limitDate = new Date(beforeYear, beforeMonth - 1, 0, 23, 59, 59);
+  const limitTimestamp = Timestamp.fromDate(limitDate);
+
+  // Buscar transações da conta até a data limite + completed
   const q = query(
     transactionsRef,
     where('userId', '==', userId),
-    where('accountId', '==', accountId)
+    where('accountId', '==', accountId),
+    where('date', '<=', limitTimestamp),
+    where('status', '==', 'completed')
   );
 
   const snapshot = await getDocs(q);
@@ -1614,11 +1671,13 @@ export async function getAccountCarryOverBalance(
     ...doc.data(),
   })) as Transaction[];
 
-  // Buscar também transferências PARA esta conta
+  // Buscar também transferências PARA esta conta até a data limite + completed
   const qToAccount = query(
     transactionsRef,
     where('userId', '==', userId),
-    where('toAccountId', '==', accountId)
+    where('toAccountId', '==', accountId),
+    where('date', '<=', limitTimestamp),
+    where('status', '==', 'completed')
   );
 
   const snapshotToAccount = await getDocs(qToAccount);
@@ -1628,42 +1687,29 @@ export async function getAccountCarryOverBalance(
   })) as Transaction[];
 
   for (const t of transactions) {
-    // Apenas lançamentos concluídos
-    if (t.status !== 'completed') continue;
-    
     // Ignorar transações de cartão de crédito (elas não afetam a conta diretamente)
     if (t.creditCardId) continue;
     
-    // Verificar se é de um mês ANTERIOR
-    const isBeforeMonth = 
-      t.year < beforeYear || 
-      (t.year === beforeYear && t.month < beforeMonth);
-    
-    if (isBeforeMonth) {
-      if (t.type === 'income') {
-        carryOver += t.amount;
-      } else if (t.type === 'expense') {
-        carryOver -= t.amount;
-      } else if (t.type === 'transfer') {
-        // Transferência DESTA conta = saída
-        carryOver -= t.amount;
-      }
+    if (t.type === 'income') {
+      carryOver += t.amount;
+    } else if (t.type === 'expense') {
+      carryOver -= t.amount;
+    } else if (t.type === 'transfer') {
+      // Transferência DESTA conta = saída
+      carryOver -= t.amount;
     }
   }
 
   // Adicionar transferências PARA esta conta
   for (const t of transfersToAccount) {
-    if (t.status !== 'completed') continue;
-    
-    const isBeforeMonth = 
-      t.year < beforeYear || 
-      (t.year === beforeYear && t.month < beforeMonth);
-    
-    if (isBeforeMonth && t.type === 'transfer') {
+    if (t.type === 'transfer') {
       // Transferência PARA esta conta = entrada
       carryOver += t.amount;
     }
   }
+
+  // Cachear resultado
+  accountCarryOverCache.set(cacheKey, { balance: carryOver, timestamp: Date.now() });
 
   return carryOver;
 }
