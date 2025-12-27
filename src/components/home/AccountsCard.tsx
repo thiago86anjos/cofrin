@@ -59,7 +59,11 @@ export default memo(function AccountsCard({
   const { colors } = useAppTheme();
 
   // Filtrar apenas contas com saldo diferente de zero OU que tenham lançamentos/faturas pendentes
+  // E que estejam marcadas para incluir no saldo total (includeInTotal !== false)
   const accountsWithBalance = accounts.filter(account => {
+    // Primeira validação: não mostrar contas ocultas (includeInTotal = false)
+    if (account.includeInTotal === false) return false;
+    
     // Se tem saldo, mostrar
     if (account.balance !== 0) return true;
     

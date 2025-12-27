@@ -205,6 +205,7 @@ export default function ConfigureAccounts({ navigation }: any) {
         name: accountName.trim(),
         type: accountType,
         icon: accountIcon,
+        includeInTotal: accountIncludeInTotal,
       });
 
       if (result) {
@@ -591,13 +592,7 @@ export default function ConfigureAccounts({ navigation }: any) {
       >
         <View style={styles.centeredContainer}>
           <View style={styles.content}>
-        {/* Saldo total */}
-        {activeAccounts.length > 0 && (
-          <View style={[styles.totalCard, { backgroundColor: colors.primary }]}>
-            <Text style={styles.totalLabel}>Saldo total</Text>
-            <Text style={styles.totalValue}>{formatCurrencyBRL(totalBalance)}</Text>
-          </View>
-        )}
+
 
         {/* Contas existentes */}
         {loading ? (
@@ -607,10 +602,9 @@ export default function ConfigureAccounts({ navigation }: any) {
         ) : activeAccounts.length > 0 ? (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-              SUAS CONTAS
+              Toque para editar
             </Text>
             <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
-              Toque para editar
             </Text>
             <View style={[styles.card, { backgroundColor: colors.card }, getShadow(colors)]}>
               {activeAccounts.map((account, index) => (
@@ -797,45 +791,6 @@ export default function ConfigureAccounts({ navigation }: any) {
                     ]}
                   />
                 </View>
-
-                {/* Incluir no saldo total - abaixo do saldo inicial */}
-                <View style={styles.checkboxWithTooltip}>
-                  <Pressable
-                    onPress={() => setAccountIncludeInTotal(!accountIncludeInTotal)}
-                    style={styles.checkboxRow}
-                  >
-                    <View style={[
-                      styles.checkbox,
-                      { borderColor: colors.primary },
-                      accountIncludeInTotal && { backgroundColor: colors.primary },
-                    ]}>
-                      {accountIncludeInTotal && (
-                        <MaterialCommunityIcons name="check" size={14} color="#fff" />
-                      )}
-                    </View>
-                    <Text style={[styles.checkboxLabel, { color: colors.text }]}>
-                      Incluir no saldo total
-                    </Text>
-                  </Pressable>
-                  <Pressable 
-                    onPress={() => setShowIncludeTooltip(!showIncludeTooltip)}
-                    hitSlop={8}
-                    style={styles.checkboxInfoButton}
-                  >
-                    <MaterialCommunityIcons 
-                      name="information-outline" 
-                      size={18} 
-                      color={colors.primary} 
-                    />
-                  </Pressable>
-                </View>
-                {showIncludeTooltip && (
-                  <View style={[styles.tooltip, { backgroundColor: colors.primaryBg, borderColor: colors.primary }]}>
-                    <Text style={[styles.tooltipText, { color: colors.text }]}>
-                      Quando ativado, o saldo desta conta será somado ao seu patrimônio total exibido na tela inicial. Desative para contas que não representam seu dinheiro disponível (ex: investimentos de longo prazo).
-                    </Text>
-                  </View>
-                )}
               </View>
             )}
 
@@ -876,6 +831,49 @@ export default function ConfigureAccounts({ navigation }: any) {
                 })}
               </View>
             </View>
+
+            {/* Checkbox para ocultar conta do saldo principal - SOMENTE NO MODO EDIÇÃO */}
+            {!isCreateMode && (
+              <View style={styles.formGroup}>
+                <View style={styles.checkboxWithTooltip}>
+                  <Pressable
+                    onPress={() => setAccountIncludeInTotal(!accountIncludeInTotal)}
+                    style={styles.checkboxRow}
+                  >
+                    <View style={[
+                      styles.checkbox,
+                      { borderColor: colors.primary },
+                      !accountIncludeInTotal && { backgroundColor: colors.primary },
+                    ]}>
+                      {!accountIncludeInTotal && (
+                        <MaterialCommunityIcons name="check" size={14} color="#fff" />
+                      )}
+                    </View>
+                    <Text style={[styles.checkboxLabel, { color: colors.text }]}>
+                      Ocultar essa conta do saldo principal da home
+                    </Text>
+                  </Pressable>
+                  <Pressable 
+                    onPress={() => setShowIncludeTooltip(!showIncludeTooltip)}
+                    hitSlop={8}
+                    style={styles.checkboxInfoButton}
+                  >
+                    <MaterialCommunityIcons 
+                      name="information-outline" 
+                      size={18} 
+                      color={colors.primary} 
+                    />
+                  </Pressable>
+                </View>
+                {showIncludeTooltip && (
+                  <View style={[styles.tooltip, { backgroundColor: colors.primaryBg, borderColor: colors.primary }]}>
+                    <Text style={[styles.tooltipText, { color: colors.text }]}>
+                      Quando marcado, esta conta não aparecerá no card "Onde está meu dinheiro" da tela inicial por questões de privacidade. Útil para ocultar contas que você prefere manter privadas (ex: investimentos, reservas de emergência).
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
 
             {/* Ações do modo edição */}
             {!isCreateMode && (
@@ -1147,15 +1145,15 @@ const styles = StyleSheet.create({
     marginLeft: spacing.md,
   },
   accountName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
   },
   accountType: {
-    fontSize: 13,
+    fontSize: 12,
     marginTop: 2,
   },
   accountBalance: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
   accountRight: {
