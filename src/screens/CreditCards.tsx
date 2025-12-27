@@ -900,9 +900,10 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 0,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
+    backgroundColor: 'rgba(0,0,0,0.03)',
   },
   input: {
     flex: 1,
@@ -923,10 +924,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1,
+    borderWidth: 0,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: 12,
+    backgroundColor: 'rgba(0,0,0,0.03)',
   },
   selectText: {
     fontSize: 16,

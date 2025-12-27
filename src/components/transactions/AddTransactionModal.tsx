@@ -990,7 +990,7 @@ export default function AddTransactionModal({
     };
 
     return (
-      <View style={[styles.datePickerContainer, { backgroundColor: colors.card }]}>
+      <View style={styles.pickerContainer}>
         <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
           <Text style={[styles.pickerTitle, { color: colors.text }]}>Selecionar Data</Text>
           <Pressable onPress={() => setActivePicker('none')} hitSlop={12}>
@@ -1136,7 +1136,6 @@ export default function AddTransactionModal({
       if (isCreatingCategory) {
         return (
           <View style={[styles.pickerContainer, { backgroundColor: colors.card }]}>
-            <View style={[styles.bottomSheetHandle, { backgroundColor: colors.border }]} />
             <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
               <Pressable 
                 onPress={() => {
@@ -1254,7 +1253,6 @@ export default function AddTransactionModal({
       // Picker normal com botão de adicionar
       return (
         <View style={[styles.pickerContainer, { backgroundColor: colors.card }]}>
-          <View style={[styles.bottomSheetHandle, { backgroundColor: colors.border }]} />
           <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.pickerTitle, { color: colors.text }]}>Selecionar Categoria</Text>
             <Pressable onPress={() => setActivePicker('none')} hitSlop={12}>
@@ -1345,7 +1343,6 @@ export default function AddTransactionModal({
     if (activePicker === 'account') {
       return (
         <View style={[styles.pickerContainer, { backgroundColor: colors.card }]}>
-          <View style={[styles.bottomSheetHandle, { backgroundColor: colors.border }]} />
           <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.pickerTitle, { color: colors.text }]}>
               {type === 'transfer' ? 'Conta de Origem' : 'Selecionar Conta'}
@@ -1448,7 +1445,6 @@ export default function AddTransactionModal({
       
       return (
         <View style={[styles.pickerContainer, { backgroundColor: colors.card }]}>
-          <View style={[styles.bottomSheetHandle, { backgroundColor: colors.border }]} />
           <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.pickerTitle, { color: colors.text }]}>Conta de Destino</Text>
             <Pressable onPress={() => setActivePicker('none')} hitSlop={12}>
@@ -1500,7 +1496,6 @@ export default function AddTransactionModal({
     if (activePicker === 'recurrence') {
       return (
         <View style={[styles.pickerContainer, { backgroundColor: colors.card }]}>
-          <View style={[styles.bottomSheetHandle, { backgroundColor: colors.border }]} />
           <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.pickerTitle, { color: colors.text }]}>Repetir Lançamento</Text>
             <Pressable onPress={() => setActivePicker('none')} hitSlop={12}>
@@ -1548,7 +1543,6 @@ export default function AddTransactionModal({
     if (activePicker === 'recurrenceType') {
       return (
         <View style={[styles.pickerContainer, { backgroundColor: colors.card }]}>
-          <View style={[styles.bottomSheetHandle, { backgroundColor: colors.border }]} />
           <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.pickerTitle, { color: colors.text }]}>Tipo de Recorrência</Text>
             <Pressable onPress={() => setActivePicker('none')} hitSlop={12}>
@@ -1611,7 +1605,6 @@ export default function AddTransactionModal({
       
       return (
         <View style={[styles.pickerContainer, { backgroundColor: colors.card }]}>
-          <View style={[styles.bottomSheetHandle, { backgroundColor: colors.border }]} />
           <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.pickerTitle, { color: colors.text }]}>Quantas vezes repetir?</Text>
             <Pressable onPress={() => setActivePicker('none')} hitSlop={12}>
@@ -1727,16 +1720,18 @@ export default function AddTransactionModal({
         statusBarTranslucent
       >
         {activePicker !== 'none' ? (
-          // Bottom Sheet overlay
-          <View style={styles.bottomSheetOverlay}>
-            <Pressable
-              style={StyleSheet.absoluteFill}
-              onPress={() => setActivePicker('none')}
-            />
-            <View style={styles.bottomSheetContainer}>
+          // Modal overlay centralizada
+          <Pressable
+            style={styles.pickerOverlay}
+            onPress={() => setActivePicker('none')}
+          >
+            <Pressable 
+              onPress={(e) => e.stopPropagation()}
+              style={[styles.centerModalContainer, { backgroundColor: colors.card }]}
+            >
               {renderPickerContent()}
-            </View>
-          </View>
+            </Pressable>
+          </Pressable>
         ) : (
           // Main form fullscreen
           <View style={[styles.fullscreenModal, { backgroundColor: colors.bg, paddingTop: insets.top }]}>
@@ -2169,21 +2164,35 @@ export default function AddTransactionModal({
                         }
                       }}
                       style={({ pressed }) => [
-                        styles.deleteButton,
-                        { borderColor: colors.expense },
-                        pressed && { opacity: 0.8, backgroundColor: colors.expense + '10' },
+                        styles.ghostButton,
+                        pressed && { opacity: 0.6 },
                       ]}
                     >
-                      <MaterialCommunityIcons name="trash-can-outline" size={20} color={colors.expense} />
-                      <Text style={[styles.deleteButtonText, { color: colors.expense }]}>Excluir</Text>
+                      <MaterialCommunityIcons name="trash-can-outline" size={20} color={colors.textMuted} />
                     </Pressable>
                   )}
-                  {/* Botão Salvar/Atualizar - verde sucesso */}
+                  
+                  <View style={{ flex: 1 }} />
+                  
+                  {/* Botão Cancelar */}
+                  <Pressable
+                    onPress={onClose}
+                    disabled={saving}
+                    style={({ pressed }) => [
+                      styles.ghostButton,
+                      pressed && { opacity: 0.6 },
+                      saving && { opacity: 0.5 },
+                    ]}
+                  >
+                    <MaterialCommunityIcons name="close" size={22} color={colors.textMuted} />
+                  </Pressable>
+                  
+                  {/* Botão Salvar - apenas ícone check */}
                   <Pressable
                     onPress={handleSave}
                     disabled={saving || !canConfirm}
                     style={({ pressed }) => [
-                      styles.saveButton,
+                      styles.iconButtonPrimary,
                       { backgroundColor: colors.success },
                       pressed && { opacity: 0.9 },
                       (saving || !canConfirm) && { opacity: 0.6 },
@@ -2192,17 +2201,8 @@ export default function AddTransactionModal({
                     {saving ? (
                       <ActivityIndicator size="small" color="#fff" />
                     ) : (
-                      <MaterialCommunityIcons name="check" size={20} color="#fff" />
+                      <MaterialCommunityIcons name="check" size={24} color="#fff" />
                     )}
-                    <Text style={styles.saveButtonText}>
-                      {saving 
-                        ? (savingProgress 
-                            ? `Criando ${savingProgress.current}/${savingProgress.total}...`
-                            : (isEditMode ? 'Atualizando...' : 'Salvando...')
-                          )
-                        : (isEditMode ? 'Atualizar' : 'Confirmar')
-                      }
-                    </Text>
                   </Pressable>
                 </View>
               )}
@@ -2366,17 +2366,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
+    paddingVertical: spacing.xs,
+    borderBottomWidth: 0,
   },
   fullscreenTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '600',
   },
   closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2432,6 +2432,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     gap: spacing.sm,
+    borderWidth: 0,
   },
   inputWrapper: {
     flex: 1,
@@ -2500,7 +2501,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.sm,
     borderRadius: borderRadius.sm,
-    borderWidth: 1,
+    borderWidth: 0,
     gap: spacing.xs,
   },
   moveSeriesButtonText: {
@@ -2578,7 +2579,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.md,
-    borderWidth: 1.5,
+    borderWidth: 0,
     alignItems: 'center',
   },
   discountOptionText: {
@@ -2597,7 +2598,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.md,
-    borderWidth: 1,
+    borderWidth: 0,
     fontSize: 15,
   },
   anticipateModalButtons: {
@@ -2620,49 +2621,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
-    gap: spacing.md,
+    gap: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
   },
-  saveButton: {
-    flex: 1,
-    flexDirection: 'row',
+  iconButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.md + 2,
-    borderRadius: borderRadius.lg,
-    gap: spacing.sm,
+  },
+  ghostButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconButtonPrimary: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
     ...Platform.select({
       web: {
-        boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.15)',
+        boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.2)',
       },
       default: {
         elevation: 4,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15,
+        shadowOpacity: 0.2,
         shadowRadius: 4,
       },
     }),
-  },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  deleteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: borderRadius.md,
-    borderWidth: 1.5,
-  },
-  deleteButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: spacing.xs,
   },
   onboardingButton: {
     alignSelf: 'center',
@@ -2679,25 +2674,32 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
-  // Bottom Sheet styles
-  bottomSheetOverlay: {
+  // Picker overlay styles
+  pickerOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
   },
-  bottomSheetContainer: {
-    maxHeight: SCREEN_HEIGHT * 0.7,
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
+  centerModalContainer: {
+    width: '100%',
+    maxWidth: 380,
+    maxHeight: SCREEN_HEIGHT * 0.65,
+    borderRadius: borderRadius.lg,
     overflow: 'hidden',
-  },
-  bottomSheetHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: spacing.sm,
-    marginBottom: spacing.xs,
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.3)',
+      },
+      default: {
+        elevation: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+    }),
   },
   pickerContainer: {
     width: '100%',
@@ -2708,12 +2710,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
+    paddingVertical: spacing.sm + 2,
     borderBottomWidth: 1,
   },
   pickerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
   },
   pickerScroll: {
     maxHeight: SCREEN_HEIGHT * 0.55,
@@ -2772,7 +2774,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
+    borderWidth: 0,
   },
   numericValue: {
     fontSize: 48,
@@ -2789,18 +2791,14 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.md,
-    borderWidth: 1.5,
+    borderWidth: 0,
     alignItems: 'center',
   },
   quickNumberText: {
     fontSize: 14,
     fontWeight: '600',
   },
-  // Custom Date Picker styles
-  datePickerContainer: {
-    width: '100%',
-    maxHeight: SCREEN_HEIGHT * 0.65,
-  },
+  // Custom Date Picker styles - removido datePickerContainer, usando pickerContainer
   calendarHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2957,10 +2955,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   createCategoryInput: {
-    borderWidth: 1,
+    borderWidth: 0,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   createCategoryInputText: {
     fontSize: 15,
@@ -2974,7 +2973,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: borderRadius.md,
-    borderWidth: 1.5,
+    borderWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2986,7 +2985,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    borderWidth: 1,
+    borderWidth: 0,
     borderRadius: borderRadius.md,
   },
   createCategoryPreviewLabel: {

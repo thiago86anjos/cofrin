@@ -675,8 +675,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.md,
     borderRadius: borderRadius.md,
-    borderWidth: 1,
+    borderWidth: 0,
     marginBottom: spacing.lg,
+    backgroundColor: 'rgba(0,0,0,0.03)',
   },
   manageButtonIcon: {
     width: 40,

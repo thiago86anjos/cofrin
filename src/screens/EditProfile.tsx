@@ -151,10 +151,11 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 0,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
     marginBottom: spacing.xl,
+    backgroundColor: 'rgba(0,0,0,0.03)',
   },
   input: {
     flex: 1,
