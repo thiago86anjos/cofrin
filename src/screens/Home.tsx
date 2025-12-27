@@ -1,4 +1,4 @@
-import { View, StyleSheet, ScrollView, useWindowDimensions, Pressable } from "react-native";
+import { View, StyleSheet, ScrollView, useWindowDimensions, Pressable, TouchableOpacity } from "react-native";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -134,13 +134,15 @@ export default function Home() {
   );
 
   return (
-    <MainLayout>
-      <ScrollView 
-        style={{ backgroundColor: colors.bg }} 
-        contentContainerStyle={{ 
-          paddingTop: insets.top || 16
-        }}
-      >
+    <View style={{ flex: 1 }}>
+      <MainLayout>
+        <ScrollView
+          style={{ backgroundColor: colors.bg }}
+          contentContainerStyle={{
+            paddingTop: insets.top || 16,
+            paddingBottom: 100, // Espaço para o FAB
+          }}
+        >
         <View style={styles.centeredContainer}>
           <View style={styles.content}>
             {/* Saudação - sempre visível imediatamente */}
@@ -269,7 +271,23 @@ export default function Home() {
         </View>
       </ScrollView>
     </MainLayout>
-  );
+
+    {/* FAB Julius - Assistente Financeiro (apenas para o e-mail do Thiago) */}
+    {user?.email?.toLowerCase() === 'thiago.w3c@gmail.com' && (
+      <TouchableOpacity
+        style={[styles.juliusFab, { bottom: insets.bottom + 80 }]}
+        onPress={() => navigation.navigate('JuliusChat')}
+        activeOpacity={0.85}
+        accessibilityLabel="Abrir Julius, assistente financeiro"
+      >
+        <View style={styles.juliusFabContent}>
+          <Text style={styles.juliusFabEmoji}>📢</Text>
+          <Text style={styles.juliusFabText}>Julius</Text>
+        </View>
+      </TouchableOpacity>
+    )}
+  </View>
+);
 }
 
 const styles = StyleSheet.create({
@@ -337,5 +355,34 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: 12,
     fontWeight: '600',
+  },
+  // Julius FAB
+  juliusFab: {
+    position: 'absolute',
+    right: 20,
+    backgroundColor: DS_COLORS.primary,
+    borderRadius: 28,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  juliusFabContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  juliusFabEmoji: {
+    fontSize: 20,
+  },
+  juliusFabText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

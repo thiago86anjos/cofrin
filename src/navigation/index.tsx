@@ -29,6 +29,7 @@ const MinhasAcoes = lazy(() => import("../screens/MinhasAcoes"));
 const ImportarMovimentacoesAtivos = lazy(() => import("../screens/ImportarMovimentacoesAtivos"));
 const Onboarding = lazy(() => import("../screens/Onboarding"));
 const Tutorial = lazy(() => import("../screens/Tutorial"));
+const JuliusChat = lazy(() => import("../screens/JuliusChatScreen"));
 
 import { useAuth } from "../contexts/authContext";
 
@@ -69,6 +70,7 @@ const MinhasAcoesScreen = withSuspense(MinhasAcoes);
 const ImportarMovimentacoesAtivosScreen = withSuspense(ImportarMovimentacoesAtivos);
 const OnboardingScreen = withSuspense(Onboarding);
 const TutorialScreen = withSuspense(Tutorial);
+const JuliusChatScreen = withSuspense(JuliusChat);
 
 // Configuração de Deep Linking
 const linking = {
@@ -144,6 +146,7 @@ export default function RootNavigation() {
             ) : null}
             <Stack.Screen name="About" component={AboutScreen} />
             <Stack.Screen name="Education" component={EducationScreen} />
+            <Stack.Screen name="JuliusChat" component={JuliusChatScreen} />
           </Stack.Navigator>
         )
       ) : (
