@@ -520,11 +520,80 @@ export default function Categories({ navigation }: any) {
     
     const categoryId = editingCategory.id;
     const catName = editingCategory.name;
+    const isSubcategory = !!editingCategory.parentId;
     
     // Fechar a modal primeiro
     setModalVisible(false);
     resetModalState();
     
+    // Se for subcategoria, usar o fluxo específico de subcategoria
+    if (isSubcategory) {
+      // Buscar a categoria pai
+      const allCategoriesOfType = categoryType === 'expense' ? expenseCategories : incomeCategories;
+      const parentCategory = allCategoriesOfType.find(c => c.id === editingCategory.parentId);
+      
+      if (!parentCategory) {
+        showAlert('Erro', 'Categoria pai não encontrada');
+        return;
+      }
+      
+      // Verificar se há transações associadas
+      try {
+        const { getTransactionCountByCategory } = await import('../services/transactionService');
+        
+        if (!user?.uid) return;
+        
+        const transactionCount = await getTransactionCountByCategory(user.uid, categoryId);
+        
+        if (transactionCount > 0) {
+          // Tem transações: transferir para categoria pai automaticamente
+          showAlert(
+            'Transferir lançamentos',
+            `Esta subcategoria possui ${transactionCount} lançamento(s). Os lançamentos serão transferidos para a categoria pai "${parentCategory.name}". Deseja continuar?`,
+            [
+              { text: 'Cancelar', style: 'cancel' },
+              { 
+                text: 'Excluir', 
+                style: 'destructive',
+                onPress: async () => {
+                  await confirmDeleteSubcategoryWithTransfer(categoryId, catName, parentCategory.id, parentCategory.name);
+                }
+              },
+            ]
+          );
+        } else {
+          // Sem transações: confirmar exclusão direta
+          showAlert(
+            'Excluir subcategoria',
+            `Deseja realmente excluir a subcategoria "${catName}"?`,
+            [
+              { text: 'Cancelar', style: 'cancel' },
+              { 
+                text: 'Excluir', 
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    const result = await deleteCategory(categoryId);
+                    if (result) {
+                      showSnackbar('Subcategoria excluída!');
+                    } else {
+                      showAlert('Erro', 'Não foi possível excluir a subcategoria');
+                    }
+                  } catch (error: any) {
+                    showAlert('Erro', error.message || 'Erro ao excluir subcategoria');
+                  }
+                }
+              },
+            ]
+          );
+        }
+      } catch (error: any) {
+        showAlert('Erro', error.message || 'Erro ao verificar lançamentos da subcategoria');
+      }
+      return;
+    }
+    
+    // Fluxo para categoria pai (código existente)
     // Verificar se é uma categoria protegida
     const allCategoriesOfType = categoryType === 'expense' ? expenseCategories : incomeCategories;
     const category = allCategoriesOfType.find(c => c.id === categoryId);
