@@ -10,9 +10,9 @@ import { useMonthlyGoals } from "../hooks/useMonthlyGoals";
 import React, { useCallback, useState, useEffect, useDeferredValue } from "react";
 import MainLayout from "../components/MainLayout";
 import {
-  UpcomingFlowsCardShimmer,
-  AccountsCardShimmer,
-  CreditCardsCardShimmer, CategoryCardShimmer
+    UpcomingFlowsCardShimmer,
+    AccountsCardShimmer,
+    CreditCardsCardShimmer, CategoryCardShimmer
 } from "../components/home/HomeShimmer";
 import AccountsCard from "../components/home/AccountsCard";
 import { UpcomingFlowsCard } from "../components/home";
@@ -136,7 +136,7 @@ export default function Home() {
   return (
     <MainLayout>
       <ScrollView 
-        style={{ backgroundColor: DS_COLORS.background }} 
+        style={{ backgroundColor: colors.bg }} 
         contentContainerStyle={{ 
           paddingTop: insets.top || 16
         }}

@@ -580,9 +580,6 @@ export default function Categories({ navigation }: any) {
               </View>
             ) : currentCategories.length > 0 ? (
               <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-                  {categoryType === 'expense' ? 'CATEGORIAS DE DESPESA' : 'CATEGORIAS DE RECEITA'}
-                </Text>
                 <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
                   Toque para editar
                 </Text>

@@ -5,6 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppFooter, { FOOTER_HEIGHT } from './AppFooter';
 import AddTransactionModal from './transactions/AddTransactionModal';
 import { useTransactionRefresh } from '../contexts/transactionRefreshContext';
+import { useAppTheme } from '../contexts/themeContext';
+import { spacing } from '../theme';
 
 type Props = {
   children: React.ReactNode;
@@ -14,14 +16,16 @@ export default function MainLayout({ children }: Props) {
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const insets = useSafeAreaInsets();
   const { triggerRefresh } = useTransactionRefresh();
+  const { colors } = useAppTheme();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [modalType, setModalType] = useState<'despesa' | 'receita' | 'transfer'>('despesa');
 
-  const bottomPad = useMemo(
-    () => FOOTER_HEIGHT + 6 + Math.max(insets.bottom, 8) + 16,
-    [insets.bottom]
-  );
+  const bottomPad = useMemo(() => {
+    const footerPaddingTop = spacing.sm;
+    const footerPaddingBottom = Math.max(insets.bottom, spacing.sm);
+    return FOOTER_HEIGHT + footerPaddingTop + footerPaddingBottom;
+  }, [insets.bottom]);
 
   function openAdd() {
     setModalType('despesa');
@@ -35,8 +39,8 @@ export default function MainLayout({ children }: Props) {
   }
 
   return (
-    <View style={styles.root}>
-      <View style={[styles.content, { paddingBottom: bottomPad }]}>{children}</View>
+    <View style={[styles.root, { backgroundColor: colors.bg }]}>
+      <View style={[styles.content, { paddingBottom: bottomPad, backgroundColor: colors.bg }]}>{children}</View>
 
       <AppFooter
         onHome={() => navigation.navigate('Bem-vindo' as any)}
