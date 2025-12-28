@@ -14,6 +14,7 @@ import {
     CategoryTotal,
     CreditCardData
 } from './juliusDataService';
+import * as accountService from '../accountService';
 
 // Re-export CategoryTotal para compatibilidade
 export { CategoryTotal, CreditCardData, GoalData } from './juliusDataService';
@@ -71,6 +72,9 @@ export interface FinancialSummary {
   // Metas (mensais e longo prazo)
   goals?: GoalData;
   
+  // Saldo das contas
+  accountsBalance: number;
+  
   // Flags
   hasData: boolean;
   hasPreviousMonthData: boolean;
@@ -93,12 +97,18 @@ export async function generateFinancialSummary(userId: string): Promise<Financia
   const daysPassed = now.getDate();
 
   // Buscar dados CONSISTENTES com a Home (já filtrados)
-  const [homeData, topExpensesTx, creditCardData, goalsData] = await Promise.all([
+  const [homeData, topExpensesTx, creditCardData, goalsData, accounts] = await Promise.all([
     getHomeConsistentData(userId, currentMonth, currentYear),
     getTopExpensesList(userId, 5, currentMonth, currentYear),
     getCreditCardData(userId, currentMonth, currentYear),
     getGoalsData(userId),
+    accountService.getAccounts(userId),
   ]);
+
+  // Saldo total das contas
+  const accountsBalance = accounts
+    .filter(acc => acc.includeInTotal)
+    .reduce((sum, acc) => sum + acc.balance, 0);
 
   // Dados já calculados pelo homeData (IDÊNTICOS à Home)
   const { 
@@ -170,6 +180,8 @@ export async function generateFinancialSummary(userId: string): Promise<Financia
     creditCard: creditCardData,
     
     goals: goalsData,
+    
+    accountsBalance,
     
     hasData: homeData.transactionCount > 0,
     hasPreviousMonthData: previousMonthData.length > 0,

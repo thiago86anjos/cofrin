@@ -158,7 +158,6 @@ export default function JuliusChatScreen() {
   const renderSuggestions = () => {
     const suggestions = [
       'Quanto gastei?',
-      'Maior categoria',
       'Como economizar?',
       'Dica pra juntar dinheiro',
     ];

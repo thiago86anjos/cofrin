@@ -14,6 +14,8 @@ export type JuliusIntent =
   | 'COMPARAR_MES'
   | 'LISTA_CATEGORIAS'
   | 'MEDIA_DIARIA'
+  | 'ECONOMIZAR'
+  | 'JUNTAR_DINHEIRO'
   | 'DICA'
   | 'AJUDA'
   | 'SAUDACAO'
@@ -150,10 +152,29 @@ const intentPatterns: IntentPattern[] = [
     ],
   },
   {
+    intent: 'ECONOMIZAR',
+    patterns: [
+      /como\s+(economizar|poupar|guardar)/i,
+      /quero\s+(economizar|poupar)/i,
+      /ajuda.*economizar/i,
+      /economizar/i,
+    ],
+  },
+  {
+    intent: 'JUNTAR_DINHEIRO',
+    patterns: [
+      /juntar\s+dinheiro/i,
+      /guardar\s+dinheiro/i,
+      /acumular\s+(dinheiro|grana)/i,
+      /ficar\s+rico/i,
+      /enriquecer/i,
+      /construir\s+(patrimônio|riqueza)/i,
+    ],
+  },
+  {
     intent: 'DICA',
     patterns: [
       /dicas?/i,
-      /como\s+(economizar|controlar|organizar)/i,
       /sugest(ão|ões)/i,
       /me\s+ajuda/i,
       /o\s+que\s+fazer/i,

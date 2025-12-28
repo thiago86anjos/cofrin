@@ -76,6 +76,10 @@ export function generateReply(intent: JuliusIntent, summary: FinancialSummary): 
       return getListaCategorias(summary);
     case 'MEDIA_DIARIA':
       return getMediaDiaria(summary);
+    case 'ECONOMIZAR':
+      return getEconomizar(summary);
+    case 'JUNTAR_DINHEIRO':
+      return getJuntarDinheiro(summary);
     case 'DICA':
       return getDica();
     case 'AJUDA':
@@ -376,6 +380,120 @@ function getMediaDiaria(summary: FinancialSummary): string {
     reply += getFrase('economia');
   }
   
+  return reply;
+}
+
+/**
+ * Como economizar - baseado em Pai Rico, Pai Pobre
+ * Inclui saldo da conta, metas de longo prazo e cálculo de 10% da renda
+ */
+function getEconomizar(summary: FinancialSummary): string {
+  let reply = `💰 **Como Economizar - A Regra de Ouro**\n\n`;
+  
+  reply += `Como diria Robert Kiyosaki em "Pai Rico, Pai Pobre": **"Pague-se primeiro!"**\n\n`;
+  reply += `A ideia é simples: assim que receber, separe uma parte ANTES de pagar qualquer conta. `;
+  reply += `Não é o que sobra no final do mês - é o que você guarda PRIMEIRO! 🏦\n\n`;
+
+  // Saldo atual das contas
+  if (summary.accountsBalance > 0) {
+    reply += `📊 **Seu saldo atual:** ${formatCurrency(summary.accountsBalance)}\n\n`;
+  }
+
+  // Calcular 10% da renda (se tiver receitas registradas)
+  if (summary.totalIncomes > 0) {
+    const dezPorcento = summary.totalIncomes * 0.1;
+    reply += `💡 **Sugestão baseada na sua renda:**\n`;
+    reply += `Você teve ${formatCurrency(summary.totalIncomes)} de receitas em ${summary.currentMonth.monthName}.\n`;
+    reply += `10% disso = **${formatCurrency(dezPorcento)}** que poderia ir direto pra poupança/investimento!\n\n`;
+  }
+
+  // Verificar metas de longo prazo
+  const goals = summary.goals;
+  if (goals?.hasLongTermGoals && goals.longTermGoals.length > 0) {
+    type LongTermGoal = { id: string; name: string; targetAmount: number; currentAmount: number; percentage: number };
+    const emergencyGoal = goals.longTermGoals.find((g: LongTermGoal) => 
+      g.name.toLowerCase().includes('emergência') || 
+      g.name.toLowerCase().includes('emergencia') ||
+      g.name.toLowerCase().includes('reserva')
+    );
+    
+    if (emergencyGoal) {
+      reply += `🎯 **Você tem uma meta de reserva!**\n`;
+      reply += `• ${emergencyGoal.name}: ${formatCurrency(emergencyGoal.currentAmount)} de ${formatCurrency(emergencyGoal.targetAmount)} (${emergencyGoal.percentage.toFixed(0)}%)\n`;
+      reply += `Bora fazer um aporte? Cada real conta! 💪\n\n`;
+    } else {
+      reply += `🎯 **Suas metas de longo prazo:**\n`;
+      goals.longTermGoals.slice(0, 2).forEach((g: LongTermGoal) => {
+        reply += `• ${g.name}: ${g.percentage.toFixed(0)}% completo\n`;
+      });
+      reply += `\nQue tal fazer um aporte hoje?\n\n`;
+    }
+  } else {
+    reply += `⚠️ Você ainda não tem metas de longo prazo cadastradas!\n`;
+    reply += `Que tal criar uma **Reserva de Emergência**? É o primeiro passo pra liberdade financeira! 🚀\n\n`;
+  }
+
+  reply += `✨ Lembre-se: Rico não é quem ganha muito, é quem guarda com consistência!`;
+  
+  return reply;
+}
+
+/**
+ * Dica pra juntar dinheiro - baseado em O Homem Mais Rico da Babilônia
+ */
+function getJuntarDinheiro(summary: FinancialSummary): string {
+  let reply = `📚 **Os 7 Segredos da Babilônia**\n`;
+  reply += `_(baseado no livro "O Homem Mais Rico da Babilônia")_\n\n`;
+
+  const segredos = [
+    {
+      titulo: '1. Comece a engordar sua carteira',
+      texto: 'Guarde pelo menos 10% de tudo que ganhar. De cada 10 moedas, gaste apenas 9.',
+    },
+    {
+      titulo: '2. Controle seus gastos',
+      texto: 'Não confunda desejos com necessidades. O que você QUER é diferente do que você PRECISA.',
+    },
+    {
+      titulo: '3. Faça seu ouro se multiplicar',
+      texto: 'Dinheiro parado é dinheiro perdendo valor. Invista! Faça cada real trabalhar pra você.',
+    },
+    {
+      titulo: '4. Proteja seu tesouro',
+      texto: 'Fuja de "investimentos milagrosos". Se parece bom demais, provavelmente é golpe!',
+    },
+    {
+      titulo: '5. Torne sua casa um investimento',
+      texto: 'Tenha um lar próprio. Aluguel é dinheiro que nunca volta.',
+    },
+    {
+      titulo: '6. Garanta uma renda para o futuro',
+      texto: 'Prepare-se para quando não puder mais trabalhar. Pense na aposentadoria AGORA.',
+    },
+    {
+      titulo: '7. Aumente sua capacidade de ganhar',
+      texto: 'Invista em você! Estudar e se qualificar é o investimento de maior retorno.',
+    },
+  ];
+
+  // Pegar 2-3 segredos aleatórios
+  const shuffled = segredos.sort(() => Math.random() - 0.5);
+  const selecionados = shuffled.slice(0, 3);
+
+  selecionados.forEach(s => {
+    reply += `**${s.titulo}**\n${s.texto}\n\n`;
+  });
+
+  // Adicionar contexto financeiro do usuário
+  if (summary.totalIncomes > 0 && summary.totalExpenses > 0) {
+    const saldo = summary.totalIncomes - summary.totalExpenses;
+    if (saldo > 0) {
+      reply += `💪 Você está sobrando ${formatCurrency(saldo)} este mês. Ótima oportunidade de aplicar esses princípios!`;
+    } else {
+      reply += `⚠️ Você está gastando mais do que ganha. Hora de aplicar o segredo #2: controle seus gastos!`;
+    }
+  }
+
   return reply;
 }
 
