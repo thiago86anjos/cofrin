@@ -16,6 +16,11 @@ export type JuliusIntent =
   | 'MEDIA_DIARIA'
   | 'ECONOMIZAR'
   | 'JUNTAR_DINHEIRO'
+  | 'EDUCACAO_FINANCEIRA'
+  | 'INVESTIMENTOS'
+  | 'LIVROS'
+  | 'CHECKLIST'
+  | 'HISTORIA_JULIUS'
   | 'DICA'
   | 'AJUDA'
   | 'SAUDACAO'
@@ -169,6 +174,66 @@ const intentPatterns: IntentPattern[] = [
       /ficar\s+rico/i,
       /enriquecer/i,
       /construir\s+(patrimônio|riqueza)/i,
+    ],
+  },
+  {
+    intent: 'EDUCACAO_FINANCEIRA',
+    patterns: [
+      /educa(ç|c)(ão|ao)\s+financeira/i,
+      /aprender\s+(sobre\s+)?(finan(ç|c)as?|dinheiro)/i,
+      /princ(í|i)pios?\s+financeiros?/i,
+      /como\s+(aprender|melhorar).*finan/i,
+      /dicas?\s+para\s+(juntar|guardar|economizar)\s+dinheiro/i,
+      /regras?\s+(de\s+ouro|financeiras?)/i,
+      /pai\s+rico/i,
+    ],
+  },
+  {
+    intent: 'INVESTIMENTOS',
+    patterns: [
+      /investimentos?/i,
+      /como\s+investir/i,
+      /onde\s+investir/i,
+      /devo\s+investir/i,
+      /come(ç|c)ar\s+(a\s+)?investir/i,
+      /aprende.*investir/i,
+      /mandamentos?/i,
+      /manifesto/i,
+      /regra\s+de\s+ouro/i,
+      /como\s+aplicar.*dinheiro/i,
+      /aplica(ç|c)(ã|a)o\s+financeira/i,
+    ],
+  },
+  {
+    intent: 'LIVROS',
+    patterns: [
+      /livros?/i,
+      /indica(ç|c)(ão|ao|ões|oes)\s+(de\s+)?livros?/i,
+      /o\s+que\s+ler/i,
+      /recomenda.*livro/i,
+      /bibliografia/i,
+      /leitura/i,
+    ],
+  },
+  {
+    intent: 'CHECKLIST',
+    patterns: [
+      /checklist/i,
+      /check\s*list/i,
+      /lista\s+completa/i,
+      /todos?\s+(os\s+)?princ(í|i)pios/i,
+      /resumo\s+completo/i,
+    ],
+  },
+  {
+    intent: 'HISTORIA_JULIUS',
+    patterns: [
+      /como\s+(você|vc|voce)\s+(aprendeu|aprendeste)/i,
+      /onde\s+(você|vc|voce)\s+(aprendeu|aprendeste)/i,
+      /sua\s+hist(ó|o)ria/i,
+      /conte.*sua\s+hist(ó|o)ria/i,
+      /de\s+onde\s+(você|vc|voce)\s+(tirou|pegou)/i,
+      /me\s+conta.*como/i,
     ],
   },
   {

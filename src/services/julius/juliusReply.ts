@@ -6,6 +6,13 @@
 
 import { JuliusIntent } from './juliusIntent';
 import { FinancialSummary, formatCurrency, formatPercent, GoalData } from './juliusSummary';
+import {
+    getRandomTip,
+    getBookRecommendation,
+    getFullChecklist,
+    getAllTipsSummary,
+    getJuliusStory
+} from './juliusEducation';
 
 // Tipo para meta mensal (extraído de GoalData)
 type MonthlyGoal = GoalData['monthlyGoals'][number];
@@ -19,24 +26,50 @@ const FRASES = {
     'Isso aí! Quem controla o dinheiro, dorme melhor!',
     'Gastar menos hoje = tranquilidade amanhã. O Julius aprova! ✅',
     'Tá economizando? O Chris poderia aprender com você!',
+    'Economia começa nos centavos. Centavo vira real, real vira cem!',
+    'Dinheiro guardado é dinheiro garantido! 🏦',
+    'Quem guarda, tem! Quem gasta, pede emprestado depois!',
+    'Economizar não é ser mão de vaca, é ser inteligente! 🧠',
   ],
   alerta: [
     'Eita! Tá gastando como se tivesse dinheiro sobrando! 😅',
     'Calma aí! Dinheiro não cai do céu... a menos que você limpe avião!',
     'Opa! Hora de apertar o cinto! O Julius tá de olho! 👀',
     'Cuidado! Se continuar assim, vai ter que arrumar um segundo emprego igual o Julius!',
+    'Peraí! Esse gasto tá alto demais! Sabe quantas horas de trabalho isso representa?',
+    'Ó o buraco aí! Bora tapar antes que fique maior! 🕳️',
+    'Esse mês tá pegando fogo! Hora de jogar água nesse incêndio! 🔥',
+    'Dinheiro não dá em árvore! A menos que você plante um pé de nota! 🌳',
   ],
   positivo: [
     'Isso aí! O Julius tá orgulhoso! 💪',
     'Mandou bem! Continua assim que você vai longe!',
     'Boa! Tá no caminho certo! Até o Chris ia te respeitar!',
     'Excelente! Se dá pra economizar, economiza! ✨',
+    'Tá vendo? Quando você quer, você consegue! 🎯',
+    'Aí sim! Esse é o caminho da liberdade financeira! 🚀',
+    'Parabéns! Tá fazendo o dinheiro trabalhar pra você! 💼',
+    'Olha só! Até o Julius ficaria impressionado com essa gestão! 👏',
   ],
   piadas: [
     'Sabe quantas horas de trabalho isso representa? 🤔',
     'Com esse dinheiro dava pra comprar muita coisa no atacado!',
     'O Julius trabalharia uma semana por esse valor!',
     'Luz acesa sem ninguém no quarto? São reais jogados fora!',
+    'Esse valor daria pra pagar quantas contas de luz? Muitas!',
+    'No meu tempo, isso dava pra alimentar a família por um mês!',
+    'Tá vendo? Por isso o Julius trabalha em dois empregos!',
+    'Se o Chris soubesse, ia pedir aumento na mesada!',
+  ],
+  sabedoria: [
+    '💡 Lembre-se: "Não invista pra ficar rico. Invista pra parar de passar aperto."',
+    '📜 "Eu não invisto quando sobra. Eu faço sobrar pra poder investir."',
+    '🎯 "Pobre não fica rico rápido, mas ficar zerado toda hora é opcional."',
+    '🏦 "Riqueza é construída no silêncio." - Aprendi isso numa capa de livro!',
+    '⚡ "Quem vive parcelando o presente, atrasa o futuro."',
+    '💰 "Não é quanto você ganha, é quanto você guarda."',
+    '🧠 "Sabedoria não é cara, ignorância é."',
+    '⏰ "Tempo é mais importante que valor. Comece cedo!"',
   ],
 };
 
@@ -46,10 +79,26 @@ function getFrase(tipo: keyof typeof FRASES): string {
 }
 
 /**
+ * Fechamentos variados para deixar as respostas menos monótonas
+ */
+function getFechamentoAleatorio(): string {
+  const fechamentos = [
+    '\n\n' + getFrase('sabedoria'),
+    '\n\nQuer mais dicas? É só perguntar! 💬',
+    '\n\nPrecisa de mais alguma coisa? Tamo junto! 🤝',
+    '\n\nCuriosidade: pergunte sobre investimentos, livros ou minhas histórias!',
+    '\n\nDica: digite "me dá uma dica" pra mais insights! 💡',
+    '', // às vezes sem fechamento
+    '', // às vezes sem fechamento
+  ];
+  return fechamentos[Math.floor(Math.random() * fechamentos.length)];
+}
+
+/**
  * Gera resposta do Julius baseada na intenção e dados
  */
 export function generateReply(intent: JuliusIntent, summary: FinancialSummary): string {
-  if (!summary.hasData && !['SAUDACAO', 'AJUDA', 'DICA'].includes(intent)) {
+  if (!summary.hasData && !['SAUDACAO', 'AJUDA', 'DICA', 'EDUCACAO_FINANCEIRA', 'INVESTIMENTOS', 'LIVROS', 'CHECKLIST', 'HISTORIA_JULIUS'].includes(intent)) {
     return `Ainda não encontrei lançamentos em ${summary.currentMonth.monthName}. Registre suas despesas e eu te ajudo a analisar! 📊`;
   }
 
@@ -80,6 +129,16 @@ export function generateReply(intent: JuliusIntent, summary: FinancialSummary): 
       return getEconomizar(summary);
     case 'JUNTAR_DINHEIRO':
       return getJuntarDinheiro(summary);
+    case 'EDUCACAO_FINANCEIRA':
+      return getEducacaoFinanceira();
+    case 'INVESTIMENTOS':
+      return getInvestimentos();
+    case 'LIVROS':
+      return getLivros();
+    case 'CHECKLIST':
+      return getChecklist();
+    case 'HISTORIA_JULIUS':
+      return getHistoriaJulius();
     case 'DICA':
       return getDica();
     case 'AJUDA':
@@ -98,17 +157,47 @@ function getSaudacao(summary: FinancialSummary): string {
     `Olá, ${primeiroNome}! Julius na área!`,
     `Oi, ${primeiroNome}! Seu consultor financeiro favorito chegou!`,
     `Fala, ${primeiroNome}! O Julius tá on!`,
+    `Salve, ${primeiroNome}! Beleza?`,
+    `Opa, ${primeiroNome}! Bora falar de grana?`,
+    `${primeiroNome}! Julius aqui, pronto pra te ajudar!`,
+    `Hey, ${primeiroNome}! Vamos ver esses números?`,
   ];
   const saudacao = saudacoes[Math.floor(Math.random() * saudacoes.length)];
   
   if (summary.hasData) {
     const saldo = summary.totalIncomes - summary.totalExpenses;
+    
+    const contextos = [
+      `Vi que você tem ${summary.transactionCount} lançamento(s) em ${summary.currentMonth.monthName}, totalizando ${formatCurrency(summary.totalExpenses)} em gastos.`,
+      `Já dei uma olhada: ${summary.transactionCount} lançamento(s) este mês, ${formatCurrency(summary.totalExpenses)} no total.`,
+      `Tá registrando direitinho! ${summary.transactionCount} lançamento(s), gastou ${formatCurrency(summary.totalExpenses)}.`,
+    ];
+    const contexto = contextos[Math.floor(Math.random() * contextos.length)];
+    
     if (saldo < 0) {
-      return `${saudacao} 😬\n\nVi que você tem ${summary.transactionCount} lançamento(s) em ${summary.currentMonth.monthName}, totalizando ${formatCurrency(summary.totalExpenses)} em gastos.\n\nEpa, tá no vermelho! Bora dar uma olhada nisso?`;
+      const alertas = [
+        `Epa, tá no vermelho! Bora dar uma olhada nisso?`,
+        `Opa! Gastou mais que ganhou. Vamos analisar?`,
+        `Vermelho no saldo! Hora de revisar os gastos!`,
+      ];
+      return `${saudacao} 😬\n\n${contexto}\n\n${alertas[Math.floor(Math.random() * alertas.length)]}`;
     }
-    return `${saudacao} 💪\n\nVi que você tem ${summary.transactionCount} lançamento(s) em ${summary.currentMonth.monthName}. Total de gastos: ${formatCurrency(summary.totalExpenses)}.\n\nO que quer saber?`;
+    
+    const perguntas = [
+      `O que quer saber?`,
+      `Como posso te ajudar?`,
+      `Quer ver alguma categoria específica?`,
+      `Bora analisar mais alguma coisa?`,
+    ];
+    return `${saudacao} 💪\n\n${contexto}\n\n${perguntas[Math.floor(Math.random() * perguntas.length)]}`;
   }
-  return `${saudacao}\n\nSou seu assistente financeiro pessoal. Registra aí suas despesas que eu te ajudo a controlar! 📊`;
+  
+  const semDados = [
+    `Sou seu assistente financeiro pessoal. Registra aí suas despesas que eu te ajudo a controlar! 📊`,
+    `Ainda não vi lançamentos por aqui. Bora registrar pra eu poder te ajudar! 💰`,
+    `Cadê os gastos? Registra aí que eu analiso tudo pra você! 📝`,
+  ];
+  return `${saudacao}\n\n${semDados[Math.floor(Math.random() * semDados.length)]}`;
 }
 
 function getTotalMes(summary: FinancialSummary): string {
@@ -131,6 +220,7 @@ function getTotalMes(summary: FinancialSummary): string {
     reply += `\n\n${getFrase('positivo')}`;
   }
   
+  reply += getFechamentoAleatorio();
   return reply;
 }
 
@@ -161,13 +251,19 @@ function getCartaoCredito(summary: FinancialSummary): string {
   if (cc.status === 'controlled') {
     reply += `✅ ${cc.statusMessage}. ${getFrase('positivo')}`;
   } else if (cc.status === 'warning') {
-    reply += `⚠️ ${cc.statusMessage}. Bora ficar de olho!`;
+    const avisos = [
+      'Bora ficar de olho!',
+      'Atenção dobrada aqui!',
+      'Cuidado pra não estourar!',
+    ];
+    reply += `⚠️ ${cc.statusMessage}. ${avisos[Math.floor(Math.random() * avisos.length)]}`;
   } else if (cc.status === 'alert') {
     reply += `🚨 ${cc.statusMessage}!\n\n${getFrase('alerta')}`;
   } else {
     reply += `ℹ️ ${cc.statusMessage}`;
   }
   
+  reply += getFechamentoAleatorio();
   return reply;
 }
 
@@ -175,7 +271,12 @@ function getMetas(summary: FinancialSummary): string {
   const goals = summary.goals;
   
   if (!goals || (!goals.hasMonthlyGoals && !goals.hasLongTermGoals)) {
-    return `🎯 Você ainda não tem metas definidas!\n\nQue tal criar algumas pra eu poder te ajudar a acompanhar? Vá em **Metas** no menu e defina seus limites de gastos por categoria ou crie metas de longo prazo como uma reserva de emergência! 💪`;
+    const semMetas = [
+      `🎯 Você ainda não tem metas definidas!\n\nQue tal criar algumas pra eu poder te ajudar a acompanhar? Vá em **Metas** no menu!`,
+      `🎯 Cadê as metas?\n\nDefina limites de gastos por categoria ou crie metas de longo prazo. Vai lá em **Metas**! 💪`,
+      `🎯 Nenhuma meta cadastrada ainda!\n\nMetas são essenciais! Crie uma reserva de emergência ou limite seus gastos. Menu **Metas** te espera! 🚀`,
+    ];
+    return semMetas[Math.floor(Math.random() * semMetas.length)];
   }
   
   let reply = `🎯 **Suas Metas em ${summary.currentMonth.monthName}:**\n\n`;
@@ -234,22 +335,27 @@ function getMetas(summary: FinancialSummary): string {
   if (exceededCount > 0) {
     reply += `\n😬 ${exceededCount === 1 ? 'Uma meta estourou' : `${exceededCount} metas estouraram`}... ${getFrase('alerta')}`;
   } else if (warningCount > 0) {
-    reply += `\n⚠️ ${warningCount === 1 ? 'Uma meta tá' : `${warningCount} metas tão`} quase no limite! Bora segurar a onda! 🌊`;
+    const avisos = [
+      'Bora segurar a onda! 🌊',
+      'Controla esse gás aí! 🚗',
+      'Freio de mão! 🛑',
+    ];
+    reply += `\n⚠️ ${warningCount === 1 ? 'Uma meta tá' : `${warningCount} metas tão`} quase no limite! ${avisos[Math.floor(Math.random() * avisos.length)]}`;
   } else {
     reply += `\n🎉 Mandando bem! Todas as metas sob controle! ${getFrase('positivo')}`;
   }
   
+  reply += getFechamentoAleatorio();
   return reply;
 }
 
 function getPendentes(): string {
-  return `🧘 Calma aí, jovem... Você precisa primeiro fechar o mês atual pra pensar no próximo!
-
-Fique presente, pense como o Buda, viva o presente! 🙏
-
-Mas você tem razão em se preocupar com o futuro - faz bem sim! A questão é que a gente começa o futuro **hoje**, organizando as finanças, certo?
-
-💡 Dica do Julius: Foque nos gastos que já aconteceram. Quando a fatura fechar e você pagar, aí sim ela entra na conta!`;
+  const respostas = [
+    `🧘 Calma aí, jovem... Você precisa primeiro fechar o mês atual pra pensar no próximo!\n\nFique presente, pense como o Buda, viva o presente! 🙏\n\nMas você tem razão em se preocupar com o futuro - faz bem sim! A questão é que a gente começa o futuro **hoje**, organizando as finanças, certo?\n\n💡 Dica do Julius: Foque nos gastos que já aconteceram. Quando a fatura fechar e você pagar, aí sim ela entra na conta!`,
+    `⏳ Opa! Os pendentes aparecem quando a fatura fechar!\n\nPor enquanto, foca no que já gastou. ${getFrase('sabedoria')}\n\nQuando chegar a hora de pagar, aí sim você vê o estrago... digo, o total! 😅`,
+    `🔮 Tentando ver o futuro? O Julius não é vidente!\n\nOs lançamentos pendentes aparecem quando você fecha a fatura. Por ora, controla o presente que o futuro agradece! 💪`,
+  ];
+  return respostas[Math.floor(Math.random() * respostas.length)];
 }
 
 function getReceitas(summary: FinancialSummary): string {
@@ -371,17 +477,19 @@ function getMediaDiaria(summary: FinancialSummary): string {
   }
   
   const media = formatCurrency(summary.dailyAverage);
-  const projecao = formatCurrency(summary.dailyAverage * summary.daysInMonth);
+  const totalMes = formatCurrency(summary.totalExpenses);
   const diasRestantes = summary.daysInMonth - summary.daysPassed;
   
-  let reply = `📅 Sua média diária: ${media}\n\n`;
-  reply += `Se continuar assim, vai gastar cerca de ${projecao} até o fim do mês.\n`;
-  reply += `Faltam ${diasRestantes} dias.\n\n`;
+  let reply = `📅 **Seus gastos até agora:**\n\n`;
+  reply += `• Total do mês: ${totalMes}\n`;
+  reply += `• Média por dia: ${media}\n`;
+  reply += `• Dias já passados: ${summary.daysPassed} de ${summary.daysInMonth}\n`;
+  reply += `• Dias restantes: ${diasRestantes}\n\n`;
   
   if (summary.dailyAverage > 100) {
-    reply += getFrase('alerta');
+    reply += `Opa! Média de mais de R$ 100 por dia... ${getFrase('alerta')}`;
   } else {
-    reply += getFrase('economia');
+    reply += `Boa! Mantendo uma média controlada. ${getFrase('economia')}`;
   }
   
   return reply;
@@ -403,12 +511,19 @@ function getEconomizar(summary: FinancialSummary): string {
     reply += `📊 **Seu saldo atual:** ${formatCurrency(summary.accountsBalance)}\n\n`;
   }
 
-  // Calcular 10% da renda (se tiver receitas registradas)
+  // Mostrar dados de renda e saldo
   if (summary.totalIncomes > 0) {
-    const dezPorcento = summary.totalIncomes * 0.1;
-    reply += `💡 **Sugestão baseada na sua renda:**\n`;
-    reply += `Você teve ${formatCurrency(summary.totalIncomes)} de receitas em ${summary.currentMonth.monthName}.\n`;
-    reply += `10% disso = **${formatCurrency(dezPorcento)}** que poderia ir direto pra poupança/investimento!\n\n`;
+    const saldo = summary.totalIncomes - summary.totalExpenses;
+    reply += `💡 **Sua situação em ${summary.currentMonth.monthName}:**\n`;
+    reply += `• Receitas: ${formatCurrency(summary.totalIncomes)}\n`;
+    reply += `• Gastos: ${formatCurrency(summary.totalExpenses)}\n`;
+    reply += `• Saldo: ${formatCurrency(saldo)} ${saldo >= 0 ? '✅' : '🔴'}\n\n`;
+    
+    if (saldo > 0) {
+      reply += `Opa! Sobrou dinheiro! Esse é o momento de pagar-se primeiro e guardar uma parte antes que ela "desapareça"! 💰\n\n`;
+    } else {
+      reply += `Eita! Tá no vermelho! Hora de revisar os gastos e ver onde dá pra cortar. O Julius recomenda: comece pelas categorias que mais pesam! 📊\n\n`;
+    }
   }
 
   // Verificar metas de longo prazo
@@ -443,65 +558,25 @@ function getEconomizar(summary: FinancialSummary): string {
 }
 
 /**
- * Dica pra juntar dinheiro - baseado em O Homem Mais Rico da Babilônia
+ * Dica pra juntar dinheiro - usa conteúdo educacional
  */
 function getJuntarDinheiro(summary: FinancialSummary): string {
-  let reply = `📚 **Os 7 Segredos da Babilônia**\n`;
-  reply += `_(baseado no livro "O Homem Mais Rico da Babilônia")_\n\n`;
-
-  const segredos = [
-    {
-      titulo: '1. Comece a engordar sua carteira',
-      texto: 'Guarde pelo menos 10% de tudo que ganhar. De cada 10 moedas, gaste apenas 9.',
-    },
-    {
-      titulo: '2. Controle seus gastos',
-      texto: 'Não confunda desejos com necessidades. O que você QUER é diferente do que você PRECISA.',
-    },
-    {
-      titulo: '3. Faça seu ouro se multiplicar',
-      texto: 'Dinheiro parado é dinheiro perdendo valor. Invista! Faça cada real trabalhar pra você.',
-    },
-    {
-      titulo: '4. Proteja seu tesouro',
-      texto: 'Fuja de "investimentos milagrosos". Se parece bom demais, provavelmente é golpe!',
-    },
-    {
-      titulo: '5. Torne sua casa um investimento',
-      texto: 'Tenha um lar próprio. Aluguel é dinheiro que nunca volta.',
-    },
-    {
-      titulo: '6. Garanta uma renda para o futuro',
-      texto: 'Prepare-se para quando não puder mais trabalhar. Pense na aposentadoria AGORA.',
-    },
-    {
-      titulo: '7. Aumente sua capacidade de ganhar',
-      texto: 'Invista em você! Estudar e se qualificar é o investimento de maior retorno.',
-    },
-  ];
-
-  // Pegar 2-3 segredos aleatórios
-  const shuffled = segredos.sort(() => Math.random() - 0.5);
-  const selecionados = shuffled.slice(0, 3);
-
-  selecionados.forEach(s => {
-    reply += `**${s.titulo}**\n${s.texto}\n\n`;
-  });
-
-  // Adicionar contexto financeiro do usuário
-  if (summary.totalIncomes > 0 && summary.totalExpenses > 0) {
-    const saldo = summary.totalIncomes - summary.totalExpenses;
-    if (saldo > 0) {
-      reply += `💪 Você está sobrando ${formatCurrency(saldo)} este mês. Ótima oportunidade de aplicar esses princípios!`;
-    } else {
-      reply += `⚠️ Você está gastando mais do que ganha. Hora de aplicar o segredo #2: controle seus gastos!`;
-    }
-  }
-
-  return reply;
+  // Retorna o resumo dos 8 princípios
+  return getAllTipsSummary();
 }
 
 function getDica(): string {
+  // 33% dica educacional completa
+  // 33% história do Julius
+  // 33% dica rápida do Julius
+  const random = Math.random();
+  
+  if (random < 0.33) {
+    return getRandomTip();
+  } else if (random < 0.66) {
+    return getJuliusStory();
+  }
+  
   const dicas = [
     '💡 Anote TODOS os gastos, mesmo o cafezinho! Gasto pequeno repetido vira gasto grande!',
     '💡 Defina um limite por categoria. Bateu o limite? Para de gastar! Simples assim!',
@@ -516,6 +591,41 @@ function getDica(): string {
   return dicas[Math.floor(Math.random() * dicas.length)];
 }
 
+/**
+ * Educação Financeira - retorna uma dica aleatória dos 8 princípios
+ */
+function getEducacaoFinanceira(): string {
+  return getRandomTip();
+}
+
+/**
+ * Investimentos - retorna conteúdo sobre como investir
+ */
+function getInvestimentos(): string {
+  return getInvestmentWisdom();
+}
+
+/**
+ * Recomendação de livros
+ */
+function getLivros(): string {
+  return getBookRecommendation();
+}
+
+/**
+ * Checklist completo de Pai Rico, Pai Pobre
+ */
+function getChecklist(): string {
+  return getFullChecklist();
+}
+
+/**
+ * História do Julius - como ele aprendeu sobre finanças
+ */
+function getHistoriaJulius(): string {
+  return getJuliusStory();
+}
+
 function getAjuda(): string {
   return `Sou o Julius! 💪\n\n` +
     `Por que Julius? Porque todo brasileiro deveria se inspirar no Julius de "Todo Mundo Odeia o Chris"! ` +
@@ -525,7 +635,11 @@ function getAjuda(): string {
     `• "Qual categoria mais gasto?"\n` +
     `• "Meus maiores gastos"\n` +
     `• "Comparar com mês anterior"\n` +
-    `• "Me dá uma dica"\n` +
+    `• "Dicas para juntar dinheiro"\n` +
+    `• "Como investir?" ou "Manifesto do Julius"\n` +
+    `• "Me indique um livro"\n` +
+    `• "Como você aprendeu sobre finanças?"\n` +
+    `• "Educação financeira"\n` +
     `• Ou pergunta qualquer coisa sobre finanças!`;
 }
 
