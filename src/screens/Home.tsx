@@ -35,7 +35,6 @@ export default function Home() {
   const isNarrow = width < 700;
   const userName = user?.displayName || user?.email?.split("@")?.[0] || "Usuário";
   const canAccessAtivosBeta = (user?.email ?? '').toLowerCase() === 'thiago.w3c@gmail.com';
-  const canAccessJulius = (user?.email ?? '').toLowerCase() === 'thiago.w3c@gmail.com';
   const [juliusRemaining, setJuliusRemaining] = useState<number | null>(null);
 
   // Determinar saudação baseada na hora
@@ -51,14 +50,14 @@ export default function Home() {
   const currentMonth = today.getMonth() + 1;
   const currentYear = today.getFullYear();
 
-  // Verificar mensagens disponíveis do Julius
+  // Verificar mensagens disponíveis do Julius (liberado para todos, com limite de 20/dia)
   useEffect(() => {
-    if (canAccessJulius && user?.uid) {
+    if (user?.uid) {
       checkRateLimit(user.uid, user.email).then((result) => {
         setJuliusRemaining(result.remaining);
       });
     }
-  }, [canAccessJulius, user?.uid, user?.email]);
+  }, [user?.uid, user?.email]);
 
   // Hook consolidado - reduz ~14 queries para ~6 queries Firebase
   const {
@@ -162,7 +161,7 @@ export default function Home() {
           <View style={styles.content}>
             {/* Saudação - integrada com Julius quando disponível */}
             <View style={styles.greetingSection}>
-              {canAccessJulius && juliusRemaining !== null && juliusRemaining > 0 ? (
+              {juliusRemaining !== null && juliusRemaining > 0 ? (
                 /* Saudação com Julius integrado */
                 <TouchableOpacity 
                   style={styles.greetingWithJulius}

@@ -62,6 +62,10 @@ export function generateReply(intent: JuliusIntent, summary: FinancialSummary): 
       return getCartaoCredito(summary);
     case 'METAS':
       return getMetas(summary);
+    case 'PENDENTES':
+      return getPendentes();
+    case 'RECEITAS':
+      return getReceitas(summary);
     case 'CATEGORIA_MAIOR':
       return getCategoriaMaior(summary);
     case 'GASTOS_ALTOS':
@@ -225,6 +229,55 @@ function getMetas(summary: FinancialSummary): string {
     reply += `\n⚠️ ${warningCount === 1 ? 'Uma meta tá' : `${warningCount} metas tão`} quase no limite! Bora segurar a onda! 🌊`;
   } else {
     reply += `\n🎉 Mandando bem! Todas as metas sob controle! ${getFrase('positivo')}`;
+  }
+  
+  return reply;
+}
+
+function getPendentes(): string {
+  return `🧘 Calma aí, jovem... Você precisa primeiro fechar o mês atual pra pensar no próximo!
+
+Fique presente, pense como o Buda, viva o presente! 🙏
+
+Mas você tem razão em se preocupar com o futuro - faz bem sim! A questão é que a gente começa o futuro **hoje**, organizando as finanças, certo?
+
+💡 Dica do Julius: Foque nos gastos que já aconteceram. Quando a fatura fechar e você pagar, aí sim ela entra na conta!`;
+}
+
+function getReceitas(summary: FinancialSummary): string {
+  const total = formatCurrency(summary.totalIncomes);
+  const categories = summary.incomeCategories || [];
+  
+  if (summary.totalIncomes === 0) {
+    return `💰 Não encontrei receitas registradas em ${summary.currentMonth.monthName}.\n\nRegistre seus ganhos pra eu poder te ajudar a entender de onde vem seu dinheiro!`;
+  }
+  
+  let reply = `💰 **Suas Receitas em ${summary.currentMonth.monthName}:**\n\n`;
+  reply += `📥 Total recebido: **${total}**\n\n`;
+  
+  if (categories.length > 0) {
+    reply += `**Por categoria:**\n`;
+    for (const cat of categories.slice(0, 5)) {
+      const pct = cat.percentage?.toFixed(1) || '0';
+      reply += `• ${cat.categoryName}: ${formatCurrency(cat.total)} (${pct}%)\n`;
+    }
+    
+    if (summary.topIncomeCategory) {
+      reply += `\n🌟 Sua principal fonte de renda é **${summary.topIncomeCategory.categoryName}**!`;
+    }
+  } else {
+    reply += `Total: ${total}`;
+  }
+  
+  // Comparar com gastos
+  const saldo = summary.totalIncomes - summary.totalExpenses;
+  reply += `\n\n`;
+  if (saldo > 0) {
+    reply += `✅ Tá sobrando ${formatCurrency(saldo)} esse mês. ${getFrase('positivo')}`;
+  } else if (saldo < 0) {
+    reply += `🔴 Tá gastando ${formatCurrency(Math.abs(saldo))} a mais do que ganha! ${getFrase('alerta')}`;
+  } else {
+    reply += `⚖️ Tá empatado! Receitas = Despesas. Bora economizar um pouco?`;
   }
   
   return reply;

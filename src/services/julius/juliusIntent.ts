@@ -7,6 +7,8 @@ export type JuliusIntent =
   | 'TOTAL_MES'
   | 'CARTAO_CREDITO'
   | 'METAS'
+  | 'PENDENTES'
+  | 'RECEITAS'
   | 'CATEGORIA_MAIOR'
   | 'GASTOS_ALTOS'
   | 'COMPARAR_MES'
@@ -50,6 +52,33 @@ const intentPatterns: IntentPattern[] = [
       /credit\s*card/i,
       /nubank|itau|bradesco|santander|inter|c6|xp|picpay/i,
       /cart(ão|ao|ões|oes)/i,
+    ],
+  },
+  {
+    intent: 'PENDENTES',
+    patterns: [
+      /pendente/i,
+      /lançamentos?\s+pendentes?/i,
+      /gastos?\s+pendentes?/i,
+      /fatura\s+pendente/i,
+      /próximo\s+mês/i,
+      /mes\s+que\s+vem/i,
+      /futuro/i,
+    ],
+  },
+  {
+    intent: 'RECEITAS',
+    patterns: [
+      /receitas?/i,
+      /entradas?/i,
+      /ganhos?/i,
+      /renda/i,
+      /salário/i,
+      /salario/i,
+      /quanto\s+(ganhei|recebi|entrou)/i,
+      /de\s+onde\s+vem/i,
+      /origem\s+do\s+dinheiro/i,
+      /fontes?\s+de\s+renda/i,
     ],
   },
   {

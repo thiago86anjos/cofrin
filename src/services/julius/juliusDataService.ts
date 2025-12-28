@@ -215,7 +215,9 @@ export interface CreditCardData {
 }
 
 /**
- * Busca dados de cartão de crédito EXATAMENTE como o CreditCardsCard faz
+ * Busca dados de cartão de crédito - APENAS FATURAS PAGAS
+ * Para o mês vigente, só considera faturas que já foram pagas (isPaid: true)
+ * Faturas pendentes NÃO são contabilizadas nos gastos do mês
  */
 export async function getCreditCardData(
   userId: string,
@@ -226,19 +228,31 @@ export async function getCreditCardData(
   const targetMonth = month ?? now.getMonth() + 1;
   const targetYear = year ?? now.getFullYear();
 
-  // Buscar cartões do usuário
-  const cards = await creditCardService.getCreditCards(userId);
+  // Buscar cartões do usuário e faturas pendentes
+  const [cards, pendingBillsMap] = await Promise.all([
+    creditCardService.getCreditCards(userId),
+    getPendingBillsMap(userId),
+  ]);
   
   // Buscar receitas do mês para calcular porcentagem
   const homeData = await getHomeConsistentData(userId, targetMonth, targetYear);
   const totalIncome = homeData.totalIncomes;
 
-  // Buscar gastos de cada cartão no mês (IGUAL ao CreditCardsCard)
+  // Buscar gastos de cada cartão no mês - APENAS FATURAS PAGAS
   const cardAmounts: Array<{ id: string; name: string; amount: number }> = [];
   let totalUsed = 0;
 
   for (const card of cards) {
     try {
+      // Verificar se a fatura deste cartão/mês está pendente
+      const billKey = `${card.id}-${targetMonth}-${targetYear}`;
+      const isPending = pendingBillsMap.has(billKey);
+      
+      // Se a fatura está pendente, não conta nos gastos do mês
+      if (isPending) {
+        continue;
+      }
+      
       const transactions = await getCreditCardTransactionsByMonth(
         userId,
         card.id!,
@@ -263,7 +277,7 @@ export async function getCreditCardData(
   // Ordenar por valor (maior primeiro)
   cardAmounts.sort((a, b) => b.amount - a.amount);
 
-  // Calcular porcentagem e status (IGUAL ao CreditCardsCard)
+  // Calcular porcentagem e status
   const usagePercentage = totalIncome > 0 ? (totalUsed / totalIncome) * 100 : 0;
   
   let status: CreditCardData['status'];

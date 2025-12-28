@@ -40,10 +40,15 @@ export interface FinancialSummary {
   totalIncomes: number;
   balance: number;
   
-  // Categorias
+  // Categorias de despesas
   categories: CategoryTotal[];
   topCategory?: CategoryTotal;
   categoryCount: number;
+  
+  // Categorias de receitas
+  incomeCategories: CategoryTotal[];
+  topIncomeCategory?: CategoryTotal;
+  incomeCategoryCount: number;
   
   // Comparação
   previousMonthTotal?: number;
@@ -101,6 +106,7 @@ export async function generateFinancialSummary(userId: string): Promise<Financia
     totalIncomes, 
     balance,
     expensesByCategory: categories,
+    incomesByCategory: incomeCategories,
     expenseCount: transactionCount,
     previousMonthExpenses: previousMonthTotal,
     previousMonthData,
@@ -144,6 +150,10 @@ export async function generateFinancialSummary(userId: string): Promise<Financia
     categories,
     topCategory: categories[0],
     categoryCount: categories.length,
+    
+    incomeCategories,
+    topIncomeCategory: incomeCategories[0],
+    incomeCategoryCount: incomeCategories.length,
     
     previousMonthTotal: previousMonthData.length > 0 ? previousMonthTotal : undefined,
     monthVariation,
