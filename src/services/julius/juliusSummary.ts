@@ -29,6 +29,9 @@ export interface TopExpense {
 }
 
 export interface FinancialSummary {
+  // Nome do usuário
+  userName: string;
+  
   // Mês atual
   currentMonth: {
     year: number;
@@ -89,7 +92,7 @@ const monthNames = [
  * Gera um resumo financeiro completo do usuário
  * USA getHomeConsistentData para garantir dados IDÊNTICOS à Home
  */
-export async function generateFinancialSummary(userId: string): Promise<FinancialSummary> {
+export async function generateFinancialSummary(userId: string, userName?: string): Promise<FinancialSummary> {
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
@@ -147,6 +150,8 @@ export async function generateFinancialSummary(userId: string): Promise<Financia
   }));
 
   return {
+    userName: userName || 'Usuário',
+    
     currentMonth: {
       year: currentYear,
       month: currentMonth,

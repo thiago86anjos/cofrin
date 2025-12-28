@@ -83,7 +83,8 @@ export default function JuliusChatScreen() {
 
     try {
       // Chamar Julius (passa email para verificar se é usuário ilimitado)
-      const response: JuliusResponse = await askJulius(user.uid, trimmedText, user.email);
+      const userName = user.displayName || user.email?.split('@')[0] || 'Usuário';
+      const response: JuliusResponse = await askJulius(user.uid, trimmedText, user.email, userName);
 
       // Adicionar resposta do Julius
       const juliusMessage: ChatMessage = {

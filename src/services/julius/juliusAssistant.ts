@@ -51,7 +51,8 @@ const LOCAL_INTENTS: JuliusIntent[] = [
 export async function askJulius(
   userId: string,
   question: string,
-  userEmail?: string | null
+  userEmail?: string | null,
+  userName?: string
 ): Promise<JuliusResponse> {
   try {
     // Verifica rate limit primeiro
@@ -72,7 +73,7 @@ export async function askJulius(
     }
 
     const intent = detectIntent(question);
-    const summary = await generateFinancialSummary(userId);
+    const summary = await generateFinancialSummary(userId, userName);
 
     // Registra uso da mensagem
     await recordUsage(userId, userEmail);
@@ -156,6 +157,7 @@ function createEmptySummary(): FinancialSummary {
   ];
   
   return {
+    userName: 'Usuário',
     currentMonth: {
       year: now.getFullYear(),
       month: now.getMonth() + 1,
@@ -174,6 +176,7 @@ function createEmptySummary(): FinancialSummary {
     daysInMonth: new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(),
     daysPassed: now.getDate(),
     topExpenses: [],
+    accountsBalance: 0,
     hasData: false,
     hasPreviousMonthData: false,
   };

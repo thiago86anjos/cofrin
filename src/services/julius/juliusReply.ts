@@ -90,10 +90,14 @@ export function generateReply(intent: JuliusIntent, summary: FinancialSummary): 
 }
 
 function getSaudacao(summary: FinancialSummary): string {
+  const nome = summary.userName;
+  const primeiroNome = nome.split(' ')[0]; // Pega só o primeiro nome
+  
   const saudacoes = [
-    'E aí! Aqui é o Julius!',
-    'Olá! Julius na área!',
-    'Oi! Seu consultor financeiro favorito chegou!',
+    `E aí, ${primeiroNome}! Aqui é o Julius!`,
+    `Olá, ${primeiroNome}! Julius na área!`,
+    `Oi, ${primeiroNome}! Seu consultor financeiro favorito chegou!`,
+    `Fala, ${primeiroNome}! O Julius tá on!`,
   ];
   const saudacao = saudacoes[Math.floor(Math.random() * saudacoes.length)];
   
