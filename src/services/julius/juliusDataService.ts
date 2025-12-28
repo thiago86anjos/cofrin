@@ -1,19 +1,14 @@
 /**
  * Julius Data Service
- * USA AS MESMAS FUNÇÕES QUE A HOME para garantir dados consistentes
- * 
- * IMPORTANTE: Este serviço usa transactionService e creditCardBillService
- * para que os números do Julius sejam IDÊNTICOS aos exibidos na UI.
+ * LÓGICA SIMPLIFICADA:
+ * - Despesas normais: status === 'completed'
+ * - Faturas de cartão: isPaid === true E vencimento no mês atual
  */
 
 import * as transactionService from '../transactionService';
-import {
-    getPendingBillsMap,
-    getCreditCardTransactionsByMonth,
-    calculateBillTotal,
-} from '../creditCardBillService';
-import * as creditCardService from '../creditCardService';
-import { Transaction } from '../../types/firebase';
+import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { db, COLLECTIONS } from '../firebase';
+import { Transaction, CreditCardBill } from '../../types/firebase';
 
 export interface CategoryTotal {
   categoryId: string;
@@ -48,8 +43,38 @@ export interface HomeConsistentData {
 }
 
 /**
- * Busca dados do mês EXATAMENTE como a Home faz
- * Filtra transações de cartão com fatura pendente
+ * Busca faturas PAGAS com vencimento no mês especificado
+ */
+async function getPaidBillsInMonth(
+  userId: string,
+  targetMonth: number,
+  targetYear: number
+): Promise<CreditCardBill[]> {
+  // Definir range do mês (1º dia 00:00 até último dia 23:59)
+  const startDate = new Date(targetYear, targetMonth - 1, 1, 0, 0, 0);
+  const endDate = new Date(targetYear, targetMonth, 0, 23, 59, 59); // último dia do mês
+
+  const billsRef = collection(db, COLLECTIONS.CREDIT_CARD_BILLS);
+  const q = query(
+    billsRef,
+    where('userId', '==', userId),
+    where('isPaid', '==', true),
+    where('dueDate', '>=', Timestamp.fromDate(startDate)),
+    where('dueDate', '<=', Timestamp.fromDate(endDate))
+  );
+
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  })) as CreditCardBill[];
+}
+
+/**
+ * Busca dados do mês - LÓGICA SIMPLIFICADA
+ * 
+ * Despesas normais: status === 'completed' (sem cartão)
+ * Cartão de crédito: soma faturas PAGAS com vencimento no mês
  */
 export async function getHomeConsistentData(
   userId: string,
@@ -68,51 +93,66 @@ export async function getHomeConsistentData(
     prevYear -= 1;
   }
 
-  // Buscar em paralelo (igual useHomeData)
-  const [currentTx, previousTx, pendingBillsMap] = await Promise.all([
+  // Buscar em paralelo
+  const [currentTx, previousTx, paidBillsCurrentMonth, paidBillsPrevMonth] = await Promise.all([
     transactionService.getTransactionsByMonth(userId, targetMonth, targetYear),
     transactionService.getTransactionsByMonth(userId, prevMonth, prevYear),
-    getPendingBillsMap(userId),
+    getPaidBillsInMonth(userId, targetMonth, targetYear),
+    getPaidBillsInMonth(userId, prevMonth, prevYear),
   ]);
 
-  const pendingBillsKeys = new Set(pendingBillsMap.keys());
+  // Criar set de IDs de faturas pagas no mês (para associar transações)
+  const paidBillIds = new Set(paidBillsCurrentMonth.map(b => b.id));
+  const paidBillsPrevIds = new Set(paidBillsPrevMonth.map(b => b.id));
 
-  // Filtrar transações (EXATAMENTE como useHomeData faz)
-  const filteredTransactions = currentTx.filter((t) => {
-    // Ignorar transações de cartão com fatura pendente
-    if (t.creditCardId && t.month && t.year) {
-      const billKey = `${t.creditCardId}-${t.month}-${t.year}`;
-      if (pendingBillsKeys.has(billKey)) {
-        return false;
-      }
-    }
-    return true;
+  // Total de faturas pagas no mês
+  const creditCardExpenses = paidBillsCurrentMonth.reduce((sum, bill) => sum + bill.totalAmount, 0);
+  const creditCardExpensesPrev = paidBillsPrevMonth.reduce((sum, bill) => sum + bill.totalAmount, 0);
+
+  console.log(`[Julius] Mês ${targetMonth}/${targetYear}:`);
+  console.log(`[Julius] Faturas PAGAS com vencimento neste mês: ${paidBillsCurrentMonth.length}`);
+  paidBillsCurrentMonth.forEach(b => {
+    const dueDate = b.dueDate?.toDate?.() || new Date();
+    console.log(`  - ${b.creditCardName}: R$${b.totalAmount.toFixed(2)} (venc: ${dueDate.toLocaleDateString('pt-BR')})`);
   });
+  console.log(`[Julius] Total faturas pagas: R$${creditCardExpenses.toFixed(2)}`);
 
-  // Calcular totais (EXATAMENTE como useHomeData faz)
-  let totalExpenses = 0;
-  let totalIncomes = 0;
-  let expenseCount = 0;
-  let incomeCount = 0;
+  // Filtrar transações: incluir apenas despesas NORMAIS
+  // - Sem creditCardId (não é compra no cartão)
+  // - Sem creditCardBillId (não é pagamento de fatura)
+  // - status === 'completed'
+  const normalExpenses = currentTx.filter((t) => 
+    !t.creditCardId && 
+    !(t as any).creditCardBillId && // Exclui pagamentos de fatura
+    t.status === 'completed' && 
+    t.type === 'expense'
+  );
 
-  for (const t of filteredTransactions) {
-    if (t.status !== 'completed') continue;
+  const normalIncomes = currentTx.filter((t) => 
+    t.status === 'completed' && t.type === 'income'
+  );
 
-    if (t.type === 'income') {
-      totalIncomes += t.amount;
-      incomeCount += 1;
-    } else if (t.type === 'expense') {
-      totalExpenses += t.amount;
-      expenseCount += 1;
-    }
-  }
+  // Todas as transações "válidas" (sem cartão, sem pagamento de fatura)
+  const filteredTransactions = currentTx.filter((t) => 
+    !t.creditCardId && 
+    !(t as any).creditCardBillId && 
+    t.status === 'completed'
+  );
 
-  // Agrupar por categoria (EXATAMENTE como useHomeData faz)
+  // Calcular totais
+  const normalExpensesTotal = normalExpenses.reduce((sum, t) => sum + t.amount, 0);
+  const totalExpenses = normalExpensesTotal + creditCardExpenses;
+  const totalIncomes = normalIncomes.reduce((sum, t) => sum + t.amount, 0);
+
+  console.log(`[Julius] Despesas normais (sem cartão): R$${normalExpensesTotal.toFixed(2)}`);
+  console.log(`[Julius] TOTAL despesas (normais + cartão pago): R$${totalExpenses.toFixed(2)}`);
+
+  // Agrupar por categoria (apenas transações normais por enquanto)
   const expenseMap = new Map<string, CategoryTotal>();
   const incomeMap = new Map<string, CategoryTotal>();
 
   for (const t of filteredTransactions) {
-    if (t.status !== 'completed' || !t.categoryId) continue;
+    if (!t.categoryId) continue;
 
     const map = t.type === 'expense' ? expenseMap : t.type === 'income' ? incomeMap : null;
     if (!map) continue;
@@ -132,6 +172,17 @@ export async function getHomeConsistentData(
     }
   }
 
+  // Adicionar categoria "Cartão de Crédito" se houver faturas pagas
+  if (creditCardExpenses > 0) {
+    expenseMap.set('credit-card-bills', {
+      categoryId: 'credit-card-bills',
+      categoryName: 'Cartão de Crédito',
+      categoryIcon: '💳',
+      total: creditCardExpenses,
+      count: paidBillsCurrentMonth.length,
+    });
+  }
+
   // Calcular percentuais e ordenar
   const expensesByCategory = Array.from(expenseMap.values())
     .map((cat) => ({
@@ -147,23 +198,14 @@ export async function getHomeConsistentData(
     }))
     .sort((a, b) => b.total - a.total);
 
-  // Calcular mês anterior (com mesma lógica de filtro)
-  const filteredPreviousTx = previousTx.filter((t) => {
-    if (t.creditCardId && t.month && t.year) {
-      const billKey = `${t.creditCardId}-${t.month}-${t.year}`;
-      if (pendingBillsKeys.has(billKey)) {
-        return false;
-      }
-    }
-    return true;
-  });
-
-  let previousMonthExpenses = 0;
-  for (const t of filteredPreviousTx) {
-    if (t.status === 'completed' && t.type === 'expense') {
-      previousMonthExpenses += t.amount;
-    }
-  }
+  // Calcular mês anterior (mesma lógica simplificada)
+  const normalExpensesPrev = previousTx.filter((t) => 
+    !t.creditCardId && 
+    !(t as any).creditCardBillId && // Exclui pagamentos de fatura
+    t.status === 'completed' && 
+    t.type === 'expense'
+  );
+  const previousMonthExpenses = normalExpensesPrev.reduce((sum, t) => sum + t.amount, 0) + creditCardExpensesPrev;
 
   return {
     transactions: filteredTransactions,
@@ -173,10 +215,14 @@ export async function getHomeConsistentData(
     expensesByCategory,
     incomesByCategory,
     transactionCount: filteredTransactions.length,
-    expenseCount,
-    incomeCount,
+    expenseCount: normalExpenses.length + paidBillsCurrentMonth.length,
+    incomeCount: normalIncomes.length,
     previousMonthExpenses,
-    previousMonthData: filteredPreviousTx,
+    previousMonthData: previousTx.filter((t) => 
+      !t.creditCardId && 
+      !(t as any).creditCardBillId && 
+      t.status === 'completed'
+    ),
   };
 }
 
@@ -199,7 +245,7 @@ export async function getTopExpenses(
 
 /**
  * Dados de gastos com cartão de crédito
- * USA AS MESMAS FUNÇÕES que o CreditCardsCard da Home
+ * USA LÓGICA SIMPLIFICADA: faturas PAGAS com vencimento no mês
  */
 export interface CreditCardData {
   totalUsed: number;
@@ -215,9 +261,8 @@ export interface CreditCardData {
 }
 
 /**
- * Busca dados de cartão de crédito - APENAS FATURAS PAGAS
- * Para o mês vigente, só considera faturas que já foram pagas (isPaid: true)
- * Faturas pendentes NÃO são contabilizadas nos gastos do mês
+ * Busca dados de cartão de crédito - APENAS FATURAS PAGAS NO MÊS
+ * Considera apenas faturas com isPaid=true E vencimento no mês atual
  */
 export async function getCreditCardData(
   userId: string,
@@ -228,54 +273,34 @@ export async function getCreditCardData(
   const targetMonth = month ?? now.getMonth() + 1;
   const targetYear = year ?? now.getFullYear();
 
-  // Buscar cartões do usuário e faturas pendentes
-  const [cards, pendingBillsMap] = await Promise.all([
-    creditCardService.getCreditCards(userId),
-    getPendingBillsMap(userId),
-  ]);
+  // Buscar faturas PAGAS com vencimento no mês
+  const paidBills = await getPaidBillsInMonth(userId, targetMonth, targetYear);
   
-  // Buscar receitas do mês para calcular porcentagem
+  // Buscar receitas do mês
   const homeData = await getHomeConsistentData(userId, targetMonth, targetYear);
   const totalIncome = homeData.totalIncomes;
 
-  // Buscar gastos de cada cartão no mês - APENAS FATURAS PAGAS
-  const cardAmounts: Array<{ id: string; name: string; amount: number }> = [];
+  // Agrupar por cartão
+  const cardMap = new Map<string, { id: string; name: string; amount: number }>();
   let totalUsed = 0;
 
-  for (const card of cards) {
-    try {
-      // Verificar se a fatura deste cartão/mês está pendente
-      const billKey = `${card.id}-${targetMonth}-${targetYear}`;
-      const isPending = pendingBillsMap.has(billKey);
-      
-      // Se a fatura está pendente, não conta nos gastos do mês
-      if (isPending) {
-        continue;
-      }
-      
-      const transactions = await getCreditCardTransactionsByMonth(
-        userId,
-        card.id!,
-        targetMonth,
-        targetYear
-      );
-      const amount = calculateBillTotal(transactions);
-      
-      if (amount > 0) {
-        cardAmounts.push({
-          id: card.id!,
-          name: card.name,
-          amount,
-        });
-        totalUsed += amount;
-      }
-    } catch (error) {
-      console.error(`Erro ao buscar gastos do cartão ${card.id}:`, error);
+  for (const bill of paidBills) {
+    totalUsed += bill.totalAmount;
+    
+    const existing = cardMap.get(bill.creditCardId);
+    if (existing) {
+      existing.amount += bill.totalAmount;
+    } else {
+      cardMap.set(bill.creditCardId, {
+        id: bill.creditCardId,
+        name: bill.creditCardName || 'Cartão',
+        amount: bill.totalAmount,
+      });
     }
   }
 
   // Ordenar por valor (maior primeiro)
-  cardAmounts.sort((a, b) => b.amount - a.amount);
+  const cardAmounts = Array.from(cardMap.values()).sort((a, b) => b.amount - a.amount);
 
   // Calcular porcentagem e status
   const usagePercentage = totalIncome > 0 ? (totalUsed / totalIncome) * 100 : 0;
