@@ -1,15 +1,16 @@
 import React, { useState, useRef, useCallback } from 'react';
 import {
-    View,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    FlatList,
-    StyleSheet,
-    KeyboardAvoidingView,
-    Platform,
-    ActivityIndicator,
-    Keyboard,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  Keyboard,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,19 +27,18 @@ interface ChatMessage {
   intent?: string;
 }
 
-const JULIUS_GREETING = `E aí! Sou o Julius, seu assistente financeiro pessoal.
+const JULIUS_GREETING = `Olá! Sou o Julius, seu assistente financeiro.
 
-Posso te ajudar a entender seus gastos, encontrar onde você pode economizar e acompanhar sua evolução.
-
-💬 *Dinheiro não cai do céu!*
+Posso te ajudar a entender seus gastos, dar dicas e responder perguntas sobre finanças.
 
 Me pergunte algo como:
 • "Quanto gastei esse mês?"
 • "Qual categoria mais gasto?"
-• "Comparar com mês anterior"`;
+• "Como posso economizar?"
+• "O que fazer pra juntar dinheiro?"`;
 
-// Avatar do Julius (inspirado no Terry Crews)
-const JULIUS_AVATAR = '📢';
+// Avatar do Julius
+const JULIUS_AVATAR = require('../../assets/julius_avatar.jpg');
 
 export default function JuliusChatScreen() {
   const navigation = useNavigation();
@@ -82,8 +82,8 @@ export default function JuliusChatScreen() {
     scrollToBottom();
 
     try {
-      // Chamar Julius
-      const response: JuliusResponse = await askJulius(user.uid, trimmedText);
+      // Chamar Julius (passa email para verificar se é usuário ilimitado)
+      const response: JuliusResponse = await askJulius(user.uid, trimmedText, user.email);
 
       // Adicionar resposta do Julius
       const juliusMessage: ChatMessage = {
@@ -123,9 +123,7 @@ export default function JuliusChatScreen() {
         ]}
       >
         {!isUser && (
-          <View style={styles.juliusAvatar}>
-            <Text style={styles.juliusAvatarText}>{JULIUS_AVATAR}</Text>
-          </View>
+          <Image source={JULIUS_AVATAR} style={styles.juliusAvatar} />
         )}
         <View
           style={[
@@ -161,8 +159,8 @@ export default function JuliusChatScreen() {
     const suggestions = [
       'Quanto gastei?',
       'Maior categoria',
-      'Maiores gastos',
-      'Ajuda',
+      'Como economizar?',
+      'Dica pra juntar dinheiro',
     ];
 
     return (
@@ -194,9 +192,7 @@ export default function JuliusChatScreen() {
         </TouchableOpacity>
         
         <View style={styles.headerContent}>
-          <View style={styles.avatarContainer}>
-            <Text style={styles.avatarEmoji}>{JULIUS_AVATAR}</Text>
-          </View>
+          <Image source={JULIUS_AVATAR} style={styles.headerAvatar} />
           <View>
             <Text style={styles.headerTitle}>Julius</Text>
             <Text style={styles.headerSubtitle}>Assistente Financeiro</Text>
@@ -308,16 +304,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  avatarContainer: {
+  headerAvatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: palette.primaryBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarEmoji: {
-    fontSize: 24,
   },
   headerTitle: {
     fontSize: typography.fontSizes.lg,
@@ -351,16 +341,10 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   juliusAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: palette.primaryBg,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     marginRight: spacing.xs,
-  },
-  juliusAvatarText: {
-    fontSize: 16,
   },
   messageContent: {
     maxWidth: '80%',

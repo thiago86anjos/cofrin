@@ -1,4 +1,4 @@
-import { View, StyleSheet, ScrollView, useWindowDimensions, Pressable, TouchableOpacity } from "react-native";
+import { View, StyleSheet, ScrollView, useWindowDimensions, Pressable, TouchableOpacity, Image } from "react-native";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,9 +10,9 @@ import { useMonthlyGoals } from "../hooks/useMonthlyGoals";
 import React, { useCallback, useState, useEffect, useDeferredValue } from "react";
 import MainLayout from "../components/MainLayout";
 import {
-    UpcomingFlowsCardShimmer,
-    AccountsCardShimmer,
-    CreditCardsCardShimmer, CategoryCardShimmer
+  UpcomingFlowsCardShimmer,
+  AccountsCardShimmer,
+  CreditCardsCardShimmer, CategoryCardShimmer
 } from "../components/home/HomeShimmer";
 import AccountsCard from "../components/home/AccountsCard";
 import { UpcomingFlowsCard } from "../components/home";
@@ -20,6 +20,10 @@ import TopCategoriesCard from "../components/TopCategoriesCard";
 import CreditCardsCard from "../components/home/CreditCardsCard";
 import GoalCard from "../components/home/GoalCard";
 import { DS_COLORS } from "../theme/designSystem";
+import { checkRateLimit } from "../services/julius";
+
+// Avatar do Julius
+const JULIUS_AVATAR = require('../../assets/julius_avatar.jpg');
 
 export default function Home() {
   const { user } = useAuth();
@@ -31,6 +35,8 @@ export default function Home() {
   const isNarrow = width < 700;
   const userName = user?.displayName || user?.email?.split("@")?.[0] || "Usuário";
   const canAccessAtivosBeta = (user?.email ?? '').toLowerCase() === 'thiago.w3c@gmail.com';
+  const canAccessJulius = (user?.email ?? '').toLowerCase() === 'thiago.w3c@gmail.com';
+  const [juliusRemaining, setJuliusRemaining] = useState<number | null>(null);
 
   // Determinar saudação baseada na hora
   const getGreeting = () => {
@@ -44,6 +50,15 @@ export default function Home() {
   const today = new Date();
   const currentMonth = today.getMonth() + 1;
   const currentYear = today.getFullYear();
+
+  // Verificar mensagens disponíveis do Julius
+  useEffect(() => {
+    if (canAccessJulius && user?.uid) {
+      checkRateLimit(user.uid, user.email).then((result) => {
+        setJuliusRemaining(result.remaining);
+      });
+    }
+  }, [canAccessJulius, user?.uid, user?.email]);
 
   // Hook consolidado - reduz ~14 queries para ~6 queries Firebase
   const {
@@ -145,33 +160,66 @@ export default function Home() {
         >
         <View style={styles.centeredContainer}>
           <View style={styles.content}>
-            {/* Saudação - sempre visível imediatamente */}
+            {/* Saudação - integrada com Julius quando disponível */}
             <View style={styles.greetingSection}>
-              <View style={styles.greetingRow}>
-                <Text style={[styles.greeting, { color: DS_COLORS.primary }]}>
-                  {getGreeting().text}, {userName}
-                </Text>
-                <View style={styles.greetingIcons}>
-                  <MaterialCommunityIcons 
-                    name={getGreeting().icon} 
-                    size={28} 
-                    color={DS_COLORS.primary} 
-                    style={styles.greetingIcon}
-                  />
-                  {hasAlert && (
-                    <Pressable 
-                      onPress={() => navigation.navigate('Metas do ano', { activeTab: 'monthly' })}
-                      style={styles.alertButton}
-                    >
-                      <MaterialCommunityIcons 
-                        name="bell-alert" 
-                        size={24} 
-                        color={DS_COLORS.warning} 
-                      />
-                    </Pressable>
-                  )}
+              {canAccessJulius && juliusRemaining !== null && juliusRemaining > 0 ? (
+                /* Saudação com Julius integrado */
+                <TouchableOpacity 
+                  style={styles.greetingWithJulius}
+                  onPress={() => navigation.navigate('JuliusChat')}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.greetingJuliusLeft}>
+                    <View style={styles.greetingTitleRow}>
+                      <Text style={[styles.greeting, { color: DS_COLORS.primary }]}>
+                        {getGreeting().text}, {userName}!
+                      </Text>
+                      {hasAlert && (
+                        <MaterialCommunityIcons 
+                          name="bell-alert" 
+                          size={22} 
+                          color={DS_COLORS.warning}
+                          style={{ marginLeft: 8 }}
+                        />
+                      )}
+                    </View>
+                    <Text style={styles.juliusInviteText}>
+                      {hasAlert 
+                        ? 'Eita! Já passou das metas do mês hein... quer uma ajuda? 🤔'
+                        : 'Precisa de ajuda hoje? Só me chamar! 💪'
+                      }
+                    </Text>
+                  </View>
+                  <Image source={JULIUS_AVATAR} style={styles.greetingJuliusAvatar} />
+                </TouchableOpacity>
+              ) : (
+                /* Saudação normal (sem Julius ou sem mensagens) */
+                <View style={styles.greetingRow}>
+                  <Text style={[styles.greeting, { color: DS_COLORS.primary }]}>
+                    {getGreeting().text}, {userName}
+                  </Text>
+                  <View style={styles.greetingIcons}>
+                    <MaterialCommunityIcons 
+                      name={getGreeting().icon} 
+                      size={28} 
+                      color={DS_COLORS.primary} 
+                      style={styles.greetingIcon}
+                    />
+                    {hasAlert && (
+                      <Pressable 
+                        onPress={() => navigation.navigate('Metas do ano', { activeTab: 'monthly' })}
+                        style={styles.alertButton}
+                      >
+                        <MaterialCommunityIcons 
+                          name="bell-alert" 
+                          size={24} 
+                          color={DS_COLORS.warning} 
+                        />
+                      </Pressable>
+                    )}
+                  </View>
                 </View>
-              </View>
+              )}
             </View>
 
             <View style={{ height: 16 }} />
@@ -271,21 +319,6 @@ export default function Home() {
         </View>
       </ScrollView>
     </MainLayout>
-
-    {/* FAB Julius - Assistente Financeiro (apenas para o e-mail do Thiago) */}
-    {user?.email?.toLowerCase() === 'thiago.w3c@gmail.com' && (
-      <TouchableOpacity
-        style={[styles.juliusFab, { bottom: insets.bottom + 80 }]}
-        onPress={() => navigation.navigate('JuliusChat')}
-        activeOpacity={0.85}
-        accessibilityLabel="Abrir Julius, assistente financeiro"
-      >
-        <View style={styles.juliusFabContent}>
-          <Text style={styles.juliusFabEmoji}>📢</Text>
-          <Text style={styles.juliusFabText}>Julius</Text>
-        </View>
-      </TouchableOpacity>
-    )}
   </View>
 );
 }
@@ -356,33 +389,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  // Julius FAB
-  juliusFab: {
-    position: 'absolute',
-    right: 20,
-    backgroundColor: DS_COLORS.primary,
-    borderRadius: 28,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+  // Saudação integrada com Julius
+  greetingWithJulius: {
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    justifyContent: 'space-between',
   },
-  juliusFabContent: {
+  greetingJuliusLeft: {
+    flex: 1,
+  },
+  greetingTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
-  juliusFabEmoji: {
-    fontSize: 20,
+  juliusInviteText: {
+    fontSize: 14,
+    color: DS_COLORS.textMuted,
+    marginTop: 4,
   },
-  juliusFabText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
+  greetingJuliusAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    marginLeft: 12,
   },
 });

@@ -1,17 +1,31 @@
 /**
  * Julius Summary Generator
- * Gera resumos financeiros baseados nos dados do Firestore
+ * 
+ * IMPORTANTE: Usa juliusDataService que aplica as MESMAS regras de filtro
+ * que a Home (faturas pendentes, status, etc).
+ * Isso garante que os números do Julius sejam IDÊNTICOS aos da UI.
  */
 
 import {
-    getExpensesCurrentMonth,
-    getExpensesPreviousMonth,
-    getExpensesGroupedByCategory,
-    getTopExpenses,
-    getIncomesCurrentMonth,
+    getHomeConsistentData,
+    getTopExpenses as getTopExpensesList,
+    getCreditCardData,
+    getGoalsData,
     CategoryTotal,
-    JuliusTransaction,
-} from './juliusFirestore';
+    CreditCardData
+} from './juliusDataService';
+
+// Re-export CategoryTotal para compatibilidade
+export { CategoryTotal, CreditCardData, GoalData } from './juliusDataService';
+
+// Tipo simplificado para top expenses (compatível com respostas)
+export interface TopExpense {
+  id: string;
+  amount: number;
+  description: string;
+  categoryName?: string;
+  date: Date;
+}
 
 export interface FinancialSummary {
   // Mês atual
@@ -44,7 +58,13 @@ export interface FinancialSummary {
   daysPassed: number;
   
   // Top gastos
-  topExpenses: JuliusTransaction[];
+  topExpenses: TopExpense[];
+  
+  // Cartões de crédito (IGUAL ao CreditCardsCard)
+  creditCard?: CreditCardData;
+  
+  // Metas (mensais e longo prazo)
+  goals?: GoalData;
   
   // Flags
   hasData: boolean;
@@ -58,6 +78,7 @@ const monthNames = [
 
 /**
  * Gera um resumo financeiro completo do usuário
+ * USA getHomeConsistentData para garantir dados IDÊNTICOS à Home
  */
 export async function generateFinancialSummary(userId: string): Promise<FinancialSummary> {
   const now = new Date();
@@ -66,31 +87,30 @@ export async function generateFinancialSummary(userId: string): Promise<Financia
   const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
   const daysPassed = now.getDate();
 
-  // Buscar dados em paralelo
-  const [
-    currentExpenses,
-    previousExpenses,
-    categories,
-    topExpenses,
-    currentIncomes,
-  ] = await Promise.all([
-    getExpensesCurrentMonth(userId),
-    getExpensesPreviousMonth(userId),
-    getExpensesGroupedByCategory(userId),
-    getTopExpenses(userId, 5),
-    getIncomesCurrentMonth(userId),
+  // Buscar dados CONSISTENTES com a Home (já filtrados)
+  const [homeData, topExpensesTx, creditCardData, goalsData] = await Promise.all([
+    getHomeConsistentData(userId, currentMonth, currentYear),
+    getTopExpensesList(userId, 5, currentMonth, currentYear),
+    getCreditCardData(userId, currentMonth, currentYear),
+    getGoalsData(userId),
   ]);
 
-  // Calcular totais
-  const totalExpenses = currentExpenses.reduce((sum, t) => sum + t.amount, 0);
-  const totalIncomes = currentIncomes.reduce((sum, t) => sum + t.amount, 0);
-  const previousMonthTotal = previousExpenses.reduce((sum, t) => sum + t.amount, 0);
+  // Dados já calculados pelo homeData (IDÊNTICOS à Home)
+  const { 
+    totalExpenses, 
+    totalIncomes, 
+    balance,
+    expensesByCategory: categories,
+    expenseCount: transactionCount,
+    previousMonthExpenses: previousMonthTotal,
+    previousMonthData,
+  } = homeData;
 
   // Variação mensal
   let monthVariation: number | undefined;
   let monthVariationPercent: number | undefined;
   
-  if (previousExpenses.length > 0) {
+  if (previousMonthData.length > 0) {
     monthVariation = totalExpenses - previousMonthTotal;
     monthVariationPercent = previousMonthTotal > 0
       ? ((monthVariation / previousMonthTotal) * 100)
@@ -98,9 +118,17 @@ export async function generateFinancialSummary(userId: string): Promise<Financia
   }
 
   // Estatísticas
-  const transactionCount = currentExpenses.length;
   const averageExpense = transactionCount > 0 ? totalExpenses / transactionCount : 0;
   const dailyAverage = daysPassed > 0 ? totalExpenses / daysPassed : 0;
+
+  // Converter top expenses para formato simplificado
+  const topExpenses: TopExpense[] = topExpensesTx.map((t) => ({
+    id: t.id!,
+    amount: t.amount,
+    description: t.description,
+    categoryName: t.categoryName,
+    date: t.date.toDate(),
+  }));
 
   return {
     currentMonth: {
@@ -111,13 +139,13 @@ export async function generateFinancialSummary(userId: string): Promise<Financia
     
     totalExpenses,
     totalIncomes,
-    balance: totalIncomes - totalExpenses,
+    balance,
     
     categories,
     topCategory: categories[0],
     categoryCount: categories.length,
     
-    previousMonthTotal: previousExpenses.length > 0 ? previousMonthTotal : undefined,
+    previousMonthTotal: previousMonthData.length > 0 ? previousMonthTotal : undefined,
     monthVariation,
     monthVariationPercent,
     
@@ -129,8 +157,12 @@ export async function generateFinancialSummary(userId: string): Promise<Financia
     
     topExpenses,
     
-    hasData: currentExpenses.length > 0,
-    hasPreviousMonthData: previousExpenses.length > 0,
+    creditCard: creditCardData,
+    
+    goals: goalsData,
+    
+    hasData: homeData.transactionCount > 0,
+    hasPreviousMonthData: previousMonthData.length > 0,
   };
 }
 

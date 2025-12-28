@@ -5,11 +5,14 @@
 
 export type JuliusIntent =
   | 'TOTAL_MES'
+  | 'CARTAO_CREDITO'
+  | 'METAS'
   | 'CATEGORIA_MAIOR'
   | 'GASTOS_ALTOS'
   | 'COMPARAR_MES'
   | 'LISTA_CATEGORIAS'
   | 'MEDIA_DIARIA'
+  | 'DICA'
   | 'AJUDA'
   | 'SAUDACAO'
   | 'DESCONHECIDO';
@@ -36,6 +39,31 @@ const intentPatterns: IntentPattern[] = [
       /soma\s+(dos\s+gastos?|do\s+mês)/i,
       /meus\s+gastos/i,
       /qual\s+(o\s+total|meu\s+gasto)/i,
+    ],
+  },
+  {
+    intent: 'CARTAO_CREDITO',
+    patterns: [
+      /cart(ão|ao)\s*(de\s*)?(credito|crédito)/i,
+      /gasto.*(cart(ão|ao)|credit)/i,
+      /fatura/i,
+      /credit\s*card/i,
+      /nubank|itau|bradesco|santander|inter|c6|xp|picpay/i,
+      /cart(ão|ao|ões|oes)/i,
+    ],
+  },
+  {
+    intent: 'METAS',
+    patterns: [
+      /metas?/i,
+      /objetivo/i,
+      /planej(ado|amento|ei)/i,
+      /or(ç|c)amento/i,
+      /limite\s+(de\s+)?gasto/i,
+      /quanto\s+(posso|devo)\s+gastar/i,
+      /estou\s+(dentro|acima|abaixo)/i,
+      /passei\s+do\s+limite/i,
+      /longo\s+prazo/i,
     ],
   },
   {
@@ -70,7 +98,6 @@ const intentPatterns: IntentPattern[] = [
       /aumentou|diminuiu/i,
       /evolu(ção|indo)/i,
       /último\s+mês/i,
-      /em\s+relação\s+ao\s+mês/i,
     ],
   },
   {
@@ -94,15 +121,21 @@ const intentPatterns: IntentPattern[] = [
     ],
   },
   {
+    intent: 'DICA',
+    patterns: [
+      /dicas?/i,
+      /como\s+(economizar|controlar|organizar)/i,
+      /sugest(ão|ões)/i,
+      /me\s+ajuda/i,
+      /o\s+que\s+fazer/i,
+    ],
+  },
+  {
     intent: 'AJUDA',
     patterns: [
       /ajuda/i,
       /o\s+que\s+você\s+(faz|pode|sabe)/i,
       /como\s+(funciona|usar|uso)/i,
-      /me\s+ajud(a|e)/i,
-      /dicas?/i,
-      /sugest(ão|ões)/i,
-      /pode\s+me\s+ajudar/i,
     ],
   },
 ];
@@ -114,7 +147,7 @@ export function detectIntent(question: string): JuliusIntent {
   const normalizedQuestion = question
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+    .replace(/[\u0300-\u036f]/g, '')
     .trim();
 
   for (const { intent, patterns } of intentPatterns) {
@@ -126,33 +159,4 @@ export function detectIntent(question: string): JuliusIntent {
   }
 
   return 'DESCONHECIDO';
-}
-
-/**
- * Extrai informações extras da pergunta (ex: mês específico, categoria)
- */
-export function extractContext(question: string): {
-  month?: number;
-  year?: number;
-  category?: string;
-} {
-  const context: { month?: number; year?: number; category?: string } = {};
-  const normalizedQuestion = question.toLowerCase();
-
-  // Detectar mês mencionado
-  const monthNames: Record<string, number> = {
-    janeiro: 1, fevereiro: 2, março: 3, marco: 3,
-    abril: 4, maio: 5, junho: 6,
-    julho: 7, agosto: 8, setembro: 9,
-    outubro: 10, novembro: 11, dezembro: 12,
-  };
-
-  for (const [name, num] of Object.entries(monthNames)) {
-    if (normalizedQuestion.includes(name)) {
-      context.month = num;
-      break;
-    }
-  }
-
-  return context;
 }
