@@ -101,21 +101,9 @@ export async function getHomeConsistentData(
     getPaidBillsInMonth(userId, prevMonth, prevYear),
   ]);
 
-  // Criar set de IDs de faturas pagas no mês (para associar transações)
-  const paidBillIds = new Set(paidBillsCurrentMonth.map(b => b.id));
-  const paidBillsPrevIds = new Set(paidBillsPrevMonth.map(b => b.id));
-
   // Total de faturas pagas no mês
   const creditCardExpenses = paidBillsCurrentMonth.reduce((sum, bill) => sum + bill.totalAmount, 0);
   const creditCardExpensesPrev = paidBillsPrevMonth.reduce((sum, bill) => sum + bill.totalAmount, 0);
-
-  console.log(`[Julius] Mês ${targetMonth}/${targetYear}:`);
-  console.log(`[Julius] Faturas PAGAS com vencimento neste mês: ${paidBillsCurrentMonth.length}`);
-  paidBillsCurrentMonth.forEach(b => {
-    const dueDate = b.dueDate?.toDate?.() || new Date();
-    console.log(`  - ${b.creditCardName}: R$${b.totalAmount.toFixed(2)} (venc: ${dueDate.toLocaleDateString('pt-BR')})`);
-  });
-  console.log(`[Julius] Total faturas pagas: R$${creditCardExpenses.toFixed(2)}`);
 
   // Filtrar transações: incluir apenas despesas NORMAIS
   // - Sem creditCardId (não é compra no cartão)
@@ -143,9 +131,6 @@ export async function getHomeConsistentData(
   const normalExpensesTotal = normalExpenses.reduce((sum, t) => sum + t.amount, 0);
   const totalExpenses = normalExpensesTotal + creditCardExpenses;
   const totalIncomes = normalIncomes.reduce((sum, t) => sum + t.amount, 0);
-
-  console.log(`[Julius] Despesas normais (sem cartão): R$${normalExpensesTotal.toFixed(2)}`);
-  console.log(`[Julius] TOTAL despesas (normais + cartão pago): R$${totalExpenses.toFixed(2)}`);
 
   // Agrupar por categoria (apenas transações normais por enquanto)
   const expenseMap = new Map<string, CategoryTotal>();
