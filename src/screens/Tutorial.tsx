@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '../contexts/themeContext';
 import { spacing, borderRadius } from '../theme';
+import MainLayout from '../components/MainLayout';
+import SimpleHeader from '../components/SimpleHeader';
+import { FOOTER_HEIGHT } from '../components/AppFooter';
 
 interface TutorialTopic {
   id: string;
@@ -172,6 +175,11 @@ export default function Tutorial({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set());
 
+  const bottomPad = useMemo(
+    () => FOOTER_HEIGHT + 6 + Math.max(insets.bottom, 8) + spacing.lg,
+    [insets.bottom]
+  );
+
   const toggleTopic = (topicId: string) => {
     setExpandedTopics((prev) => {
       const newSet = new Set(prev);
@@ -185,48 +193,30 @@ export default function Tutorial({ navigation }: Props) {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      {/* Header simples */}
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop: insets.top + spacing.md,
-            backgroundColor: colors.bg,
-          },
-        ]}
-      >
-        <Pressable
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-          hitSlop={spacing.md}
-        >
-          <MaterialCommunityIcons name="arrow-left" size={24} color={colors.text} />
-        </Pressable>
-      </View>
+    <MainLayout>
+      <View style={[styles.container, { backgroundColor: colors.bg }]}>
+        {/* Header simples */}
+        <SimpleHeader title="Como usar o Cofrin" />
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: insets.bottom + spacing.xl },
-        ]}
-      >
-        {/* Intro com identidade visual */}
-        <View style={styles.intro}>
-          <View style={styles.iconCircle}>
-            <MaterialCommunityIcons name="wallet" size={80} color="#8B5CF6" />
-          </View>
-          <Text style={[styles.introTitle, { color: colors.text }]}>
-            Como usar o Cofrin
-          </Text>
-          <Text style={[styles.introSubtitle, { color: colors.textSecondary }]}>
-            Seu controle financeiro simplificado
-          </Text>
-          <Text style={[styles.introText, { color: colors.textMuted }]}>
-            Toque em cada tópico para aprender mais
-          </Text>
-        </View>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: bottomPad },
+          ]}
+        >
+          <View style={styles.centeredContainer}>
+            <View style={styles.content}>
+              
+              {/* Intro sem logo grande */}
+              <View style={styles.intro}>
+                <Text style={[styles.introSubtitle, { color: colors.textSecondary }]}>
+                  Seu controle financeiro simplificado
+                </Text>
+                <Text style={[styles.introText, { color: colors.textMuted }]}>
+                  Toque em cada tópico para aprender mais
+                </Text>
+              </View>
 
         {topics.map((topic) => {
           const isExpanded = expandedTopics.has(topic.id);
@@ -276,9 +266,9 @@ export default function Tutorial({ navigation }: Props) {
                       key={index}
                       style={[
                         styles.section,
-                        index > 0 && {
-                          borderTopWidth: 1,
-                          borderTopColor: colors.border,
+                        index < topic.sections.length - 1 && {
+                          borderBottomWidth: 1,
+                          borderBottomColor: colors.border + '40',
                         },
                       ]}
                     >
@@ -296,14 +286,17 @@ export default function Tutorial({ navigation }: Props) {
           );
         })}
 
-        <View style={[styles.footer, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <MaterialCommunityIcons name="help-circle" size={24} color={colors.primary} />
+        <View style={[styles.footer, { backgroundColor: colors.infoCard || colors.card, borderColor: colors.border }]}>
+          <MaterialCommunityIcons name="information" size={20} color={colors.primary} />
           <Text style={[styles.footerText, { color: colors.textSecondary }]}>
-            Tem dúvidas? Entre em contato pelo email: thiago.w3c@gmail.com
+            Precisa de mais ajuda? Entre em contato através do menu Sobre.
           </Text>
         </View>
-      </ScrollView>
-    </View>
+            </View>
+          </View>
+        </ScrollView>
+      </View>
+    </MainLayout>
   );
 }
 
@@ -311,46 +304,30 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+  },
+  centeredContainer: {
+    width: '100%',
+    maxWidth: 800,
+    alignSelf: 'center',
+  },
+  content: {
+    width: '100%',
   },
   intro: {
     alignItems: 'center',
+    marginTop: spacing.lg,
     marginBottom: spacing.xl,
-    paddingTop: spacing.md,
-  },
-  iconCircle: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: 'rgba(139, 92, 246, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.lg,
-  },
-  introTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: spacing.xs,
   },
   introSubtitle: {
     fontSize: 16,
     textAlign: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
+    fontWeight: '500',
   },
   introText: {
     fontSize: 14,
@@ -389,7 +366,6 @@ const styles = StyleSheet.create({
   },
   topicContent: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
   },
   section: {
     padding: spacing.md,
@@ -410,6 +386,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     borderWidth: 1,
     marginTop: spacing.lg,
+    marginBottom: spacing.md,
   },
   footerText: {
     fontSize: 13,
