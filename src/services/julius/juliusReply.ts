@@ -5,7 +5,10 @@
  */
 
 import { JuliusIntent } from './juliusIntent';
-import { FinancialSummary, formatCurrency, formatPercent } from './juliusSummary';
+import { FinancialSummary, formatCurrency, formatPercent, GoalData } from './juliusSummary';
+
+// Tipo para meta mensal (extraído de GoalData)
+type MonthlyGoal = GoalData['monthlyGoals'][number];
 
 /**
  * Frases do Julius para diferentes situações - COM HUMOR!
@@ -166,29 +169,34 @@ function getMetas(summary: FinancialSummary): string {
   let reply = `🎯 **Suas Metas em ${summary.currentMonth.monthName}:**\n\n`;
   
   // Metas mensais (por categoria)
-  if (goals.hasMonthlyGoals) {
-    reply += `📊 **Metas Mensais (por categoria):**\n`;
-    reply += `• Total definido: ${goals.monthlyGoalsCount} metas\n`;
+  if (goals.hasMonthlyGoals && goals.monthlyGoals.length > 0) {
+    const exceededCount = goals.monthlyGoalsExceeded ?? 0;
+    const warningCount = goals.monthlyGoalsWarning ?? 0;
+    const onTrackCount = goals.monthlyGoals.length - exceededCount - warningCount;
     
-    if (goals.exceededCount > 0) {
-      reply += `• 🔴 Estouradas: ${goals.exceededCount}\n`;
+    reply += `📊 **Metas Mensais (por categoria):**\n`;
+    reply += `• Total definido: ${goals.monthlyGoals.length} metas\n`;
+    
+    if (exceededCount > 0) {
+      reply += `• 🔴 Estouradas: ${exceededCount}\n`;
     }
-    if (goals.warningCount > 0) {
-      reply += `• 🟡 Em alerta (>80%): ${goals.warningCount}\n`;
+    if (warningCount > 0) {
+      reply += `• 🟡 Em alerta (>85%): ${warningCount}\n`;
     }
-    if (goals.onTrackCount > 0) {
-      reply += `• ✅ Sob controle: ${goals.onTrackCount}\n`;
+    if (onTrackCount > 0) {
+      reply += `• ✅ Sob controle: ${onTrackCount}\n`;
     }
     
     // Detalhes das metas estouradas ou em alerta
-    if (goals.monthlyGoals && goals.monthlyGoals.length > 0) {
-      const problemGoals = goals.monthlyGoals.filter(g => g.status !== 'on-track');
-      if (problemGoals.length > 0) {
-        reply += `\n⚠️ **Atenção especial:**\n`;
-        for (const g of problemGoals.slice(0, 3)) {
-          const icon = g.status === 'exceeded' ? '🔴' : '🟡';
-          reply += `${icon} ${g.categoryName}: ${formatCurrency(g.spent)} de ${formatCurrency(g.limit)} (${g.percentage.toFixed(0)}%)\n`;
-        }
+    const problemGoals = goals.monthlyGoals.filter((g: MonthlyGoal) => g.status !== 'ok');
+    if (problemGoals.length > 0) {
+      reply += `\n⚠️ **Atenção especial:**\n`;
+      for (const g of problemGoals.slice(0, 3)) {
+        const icon = g.status === 'exceeded' ? '🔴' : '🟡';
+        const current = g.currentAmount ?? 0;
+        const target = g.targetAmount ?? 0;
+        const pct = g.percentage ?? 0;
+        reply += `${icon} ${g.name || 'Meta'}: ${formatCurrency(current)} de ${formatCurrency(target)} (${pct.toFixed(0)}%)\n`;
       }
     }
     
@@ -199,17 +207,22 @@ function getMetas(summary: FinancialSummary): string {
   if (goals.hasLongTermGoals && goals.longTermGoals && goals.longTermGoals.length > 0) {
     reply += `💰 **Metas de Longo Prazo:**\n`;
     for (const g of goals.longTermGoals.slice(0, 3)) {
-      const progress = g.targetAmount > 0 ? (g.currentAmount / g.targetAmount * 100) : 0;
-      reply += `• ${g.name}: ${formatCurrency(g.currentAmount)} de ${formatCurrency(g.targetAmount)} (${progress.toFixed(0)}%)\n`;
+      const current = g.currentAmount ?? 0;
+      const target = g.targetAmount ?? 0;
+      const progress = target > 0 ? (current / target * 100) : 0;
+      reply += `• ${g.name || 'Meta'}: ${formatCurrency(current)} de ${formatCurrency(target)} (${progress.toFixed(0)}%)\n`;
     }
     reply += '\n';
   }
   
   // Resumo e dica baseada no status
-  if (goals.exceededCount > 0) {
-    reply += `\n😬 ${goals.exceededCount === 1 ? 'Uma meta estourou' : `${goals.exceededCount} metas estouraram`}... ${getFrase('alerta')}`;
-  } else if (goals.warningCount > 0) {
-    reply += `\n⚠️ ${goals.warningCount === 1 ? 'Uma meta tá' : `${goals.warningCount} metas tão`} quase no limite! Bora segurar a onda! 🌊`;
+  const exceededCount = goals.monthlyGoalsExceeded ?? 0;
+  const warningCount = goals.monthlyGoalsWarning ?? 0;
+  
+  if (exceededCount > 0) {
+    reply += `\n😬 ${exceededCount === 1 ? 'Uma meta estourou' : `${exceededCount} metas estouraram`}... ${getFrase('alerta')}`;
+  } else if (warningCount > 0) {
+    reply += `\n⚠️ ${warningCount === 1 ? 'Uma meta tá' : `${warningCount} metas tão`} quase no limite! Bora segurar a onda! 🌊`;
   } else {
     reply += `\n🎉 Mandando bem! Todas as metas sob controle! ${getFrase('positivo')}`;
   }
