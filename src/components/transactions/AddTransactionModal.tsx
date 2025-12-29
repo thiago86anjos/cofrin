@@ -273,28 +273,42 @@ export default function AddTransactionModal({
     return true;
   }, [type, accountId, toAccountId, hasAmount, description]);
 
-  // Verificar se a transação é de uma fatura futura (para mostrar botão de antecipar)
+  // Verificar se a transação pode ser antecipada (para fatura anterior não fechada)
   const isFutureInstallment = React.useMemo(() => {
     if (!editTransaction || !editTransaction.creditCardId || editTransaction.anticipatedFrom) {
       return false; // Não é cartão, não tem transação ou já foi antecipada
     }
     
     const now = new Date();
+    const currentDay = now.getDate();
     const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
     
     const txMonth = editTransaction.month || currentMonth;
     const txYear = editTransaction.year || currentYear;
     
-    // Verifica se a fatura da transação é futura
-    if (txYear > currentYear) {
-      return true;
-    } else if (txYear === currentYear && txMonth > currentMonth) {
-      return true;
+    // Se a transação é do mês atual ou anterior, não pode antecipar
+    if (txYear < currentYear || (txYear === currentYear && txMonth <= currentMonth)) {
+      return false;
     }
     
-    return false;
-  }, [editTransaction]);
+    // Buscar cartão para verificar dia de fechamento
+    const card = activeCards.find(c => c.id === editTransaction.creditCardId);
+    if (!card) {
+      return false;
+    }
+    
+    // Calcular qual seria a fatura de destino (considerando se a atual já fechou)
+    // Se hoje > dia de fechamento, a fatura "atual" já fechou e estamos na próxima
+    const targetMonth = currentDay > card.closingDay ? currentMonth + 1 : currentMonth;
+    const targetYear = targetMonth > 12 ? currentYear + 1 : currentYear;
+    const normalizedTargetMonth = targetMonth > 12 ? 1 : targetMonth;
+    
+    // Só permitir antecipar se a transação está pelo menos 1 mês à frente da fatura destino
+    const txIsAhead = txYear > targetYear || (txYear === targetYear && txMonth > normalizedTargetMonth);
+    
+    return txIsAhead;
+  }, [editTransaction, activeCards]);
 
   // Verificar se é uma transação de desconto de antecipação (gerada automaticamente)
   const isAnticipationDiscount = React.useMemo(() => {
@@ -500,10 +514,48 @@ export default function AddTransactionModal({
   
   // Handler para mover série de transações
   const handleMoveSeries = useCallback(async (monthsToMove: number) => {
-    if (!user?.uid || !editTransaction?.seriesId) return;
+    if (!user?.uid || !editTransaction?.seriesId || !editTransaction?.creditCardId) return;
     
     const direction = monthsToMove > 0 ? 'próximo mês' : 'mês anterior';
     const totalParcelas = editTransaction.installmentTotal || 0;
+    
+    // Se está movendo para trás, validar se a fatura de destino não está fechada
+    if (monthsToMove < 0 && editTransaction.creditCardId) {
+      const card = activeCards.find(c => c.id === editTransaction.creditCardId);
+      if (card) {
+        const now = new Date();
+        const currentDay = now.getDate();
+        const currentMonth = now.getMonth() + 1;
+        const currentYear = now.getFullYear();
+        
+        // Calcular mês de destino da primeira parcela
+        const firstInstallmentMonth = editTransaction.month || currentMonth;
+        const firstInstallmentYear = editTransaction.year || currentYear;
+        
+        let targetMonth = firstInstallmentMonth + monthsToMove;
+        let targetYear = firstInstallmentYear;
+        
+        // Ajustar ano se necessário
+        while (targetMonth < 1) {
+          targetMonth += 12;
+          targetYear -= 1;
+        }
+        
+        // Verificar se a fatura de destino já fechou
+        const isCurrentYearMonth = targetYear === currentYear && targetMonth === currentMonth;
+        const isPastBill = targetYear < currentYear || (targetYear === currentYear && targetMonth < currentMonth);
+        const isCurrentButClosed = isCurrentYearMonth && currentDay > card.closingDay;
+        
+        if (isPastBill || isCurrentButClosed) {
+          showAlert(
+            'Fatura Fechada',
+            'Não é possível mover a série para uma fatura que já está fechada.',
+            [{ text: 'OK', style: 'default' }]
+          );
+          return;
+        }
+      }
+    }
     
     showAlert(
       'Mover Série Completa',
@@ -540,7 +592,7 @@ export default function AddTransactionModal({
         }
       ]
     );
-  }, [user?.uid, editTransaction, showAlert, showSnackbar, onSave, onClose]);
+  }, [user?.uid, editTransaction, activeCards, showAlert, showSnackbar, onSave, onClose]);
 
   const handleAnticipate = useCallback(async () => {
     if (!user?.uid || !editTransaction?.id || !editTransaction?.creditCardId) return;
@@ -560,25 +612,56 @@ export default function AddTransactionModal({
     try {
       const discount = hasDiscount && discountAmount ? parseCurrency(discountAmount) : 0;
       
-      // Obter mês e ano atual
+      // Calcular mês/ano de destino considerando o dia de fechamento
       const now = new Date();
+      const currentDay = now.getDate();
       const currentMonth = now.getMonth() + 1; // 1-12
       const currentYear = now.getFullYear();
+      
+      // Buscar cartão para verificar dia de fechamento
+      const card = activeCards.find(c => c.id === editTransaction.creditCardId);
+      if (!card) {
+        showAlert('Erro', 'Cartão não encontrado.', [{ text: 'OK', style: 'default' }]);
+        setSaving(false);
+        return;
+      }
+      
+      // Se já passou o dia de fechamento, antecipar para o próximo mês
+      // Senão, antecipar para o mês atual
+      let targetMonth = currentMonth;
+      let targetYear = currentYear;
+      
+      if (currentDay > card.closingDay) {
+        targetMonth += 1;
+        if (targetMonth > 12) {
+          targetMonth = 1;
+          targetYear += 1;
+        }
+      }
       
       const result = await anticipateInstallment(
         user.uid,
         editTransaction.id,
-        currentMonth,
-        currentYear,
+        targetMonth,
+        targetYear,
         discount > 0 ? discount : undefined
       );
       
       if (result.success) {
+        const isParcela = editTransaction.installmentTotal && editTransaction.installmentTotal > 1;
         const parcelaNum = editTransaction.installmentCurrent || 1;
         const totalParcelas = editTransaction.installmentTotal || 1;
-        const mensagem = discount > 0 
-          ? `Parcela ${parcelaNum}/${totalParcelas} antecipada com desconto de ${formatCurrency(Math.round(discount * 100).toString())}!`
-          : `Parcela ${parcelaNum}/${totalParcelas} antecipada!`;
+        
+        let mensagem: string;
+        if (isParcela) {
+          mensagem = discount > 0 
+            ? `Parcela ${parcelaNum}/${totalParcelas} antecipada com desconto de ${formatCurrency(Math.round(discount * 100).toString())}!`
+            : `Parcela ${parcelaNum}/${totalParcelas} antecipada!`;
+        } else {
+          mensagem = discount > 0
+            ? `Lançamento antecipado com desconto de ${formatCurrency(Math.round(discount * 100).toString())}!`
+            : 'Lançamento antecipado!';
+        }
         
         showSnackbar(mensagem);
         // Resetar estados
@@ -588,19 +671,21 @@ export default function AddTransactionModal({
         onSave?.();
         onClose();
       } else {
-        showAlert('Erro', 'Não foi possível antecipar a parcela.', [
+        const isParcela = editTransaction.installmentTotal && editTransaction.installmentTotal > 1;
+        showAlert('Erro', `Não foi possível antecipar ${isParcela ? 'a parcela' : 'o lançamento'}.`, [
           { text: 'OK', style: 'default' }
         ]);
       }
     } catch (error) {
-      console.error('Erro ao antecipar parcela:', error);
-      showAlert('Erro', 'Ocorreu um erro ao antecipar a parcela.', [
+      console.error('Erro ao antecipar:', error);
+      const isParcela = editTransaction.installmentTotal && editTransaction.installmentTotal > 1;
+      showAlert('Erro', `Ocorreu um erro ao antecipar ${isParcela ? 'a parcela' : 'o lançamento'}.`, [
         { text: 'OK', style: 'default' }
       ]);
     } finally {
       setSaving(false);
     }
-  }, [user?.uid, editTransaction, hasDiscount, discountAmount, showAlert, showSnackbar, onSave, onClose]);
+  }, [user?.uid, editTransaction, hasDiscount, discountAmount, activeCards, showAlert, showSnackbar, onSave, onClose]);
 
   const handleSave = useCallback(async () => {
     const parsed = parseCurrency(amount);
@@ -1914,14 +1999,18 @@ export default function AddTransactionModal({
                     
                     {/* Botão de antecipar parcela - só aparece se for parcela futura */}
                     {isFutureInstallment && (
-                      <View style={[styles.anticipateContainer, { backgroundColor: colors.successLight || colors.grayLight }]}>
+                      <View style={[styles.anticipateContainer, { backgroundColor: colors.successBg || colors.grayLight }]}>
                         <MaterialCommunityIcons name="clock-fast" size={20} color={colors.success} />
                         <View style={{ flex: 1, marginLeft: spacing.sm }}>
                           <Text style={[styles.anticipateLabel, { color: colors.text }]}>
-                            Esta parcela é de uma fatura futura
+                            {editTransaction?.installmentTotal && editTransaction.installmentTotal > 1
+                              ? 'Esta parcela é de uma fatura futura'
+                              : 'Este lançamento é de uma fatura futura'}
                           </Text>
                           <Text style={[styles.anticipateSubLabel, { color: colors.textMuted }]}>
-                            Você pode antecipá-la para a fatura atual
+                            {editTransaction?.installmentTotal && editTransaction.installmentTotal > 1
+                              ? 'Você pode antecipá-la para a próxima fatura'
+                              : 'Você pode antecipá-lo para a próxima fatura'}
                           </Text>
                         </View>
                         <Pressable
@@ -2207,12 +2296,16 @@ export default function AddTransactionModal({
             <View style={styles.anticipateModalHeader}>
               <MaterialCommunityIcons name="clock-fast" size={28} color={colors.success} />
               <Text style={[styles.anticipateModalTitle, { color: colors.text }]}>
-                Antecipar Parcela
+                {editTransaction?.installmentTotal && editTransaction.installmentTotal > 1
+                  ? 'Antecipar Parcela'
+                  : 'Antecipar Lançamento'}
               </Text>
             </View>
             
             <Text style={[styles.anticipateModalDescription, { color: colors.textMuted }]}>
-              Você está antecipando a parcela {editTransaction?.installmentCurrent}/{editTransaction?.installmentTotal} para a fatura atual.
+              {editTransaction?.installmentTotal && editTransaction.installmentTotal > 1
+                ? `Você está antecipando a parcela ${editTransaction?.installmentCurrent}/${editTransaction?.installmentTotal} para a próxima fatura disponível.`
+                : 'Você está antecipando este lançamento para a próxima fatura disponível.'}
             </Text>
             
             <View style={[styles.discountSection, { backgroundColor: colors.grayLight }]}>
