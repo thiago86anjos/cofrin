@@ -7,7 +7,7 @@ import { useAuth } from "../contexts/authContext";
 import { spacing, borderRadius, getShadow } from "../theme";
 import { useCategories } from "../hooks/useCategories";
 import { useCustomAlert, useSnackbar } from "../hooks";
-import { CategoryType, CATEGORY_ICONS, Category } from "../types/firebase";
+import { CategoryType, CATEGORY_ICONS, Category, META_DEFAULT_CATEGORY_ID } from "../types/firebase";
 import CustomAlert from "../components/CustomAlert";
 import Snackbar from "../components/Snackbar";
 import MainLayout from "../components/MainLayout";
@@ -27,6 +27,8 @@ export default function Categories({ navigation }: any) {
   const [modalVisible, setModalVisible] = useState(false);
   const [isCreateMode, setIsCreateMode] = useState(true);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+
+  const [iconsModalVisible, setIconsModalVisible] = useState(false);
   
   // Estados unificados do formulário
   const [categoryName, setCategoryName] = useState('');
@@ -101,6 +103,7 @@ export default function Categories({ navigation }: any) {
     setEditingSubcategoryName('');
     setEditingSubcategoryIcon('food');
     setEditingSubcategoryParentId('');
+    setIconsModalVisible(false);
   }
 
   // Abrir modal para criar categoria raiz
@@ -732,6 +735,39 @@ export default function Categories({ navigation }: any) {
   const isParentEditModal = !isCreateMode && !!editingCategory && !editingCategory.parentId;
   const isParentCreateModal = isCreateMode && !categoryParentId;
 
+  const isSystemRootCategory = (cat: Category) =>
+    cat.type === 'expense' &&
+    !cat.parentId &&
+    (
+      !!cat.isMetaCategory ||
+      cat.id === META_DEFAULT_CATEGORY_ID ||
+      cat.name.trim().toLowerCase() === 'outros'
+    );
+
+  const systemRootCategories = rootCategories
+    .filter(isSystemRootCategory)
+    .sort((a, b) => {
+      const aRank = a.isMetaCategory || a.id === META_DEFAULT_CATEGORY_ID || a.name.trim().toLowerCase() === 'meta' ? 0 : 1;
+      const bRank = b.isMetaCategory || b.id === META_DEFAULT_CATEGORY_ID || b.name.trim().toLowerCase() === 'meta' ? 0 : 1;
+      if (aRank !== bRank) return aRank - bRank;
+      return a.name.localeCompare(b.name);
+    });
+
+  const userRootCategories = rootCategories.filter((c) => !isSystemRootCategory(c));
+
+  const isSystemCategory =
+    !isCreateMode &&
+    !!editingCategory &&
+    editingCategory.type === 'expense' &&
+    !editingCategory.parentId &&
+    (
+      !!editingCategory.isMetaCategory ||
+      editingCategory.id === META_DEFAULT_CATEGORY_ID ||
+      editingCategory.name.trim().toLowerCase() === 'outros'
+    );
+
+  const inlineIcons = Array.from(new Set([categoryIcon, ...icons])).slice(0, 5);
+
   const selectedParentCategory = isSubcategoryModal
     ? rootCategories.find((c) => c.id === categoryParentId)
     : undefined;
@@ -814,10 +850,11 @@ export default function Categories({ navigation }: any) {
                 </Text>
                 <View style={[styles.card, { backgroundColor: colors.card }, getShadow(colors)]}>
                   <View style={styles.treeList}>
-                    {rootCategories.map((parent, parentIndex) => {
+
+                    {userRootCategories.map((parent, parentIndex) => {
                       const subs = childrenByParentId[parent.id] || [];
                       const parentAccent = parent.color || defaultAccent;
-                      const hasNextGroup = parentIndex < rootCategories.length - 1;
+                      const hasNextGroup = parentIndex < userRootCategories.length - 1;
                       return (
                         <View
                           key={parent.id}
@@ -852,6 +889,52 @@ export default function Categories({ navigation }: any) {
                                 <View style={[styles.subIconCircle, { backgroundColor: parentAccent }]} />
                                 <Text style={[styles.subName, { color: colors.textSecondary }]}>{sub.name}</Text>
                                 <MaterialCommunityIcons name="chevron-right" size={18} color={colors.textMuted} />
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+                      );
+                    })}
+
+                    {systemRootCategories.length > 0 && (
+                      <View style={[styles.systemSectionHeader, { borderTopColor: colors.border }]}>
+                        <Text style={[styles.systemSectionHeaderText, { color: colors.textMuted }]}>Categorias do sistema</Text>
+                      </View>
+                    )}
+
+                    {systemRootCategories.map((parent, parentIndex) => {
+                      const subs = childrenByParentId[parent.id] || [];
+                      const hasNextGroup = parentIndex < systemRootCategories.length - 1;
+                      return (
+                        <View
+                          key={parent.id}
+                          style={[
+                            styles.treeGroup,
+                            hasNextGroup && { borderBottomWidth: 1, borderBottomColor: colors.border },
+                          ]}
+                        >
+                          <Pressable
+                            disabled
+                            onPress={undefined}
+                            style={styles.treeRow}
+                          >
+                            <View style={[styles.treeIconCircle, { backgroundColor: colors.border }]}>
+                              <MaterialCommunityIcons name={parent.icon as any} size={18} color={colors.textMuted} />
+                            </View>
+                            <Text style={[styles.treeName, { color: colors.textMuted }]}>{parent.name}</Text>
+                          </Pressable>
+
+                          {subs.map((sub) => {
+                            return (
+                              <Pressable
+                                key={sub.id}
+                                disabled
+                                onPress={undefined}
+                                style={[styles.subRow, { borderTopColor: colors.border }]}
+                              >
+                                <View style={styles.subIndent} />
+                                <View style={[styles.subIconCircle, { backgroundColor: colors.border }]} />
+                                <Text style={[styles.subName, { color: colors.textMuted }]}>{sub.name}</Text>
                               </Pressable>
                             );
                           })}
@@ -897,17 +980,28 @@ export default function Categories({ navigation }: any) {
         visible={modalVisible}
         animationType="slide"
         transparent={false}
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={() => {
+          setModalVisible(false);
+          setIconsModalVisible(false);
+        }}
         statusBarTranslucent
       >
         <View style={[styles.fullscreenModal, { backgroundColor: colors.bg, paddingTop: insets.top }]}>
           {/* Header moderno */}
           <View style={[styles.fullscreenHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              {isCreateMode ? 'Nova Categoria' : (isSubcategoryModal ? 'Editar Subcategoria' : 'Editar Categoria')}
-            </Text>
+            <View style={{ flex: 1, paddingRight: spacing.sm }}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                {isCreateMode ? 'Nova Categoria' : (isSubcategoryModal ? 'Editar Subcategoria' : 'Editar Categoria')}
+              </Text>
+              {isSystemCategory && (
+                <Text style={[styles.systemCategoryLabel, { color: colors.textMuted }]}>categoria do sistema</Text>
+              )}
+            </View>
             <Pressable
-              onPress={() => setModalVisible(false)}
+              onPress={() => {
+                setModalVisible(false);
+                setIconsModalVisible(false);
+              }}
               style={({ pressed }) => [
                 styles.closeButton,
                 { backgroundColor: colors.bg === '#FFFFFF' ? '#f0f0f0' : 'rgba(255,255,255,0.1)' },
@@ -940,11 +1034,12 @@ export default function Categories({ navigation }: any) {
                   onChangeText={setCategoryName}
                   onFocus={() => setFocusedField('name')}
                   onBlur={() => setFocusedField(null)}
+                  editable={!isSystemCategory}
                   placeholder="Ex: Restaurantes, Academia..."
                   placeholderTextColor={colors.textMuted}
                   style={[
                     styles.input, 
-                    { color: colors.text },
+                    { color: colors.text, opacity: isSystemCategory ? 0.6 : 1 },
                     Platform.select({ web: { outlineStyle: 'none' } as any }),
                   ]}
                 />
@@ -956,10 +1051,11 @@ export default function Categories({ navigation }: any) {
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.text }]}>Ícone</Text>
                 <View style={styles.iconGrid}>
-                  {icons.map((icon) => (
+                  {inlineIcons.map((icon) => (
                     <Pressable
                       key={icon}
                       onPress={() => setCategoryIcon(icon)}
+                      disabled={isSystemCategory}
                       style={[
                         styles.iconOption,
                         { 
@@ -970,6 +1066,7 @@ export default function Categories({ navigation }: any) {
                         categoryIcon === icon && { 
                           backgroundColor: (categoryType === 'expense' ? colors.expense : colors.income) + '15' 
                         },
+                        isSystemCategory && { opacity: 0.5 },
                       ]}
                     >
                       <MaterialCommunityIcons 
@@ -983,6 +1080,20 @@ export default function Categories({ navigation }: any) {
                     </Pressable>
                   ))}
                 </View>
+
+                {!isSystemCategory && (
+                  <Pressable
+                    onPress={() => setIconsModalVisible(true)}
+                    style={({ pressed }) => [
+                      styles.moreIconsButton,
+                      { borderColor: colors.border, backgroundColor: colors.card },
+                      pressed && { opacity: 0.9 },
+                    ]}
+                  >
+                    <MaterialCommunityIcons name="apps" size={18} color={colors.textMuted} />
+                    <Text style={[styles.moreIconsButtonText, { color: colors.textSecondary }]}>Ver mais ícones</Text>
+                  </Pressable>
+                )}
               </View>
             )}
 
@@ -1085,11 +1196,13 @@ export default function Categories({ navigation }: any) {
                       <Pressable
                         key={`color-${idx}-${c}`}
                         onPress={() => setCategoryColor(c)}
+                        disabled={isSystemCategory}
                         style={[
                           styles.colorSwatch,
                           {
                             backgroundColor: c,
                             borderColor: selected ? colors.text : 'transparent',
+                            opacity: isSystemCategory ? 0.5 : 1,
                           },
                         ]}
                       />
@@ -1100,7 +1213,7 @@ export default function Categories({ navigation }: any) {
             )}
 
             {/* Subcategorias (criar/editar categoria pai) */}
-            {(isParentEditModal || isParentCreateModal) && (
+            {(isParentEditModal || isParentCreateModal) && !isSystemCategory && (
               <View style={styles.formGroup}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
                   <Text style={[styles.label, { color: colors.text, marginBottom: 0 }]}>Adicionar subcategoria</Text>
@@ -1221,7 +1334,7 @@ export default function Categories({ navigation }: any) {
             {/* Botões de ação */}
             <View style={styles.modalActionsColumn}>
               {/* Modo edição: Excluir e Salvar */}
-              {!isCreateMode && (
+              {!isCreateMode && !isSystemCategory && (
                 <View style={styles.modalActions}>
                   <Pressable
                     onPress={handleDelete}
@@ -1272,6 +1385,71 @@ export default function Categories({ navigation }: any) {
                   </Text>
                 </Pressable>
               )}
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Modal: Ver mais ícones */}
+      <Modal
+        visible={iconsModalVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setIconsModalVisible(false)}
+        statusBarTranslucent
+      >
+        <View style={[styles.fullscreenModal, { backgroundColor: colors.bg, paddingTop: insets.top }]}>
+          <View style={[styles.fullscreenHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Ícones</Text>
+            <Pressable
+              onPress={() => setIconsModalVisible(false)}
+              style={({ pressed }) => [
+                styles.closeButton,
+                { backgroundColor: colors.bg === '#FFFFFF' ? '#f0f0f0' : 'rgba(255,255,255,0.1)' },
+                pressed && { transform: [{ scale: 0.95 }] },
+              ]}
+            >
+              <MaterialCommunityIcons name="close" size={22} color={colors.text} />
+            </Pressable>
+          </View>
+
+          <ScrollView
+            style={styles.modalBody}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: spacing.xl }}
+          >
+            <View style={styles.formGroup}>
+              <View style={styles.iconGrid}>
+                {icons.map((icon) => (
+                  <Pressable
+                    key={`all-${icon}`}
+                    onPress={() => {
+                      setCategoryIcon(icon);
+                      setIconsModalVisible(false);
+                    }}
+                    style={[
+                      styles.iconOption,
+                      {
+                        borderColor: categoryIcon === icon
+                          ? (categoryType === 'expense' ? colors.expense : colors.income)
+                          : colors.border,
+                      },
+                      categoryIcon === icon && {
+                        backgroundColor: (categoryType === 'expense' ? colors.expense : colors.income) + '15',
+                      },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name={icon as any}
+                      size={22}
+                      color={categoryIcon === icon
+                        ? (categoryType === 'expense' ? colors.expense : colors.income)
+                        : colors.textMuted
+                      }
+                    />
+                  </Pressable>
+                ))}
+              </View>
             </View>
           </ScrollView>
         </View>
@@ -1542,6 +1720,17 @@ const styles = StyleSheet.create({
   treeGroup: {
     paddingVertical: spacing.xs,
   },
+  systemSectionHeader: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    paddingHorizontal: spacing.sm,
+  },
+  systemSectionHeaderText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
   treeRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1628,6 +1817,21 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
   },
+  moreIconsButton: {
+    marginTop: spacing.sm,
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  moreIconsButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
   parentRow: {
     gap: spacing.xs,
     paddingBottom: spacing.xs,
@@ -1705,6 +1909,10 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
+  },
+  systemCategoryLabel: {
+    fontSize: 12,
+    marginTop: 2,
   },
   modalBody: {
     flex: 1,

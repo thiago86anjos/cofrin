@@ -293,13 +293,48 @@ export const DEFAULT_INCOME_CATEGORIES: Omit<Category, 'id' | 'userId' | 'create
 // Ícones disponíveis para categorias
 export const CATEGORY_ICONS = {
   expense: [
-    'food', 'bus', 'home', 'hospital-box', 'school', 'shopping', 
-    'gamepad-variant', 'dumbbell', 'paw', 'car', 'cellphone', 'wifi',
-    'lightning-bolt', 'water', 'gas-station', 'pill', 'gift', 'dots-horizontal',
+    // 1 ícone por tema (mais fácil de identificar)
+    'food',
+    'bus',
+    'car',
+    'home',
+    'hospital-box',
+    'school',
+    'shopping',
+    'gamepad-variant',
+    'dumbbell',
+    'paw',
+    'cellphone',
+    'wifi',
+    'lightning-bolt',
+    'water',
+    'gas-station',
+    'gift',
+    'airplane',
+    'tools',
+    'file-document',
+    'calendar',
+    'tag',
+
+    // Genéricos
+    'dots-horizontal',
   ],
   income: [
-    'briefcase', 'cash-multiple', 'chart-line', 'hand-coin', 
-    'gift', 'sale', 'cash-refund', 'dots-horizontal',
+    // 1 ícone por tema
+    'briefcase',
+    'cash-multiple',
+    'bank',
+    'credit-card',
+    'wallet',
+    'hand-coin',
+    'chart-line',
+    'sale',
+    'cash-refund',
+    'receipt',
+    'gift',
+
+    // Genéricos
+    'dots-horizontal',
   ],
 };
 
