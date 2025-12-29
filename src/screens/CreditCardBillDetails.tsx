@@ -84,6 +84,16 @@ export default function CreditCardBillDetails() {
         selectedMonth,
         selectedYear
       );
+
+      if (!billData) {
+        setBill(null);
+        showAlert(
+          'Fatura indisponível',
+          'Este cartão/fatura não está mais disponível (pode ter sido removido).',
+          [{ text: 'Voltar', onPress: () => (navigation as any).goBack() }]
+        );
+        return;
+      }
       setBill(billData);
     } catch (error) {
       console.error('Erro ao carregar fatura:', error);

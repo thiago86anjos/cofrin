@@ -88,15 +88,24 @@ export async function getAllCreditCards(userId: string): Promise<CreditCard[]> {
 
 // Buscar cartão por ID
 export async function getCreditCardById(cardId: string): Promise<CreditCard | null> {
-  const docRef = doc(db, COLLECTIONS.CREDIT_CARDS, cardId);
-  const snapshot = await getDoc(docRef);
-  
-  if (!snapshot.exists()) return null;
-  
-  return {
-    id: snapshot.id,
-    ...snapshot.data(),
-  } as CreditCard;
+  try {
+    const docRef = doc(db, COLLECTIONS.CREDIT_CARDS, cardId);
+    const snapshot = await getDoc(docRef);
+
+    if (!snapshot.exists()) return null;
+
+    return {
+      id: snapshot.id,
+      ...snapshot.data(),
+    } as CreditCard;
+  } catch (error: any) {
+    // Quando o cartão é deletado, algumas regras de segurança podem retornar permission-denied
+    // em vez de "not-found". Para o app, isso significa "indisponível".
+    if (error?.code === 'permission-denied') {
+      return null;
+    }
+    throw error;
+  }
 }
 
 // Atualizar cartão

@@ -514,22 +514,112 @@ export default function Launches() {
     }
   };
 
+  const getPaidBillAssociation = (t: Transaction): CreditCardBillWithTransactions | null => {
+    // 1) Pagamento de fatura: match por creditCardBillId (id da fatura) ou paymentTransactionId
+    // 2) Compra no cartão: match por cartão + mês/ano da fatura (month/year da transação)
+    const bill = creditCardBills.find((b) => {
+      if (!b.isPaid) return false;
+
+      if (t.creditCardBillId && b.id === t.creditCardBillId) return true;
+      if ((b as any).paymentTransactionId && (b as any).paymentTransactionId === t.id) return true;
+
+      if (t.creditCardId && b.creditCardId === t.creditCardId && b.month === t.month && b.year === t.year) {
+        return true;
+      }
+
+      return false;
+    });
+
+    return bill || null;
+  };
+
+  const formatBillLabel = (bill: CreditCardBillWithTransactions) => {
+    const monthName = MONTHS[bill.month - 1] || String(bill.month);
+    return `${bill.creditCardName} (${monthName}/${bill.year})`;
+  };
+
   // Handler para deletar transação (chamado pelo modal)
   const handleDeleteTransaction = async (transactionId: string) => {
-    const result = await deleteTransaction(transactionId);
-    if (result) {
-      setEditModalVisible(false);
-      setEditingTransaction(null);
-      triggerRefresh();
-      showSnackbar('Lançamento excluído!');
-    } else {
-      showAlert('Erro', 'Não foi possível excluir o lançamento');
+    const originalTransaction =
+      transactions.find((t) => t.id === transactionId) ||
+      creditCardBills.flatMap((b) => b.transactions || []).find((t) => t.id === transactionId);
+
+    const performDelete = async () => {
+      const result = await deleteTransaction(transactionId);
+      if (result) {
+        setEditModalVisible(false);
+        setEditingTransaction(null);
+        triggerRefresh();
+        showSnackbar('Lançamento excluído!');
+      } else {
+        showAlert('Erro', 'Não foi possível excluir o lançamento');
+      }
+    };
+
+    if (originalTransaction) {
+      const paidBill = getPaidBillAssociation(originalTransaction);
+      if (paidBill) {
+        showAlert(
+          'Atenção: fatura já paga',
+          `Este lançamento está associado à fatura ${formatBillLabel(paidBill)}, que já está paga.\n\nExcluir agora pode gerar inconsistência (ex.: histórico da fatura e saldo/uso do cartão). Se sua intenção for desfazer o pagamento, faça isso pela tela da fatura.`,
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Excluir mesmo assim', style: 'destructive', onPress: () => void performDelete() },
+          ]
+        );
+        return;
+      }
     }
+
+    await performDelete();
   };
 
   // Handler para deletar série de transações recorrentes
   const handleDeleteSeries = async (seriesId: string, fromInstallment?: number) => {
     if (!user?.uid) return;
+
+    // Se a transação atualmente em edição estiver associada a uma fatura já paga,
+    // deixar explícito o risco de inconsistência antes de excluir em massa.
+    if (editingTransaction?.id) {
+      const originalTransaction =
+        transactions.find((t) => t.id === editingTransaction.id) ||
+        creditCardBills.flatMap((b) => b.transactions || []).find((t) => t.id === editingTransaction.id);
+
+      if (originalTransaction) {
+        const paidBill = getPaidBillAssociation(originalTransaction);
+        if (paidBill) {
+          showAlert(
+            'Atenção: fatura já paga',
+            `A série contém um lançamento associado à fatura ${formatBillLabel(paidBill)}, que já está paga.\n\nExcluir essa série pode gerar inconsistência.`,
+            [
+              { text: 'Cancelar', style: 'cancel' },
+              {
+                text: 'Excluir série mesmo assim',
+                style: 'destructive',
+                onPress: () => void (async () => {
+                  let count = 0;
+                  if (fromInstallment) {
+                    count = await deleteSeriesFromInstallment(user.uid, seriesId, fromInstallment);
+                  } else {
+                    count = await deleteTransactionSeries(seriesId);
+                  }
+
+                  if (count > 0) {
+                    setEditModalVisible(false);
+                    setEditingTransaction(null);
+                    triggerRefresh();
+                    showSnackbar(`${count} lançamento(s) excluído(s)`);
+                  } else {
+                    showAlert('Erro', 'Não foi possível excluir a série de lançamentos');
+                  }
+                })(),
+              },
+            ]
+          );
+          return;
+        }
+      }
+    }
     
     let count = 0;
     
