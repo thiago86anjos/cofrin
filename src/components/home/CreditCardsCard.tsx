@@ -274,21 +274,6 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
               {formatCurrencyBRL(billAmount)}
             </Text>
           </View>
-
-          {/* Barra de progresso */}
-          <View style={styles.cardProgressSection}>
-            <View style={[styles.cardProgressBg, { backgroundColor: DS_COLORS.grayLight }]}>
-              <View 
-                style={[
-                  styles.cardProgressFill, 
-                  { 
-                    width: `${Math.min(usagePercentage, 100)}%`,
-                    backgroundColor: cardColor
-                  }
-                ]} 
-              />
-            </View>
-          </View>
         </Pressable>
       </View>
     );
