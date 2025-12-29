@@ -956,11 +956,8 @@ export default function ConfigureAccounts({ navigation }: any) {
                       pressed && { opacity: 0.7 },
                     ]}
                   >
-                    <MaterialCommunityIcons name="tune" size={24} color={colors.primary} />
+                    <MaterialCommunityIcons name="tune" size={20} color={colors.primary} />
                     <Text style={[styles.actionCardTitle, { color: colors.primary }]}>Ajustar saldo</Text>
-                    <Text style={[styles.actionCardHint, { color: colors.textMuted }]}>
-                      Corrige o saldo sem alterar o histórico
-                    </Text>
                   </Pressable>
 
                   {/* Botão de Resetar */}
@@ -972,11 +969,8 @@ export default function ConfigureAccounts({ navigation }: any) {
                       pressed && { opacity: 0.7 },
                     ]}
                   >
-                    <MaterialCommunityIcons name="refresh" size={24} color={colors.warning} />
+                    <MaterialCommunityIcons name="refresh" size={20} color={colors.warning} />
                     <Text style={[styles.actionCardTitle, { color: colors.warning }]}>Zerar conta</Text>
-                    <Text style={[styles.actionCardHint, { color: colors.textMuted }]}>
-                      Exclui lançamentos e zera o saldo
-                    </Text>
                   </Pressable>
                 </View>
 
@@ -1328,16 +1322,16 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   colorOption: {
-    width: 56,
-    height: 56,
+    width: 48,
+    height: 48,
     borderRadius: borderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   colorCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1460,7 +1454,9 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
   },
   modalContent: {
     borderTopLeftRadius: borderRadius.xl,
@@ -1491,18 +1487,18 @@ const styles = StyleSheet.create({
   },
   actionCardButton: {
     flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
+    paddingVertical: 12,
     paddingHorizontal: spacing.sm,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    gap: 4,
+    gap: spacing.xs,
   },
   actionCardTitle: {
     fontSize: 13,
     fontWeight: '600',
-    marginTop: 4,
   },
   actionCardHint: {
     fontSize: 10,
