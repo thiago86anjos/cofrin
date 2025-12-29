@@ -154,7 +154,6 @@ export default function Home() {
           style={{ backgroundColor: colors.bg }}
           contentContainerStyle={{
             paddingTop: insets.top || 16,
-            paddingBottom: 100, // Espaço para o FAB
           }}
         >
         <View style={styles.centeredContainer}>
