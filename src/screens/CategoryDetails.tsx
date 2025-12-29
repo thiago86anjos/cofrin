@@ -1,6 +1,7 @@
-import { View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Modal, RefreshControl, Pressable } from 'react-native';
+import { View, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Svg, { Circle, G } from 'react-native-svg';
 import { useAuth } from '../contexts/authContext';
 import { useAppTheme } from '../contexts/themeContext';
 import { useTransactionRefresh } from '../contexts/transactionRefreshContext';
@@ -14,13 +15,13 @@ import SimpleHeader from '../components/SimpleHeader';
 import { useNavigation } from '@react-navigation/native';
 import { DS_COLORS } from '../theme/designSystem';
 
-type ViewMode = 'monthly' | 'yearly';
 type TransactionTypeFilter = 'expense' | 'income';
 
 interface CategoryData {
   categoryId: string;
   categoryName: string;
   categoryIcon: string;
+  categoryColor?: string;
   total: number;
 }
 
@@ -34,7 +35,6 @@ export default function CategoryDetails() {
   const { colors } = useAppTheme();
   const navigation = useNavigation();
   const { refreshKey } = useTransactionRefresh();
-  const [viewMode, setViewMode] = useState<ViewMode>('monthly');
   const [transactionType, setTransactionType] = useState<TransactionTypeFilter>('expense');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -47,7 +47,6 @@ export default function CategoryDetails() {
   // Dados
   const [expenseData, setExpenseData] = useState<any>(null);
   const [incomeData, setIncomeData] = useState<any>(null);
-  const [showYearPicker, setShowYearPicker] = useState(false);
   
   // Estado para carregamento progressivo
   const [historicalLoaded, setHistoricalLoaded] = useState(false);
@@ -234,30 +233,18 @@ export default function CategoryDetails() {
   const currentPeriodData = useMemo(() => {
     if (!allData) return null;
 
-    if (viewMode === 'monthly') {
-      const monthData = allData.monthlyData.find(
-        (m: any) => m.month === selectedMonth && m.year === selectedYear
-      );
-      if (!monthData) return null;
+    const monthData = allData.monthlyData.find(
+      (m: any) => m.month === selectedMonth && m.year === selectedYear
+    );
+    if (!monthData) return null;
 
-      const categories = Array.from(monthData.categories.values()).sort(
-        (a: any, b: any) => b.total - a.total
-      );
-      const total = categories.reduce((sum: number, cat: any) => sum + cat.total, 0);
+    const categoriesArray = Array.from(monthData.categories.values()).sort(
+      (a: any, b: any) => b.total - a.total
+    );
+    const total = categoriesArray.reduce((sum: number, cat: any) => sum + cat.total, 0);
 
-      return { categories, total };
-    } else {
-      const yearData = allData.yearlyData.find((y: any) => y.year === selectedYear);
-      if (!yearData) return null;
-
-      const categories = Array.from(yearData.categories.values()).sort(
-        (a: any, b: any) => b.total - a.total
-      );
-      const total = categories.reduce((sum: number, cat: any) => sum + cat.total, 0);
-
-      return { categories, total };
-    }
-  }, [allData, viewMode, selectedMonth, selectedYear, transactionType]);
+    return { categories: categoriesArray, total };
+  }, [allData, selectedMonth, selectedYear, transactionType]);
 
   // Gerar insights
   const insights = useMemo(() => {
@@ -267,91 +254,96 @@ export default function CategoryDetails() {
     const isExpense = transactionType === 'expense';
     const verbGasto = isExpense ? 'gastava' : 'recebia';
     const nomeGasto = isExpense ? 'gastos' : 'receitas';
-    const nomeGastoSingular = isExpense ? 'gasto' : 'receita';
 
-    if (viewMode === 'monthly') {
-      // Comparar com mês anterior
-      let prevMonth = selectedMonth - 1;
-      let prevYear = selectedYear;
-      if (prevMonth === 0) {
-        prevMonth = 12;
-        prevYear = selectedYear - 1;
+    // Comparar com mês anterior
+    let prevMonth = selectedMonth - 1;
+    let prevYear = selectedYear;
+    if (prevMonth === 0) {
+      prevMonth = 12;
+      prevYear = selectedYear - 1;
+    }
+
+    const prevMonthData = allData.monthlyData.find(
+      (m: any) => m.month === prevMonth && m.year === prevYear
+    );
+
+    if (prevMonthData && currentPeriodData.categories.length > 0) {
+      const currentTop = currentPeriodData.categories[0];
+      const prevCategories = Array.from(prevMonthData.categories.values());
+      const prevTop = prevCategories.sort((a: any, b: any) => b.total - a.total)[0];
+
+      if (prevTop && currentTop.categoryId !== prevTop.categoryId) {
+        messages.push(`No passado, você ${verbGasto} mais com ${prevTop.categoryName}.`);
       }
 
-      const prevMonthData = allData.monthlyData.find(
-        (m: any) => m.month === prevMonth && m.year === prevYear
+      // Verificar categoria com maior redução
+      const prevCategoryMap = new Map(
+        prevCategories.map((c: any) => [c.categoryId, c.total])
       );
 
-      if (prevMonthData && currentPeriodData.categories.length > 0) {
-        const currentTop = currentPeriodData.categories[0];
-        const prevCategories = Array.from(prevMonthData.categories.values());
-        const prevTop = prevCategories.sort((a: any, b: any) => b.total - a.total)[0];
+      let maxReduction = 0;
+      let reducedCategory = null;
 
-        if (prevTop && currentTop.categoryId !== prevTop.categoryId) {
-          messages.push(`No passado, você ${verbGasto} mais com ${prevTop.categoryName}.`);
-        }
-
-        // Verificar categoria com maior redução
-        const prevCategoryMap = new Map(
-          prevCategories.map((c: any) => [c.categoryId, c.total])
-        );
-
-        let maxReduction = 0;
-        let reducedCategory = null;
-
-        for (const cat of currentPeriodData.categories) {
-          const prevTotal = prevCategoryMap.get(cat.categoryId) || 0;
-          if (prevTotal > 0) {
-            const reduction = ((prevTotal - cat.total) / prevTotal) * 100;
-            if (reduction > maxReduction && reduction > 10) {
-              maxReduction = reduction;
-              reducedCategory = cat;
-            }
+      for (const cat of currentPeriodData.categories) {
+        const prevTotal = prevCategoryMap.get(cat.categoryId) || 0;
+        if (prevTotal > 0) {
+          const reduction = ((prevTotal - cat.total) / prevTotal) * 100;
+          if (reduction > maxReduction && reduction > 10) {
+            maxReduction = reduction;
+            reducedCategory = cat;
           }
         }
-
-        if (reducedCategory) {
-          messages.push(`Neste mês, suas ${nomeGasto} com ${reducedCategory.categoryName} diminuíram.`);
-        }
-      }
-    } else {
-      // Insights anuais
-      if (currentPeriodData.categories.length > 0) {
-        const topCategory = currentPeriodData.categories[0];
-        const percentage = ((topCategory.total / currentPeriodData.total) * 100).toFixed(0);
-        messages.push(
-          `${topCategory.categoryName} foi sua categoria com maior ${nomeGastoSingular} no ano (${percentage}%).`
-        );
       }
 
-      // Comparar com ano anterior
-      const prevYearData = allData.yearlyData.find((y: any) => y.year === selectedYear - 1);
-      if (prevYearData && currentPeriodData.categories.length > 1) {
-        const secondCategory = currentPeriodData.categories[1];
-        const prevCategories = Array.from(prevYearData.categories.values());
-        const prevSecond = prevCategories.find((c: any) => c.categoryId === secondCategory.categoryId);
-
-        if (prevSecond && prevSecond.total > secondCategory.total) {
-          messages.push(
-            `${secondCategory.categoryName} representou uma parcela menor em comparação ao ano anterior.`
-          );
-        }
+      if (reducedCategory) {
+        messages.push(`Neste mês, suas ${nomeGasto} com ${reducedCategory.categoryName} diminuíram.`);
       }
     }
 
     return messages.slice(0, 3);
-  }, [allData, currentPeriodData, viewMode, selectedMonth, selectedYear]);
-
-  // Anos disponíveis para seleção
-  const availableYears = useMemo(() => {
-    if (!allData) return [];
-    const years = allData.yearlyData.map((y: any) => y.year).sort((a: number, b: number) => b - a);
-    return years;
-  }, [allData]);
+  }, [allData, currentPeriodData, selectedMonth, selectedYear, transactionType]);
 
   // Cores baseadas no tipo de transação
   const valueColor = transactionType === 'expense' ? colors.expense : colors.income;
   const iconBgColor = transactionType === 'expense' ? colors.dangerBg : (colors.successBg || '#DCFCE7');
+
+  // Cores padrão para gráfico - sempre usar estas cores para garantir contraste
+  const CHART_COLORS = [
+    '#6366F1', // Roxo
+    '#10B981', // Verde esmeralda
+    '#F59E0B', // Amarelo/Laranja
+    '#EC4899', // Rosa
+    '#3B82F6', // Azul
+    '#8B5CF6', // Violeta
+    '#EF4444', // Vermelho
+    '#14B8A6', // Teal
+    '#F97316', // Laranja
+    '#6366F1', // Roxo claro
+    '#84CC16', // Lima
+    '#06B6D4', // Ciano
+  ];
+
+  // Gerar dados do gráfico de pizza (top 8 categorias)
+  const pieChartData = useMemo(() => {
+    if (!currentPeriodData || currentPeriodData.categories.length === 0) return [];
+    
+    const top8 = currentPeriodData.categories.slice(0, 8);
+    const totalTop8 = top8.reduce((sum: number, cat: any) => sum + cat.total, 0);
+    
+    return top8.map((cat: any, index: number) => {
+      const percentage = totalTop8 > 0 ? (cat.total / totalTop8) * 100 : 0;
+      // Sempre usar cores da paleta para garantir contraste
+      const color = CHART_COLORS[index % CHART_COLORS.length];
+      
+      return {
+        name: cat.categoryName,
+        value: cat.total,
+        percentage,
+        color,
+        icon: cat.categoryIcon,
+      };
+    });
+  }, [currentPeriodData, CHART_COLORS]);
 
   const renderCategoryCard = (category: any, index: number) => {
     if (!currentPeriodData) return null;
@@ -359,12 +351,15 @@ export default function CategoryDetails() {
     const percentage = currentPeriodData.total > 0 
       ? (category.total / currentPeriodData.total) * 100 
       : 0;
+    
+    // Usar mesma cor do gráfico de pizza
+    const categoryColor = CHART_COLORS[index % CHART_COLORS.length];
 
     return (
       <View key={category.categoryId} style={[styles.categoryCard, { backgroundColor: colors.card }, getShadow(colors)]}>
         <View style={styles.categoryHeader}>
-          <View style={[styles.categoryIcon, { backgroundColor: iconBgColor }]}>
-            <MaterialCommunityIcons name={category.categoryIcon as any} size={24} color={valueColor} />
+          <View style={[styles.categoryIcon, { backgroundColor: categoryColor + '15' }]}>
+            <MaterialCommunityIcons name={category.categoryIcon as any} size={24} color={categoryColor} />
           </View>
           <View style={styles.categoryInfo}>
             <Text style={[styles.categoryName, { color: colors.text }]}>{category.categoryName}</Text>
@@ -372,7 +367,7 @@ export default function CategoryDetails() {
               {percentage.toFixed(0)}% do total
             </Text>
           </View>
-          <Text style={[styles.categoryValue, { color: valueColor }]}>
+          <Text style={[styles.categoryValue, { color: categoryColor }]}>
             {formatCurrencyBRL(category.total)}
           </Text>
         </View>
@@ -383,7 +378,7 @@ export default function CategoryDetails() {
               styles.progressFill, 
               { 
                 width: `${Math.min(percentage, 100)}%`,
-                backgroundColor: valueColor
+                backgroundColor: categoryColor
               }
             ]} 
           />
@@ -391,55 +386,6 @@ export default function CategoryDetails() {
       </View>
     );
   };
-
-  const renderYearPickerModal = () => (
-    <Modal
-      visible={showYearPicker}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setShowYearPicker(false)}
-    >
-      <TouchableOpacity 
-        style={styles.modalOverlay}
-        activeOpacity={1}
-        onPress={() => setShowYearPicker(false)}
-      >
-        <View style={[styles.yearPickerContainer, { backgroundColor: colors.card }, getShadow(colors)]}>
-          <Text style={[styles.yearPickerTitle, { color: colors.text }]}>Selecionar ano</Text>
-          
-          {availableYears.map((year) => (
-            <TouchableOpacity
-              key={year}
-              style={styles.yearOption}
-              onPress={() => {
-                setSelectedYear(year);
-                setShowYearPicker(false);
-              }}
-            >
-              <View style={[
-                styles.radioButton,
-                { borderColor: year === selectedYear ? colors.primary : colors.border }
-              ]}>
-                {year === selectedYear && (
-                  <View style={[styles.radioButtonInner, { backgroundColor: colors.primary }]} />
-                )}
-              </View>
-              <Text style={[styles.yearOptionText, { color: colors.text }]}>
-                {year} {year === today.getFullYear() && '(atual)'}
-              </Text>
-            </TouchableOpacity>
-          ))}
-
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => setShowYearPicker(false)}
-          >
-            <Text style={[styles.cancelButtonText, { color: colors.textMuted }]}>Cancelar</Text>
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
-    </Modal>
-  );
 
   return (
     <MainLayout>
@@ -462,142 +408,158 @@ export default function CategoryDetails() {
           <View style={styles.centeredContainer}>
           {/* Header Card */}
           <View style={[styles.headerCard, { backgroundColor: colors.card }, getShadow(colors)]}>
-            {viewMode === 'monthly' ? (
-              <>
-                {/* Navegação de mês */}
-                <View style={styles.monthNav}>
-                  <Pressable 
-                    onPress={goToPreviousMonth}
-                    style={({ pressed }) => [styles.navButton, pressed && { opacity: 0.7 }]}
-                  >
-                    <MaterialCommunityIcons name="chevron-left" size={28} color={colors.primary} />
-                  </Pressable>
-                  
-                  <Pressable 
-                    onPress={goToToday}
-                    style={({ pressed }) => [styles.monthDisplay, pressed && { opacity: 0.8 }]}
-                  >
-                    <Text style={[styles.monthText, { color: colors.text }]}>
-                      {MONTH_NAMES[selectedMonth - 1]}
-                    </Text>
-                    <Text style={[styles.yearText, { color: colors.textMuted }]}>
-                      {selectedYear}
-                    </Text>
-                  </Pressable>
-                  
-                  <Pressable 
-                    onPress={goToNextMonth}
-                    style={({ pressed }) => [styles.navButton, pressed && { opacity: 0.7 }]}
-                  >
-                    <MaterialCommunityIcons name="chevron-right" size={28} color={colors.primary} />
-                  </Pressable>
-                </View>
-
-                {/* Botão Ir para hoje */}
-                {!isCurrentMonth && (
-                  <View style={styles.todayButtonContainer}>
-                    <Pressable 
-                      onPress={goToToday}
-                      style={({ pressed }) => [
-                        styles.todayButton, 
-                        { backgroundColor: colors.primaryBg },
-                        pressed && { opacity: 0.8 }
-                      ]}
-                    >
-                      <MaterialCommunityIcons name="calendar-today" size={16} color={colors.primary} />
-                      <Text style={[styles.todayButtonText, { color: colors.primary }]}>Ir para hoje</Text>
-                    </Pressable>
-                  </View>
-                )}
-              </>
-            ) : (
-              <TouchableOpacity 
-                style={styles.yearSelector}
-                onPress={() => setShowYearPicker(true)}
+            {/* Navegação de mês */}
+            <View style={styles.monthNav}>
+              <Pressable 
+                onPress={goToPreviousMonth}
+                style={({ pressed }) => [styles.navButton, pressed && { opacity: 0.7 }]}
               >
-                <Text style={[styles.yearSelectorText, { color: colors.text }]}>
-                  Ano: {selectedYear}
-                </Text>
-                <MaterialCommunityIcons name="chevron-down" size={20} color={colors.text} />
-              </TouchableOpacity>
-            )}
-
-            {/* Toggle View Mode */}
-            <View style={[styles.viewModeToggle, { backgroundColor: colors.grayLight }]}>
-              <TouchableOpacity
-                style={[
-                  styles.toggleButton,
-                  viewMode === 'monthly' && { backgroundColor: colors.card }
-                ]}
-                onPress={() => setViewMode('monthly')}
+                <MaterialCommunityIcons name="chevron-left" size={28} color={colors.primary} />
+              </Pressable>
+              
+              <Pressable 
+                onPress={goToToday}
+                style={({ pressed }) => [styles.monthDisplay, pressed && { opacity: 0.8 }]}
               >
-                <Text style={[
-                  styles.toggleText,
-                  { color: viewMode === 'monthly' ? colors.primary : colors.textMuted }
-                ]}>
-                  Mês
+                <Text style={[styles.monthText, { color: colors.text }]}>
+                  {MONTH_NAMES[selectedMonth - 1]}
                 </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.toggleButton,
-                  viewMode === 'yearly' && { backgroundColor: colors.card }
-                ]}
-                onPress={() => setViewMode('yearly')}
-              >
-                <Text style={[
-                  styles.toggleText,
-                  { color: viewMode === 'yearly' ? colors.primary : colors.textMuted }
-                ]}>
-                  Ano
+                <Text style={[styles.yearText, { color: colors.textMuted }]}>
+                  {selectedYear}
                 </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Toggle Transaction Type (Despesas / Receitas) */}
-            <View style={[styles.viewModeToggle, { backgroundColor: colors.grayLight, marginTop: spacing.sm }]}>
-              <TouchableOpacity
-                style={[
-                  styles.toggleButton,
-                  transactionType === 'expense' && { backgroundColor: colors.card }
-                ]}
-                onPress={() => setTransactionType('expense')}
+              </Pressable>
+              
+              <Pressable 
+                onPress={goToNextMonth}
+                style={({ pressed }) => [styles.navButton, pressed && { opacity: 0.7 }]}
+                disabled={isCurrentMonth}
               >
                 <MaterialCommunityIcons 
-                  name="arrow-down" 
-                  size={14} 
+                  name="chevron-right" 
+                  size={28} 
+                  color={isCurrentMonth ? colors.grayLight : colors.primary} 
+                />
+              </Pressable>
+            </View>
+
+            {/* Abas Premium: Despesas / Receitas */}
+            <View style={styles.transactionTypeTabs}>
+              <Pressable
+                onPress={() => setTransactionType('expense')}
+                style={[
+                  styles.tab,
+                  transactionType === 'expense' && [styles.activeTab, { borderBottomColor: colors.expense }]
+                ]}
+              >
+                <MaterialCommunityIcons 
+                  name="arrow-down-circle" 
+                  size={18} 
                   color={transactionType === 'expense' ? colors.expense : colors.textMuted} 
                 />
                 <Text style={[
-                  styles.toggleText,
-                  { color: transactionType === 'expense' ? colors.expense : colors.textMuted, marginLeft: 4 }
+                  styles.tabText,
+                  { color: transactionType === 'expense' ? colors.expense : colors.textMuted }
                 ]}>
                   Despesas
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
 
-              <TouchableOpacity
-                style={[
-                  styles.toggleButton,
-                  transactionType === 'income' && { backgroundColor: colors.card }
-                ]}
+              <Pressable
                 onPress={() => setTransactionType('income')}
+                style={[
+                  styles.tab,
+                  transactionType === 'income' && [styles.activeTab, { borderBottomColor: colors.income }]
+                ]}
               >
                 <MaterialCommunityIcons 
-                  name="arrow-up" 
-                  size={14} 
+                  name="arrow-up-circle" 
+                  size={18} 
                   color={transactionType === 'income' ? colors.income : colors.textMuted} 
                 />
                 <Text style={[
-                  styles.toggleText,
-                  { color: transactionType === 'income' ? colors.income : colors.textMuted, marginLeft: 4 }
+                  styles.tabText,
+                  { color: transactionType === 'income' ? colors.income : colors.textMuted }
                 ]}>
                   Receitas
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
+
+          {/* Gráfico de Pizza - Top 8 Categorias */}
+          {!loading && currentPeriodData && pieChartData.length > 0 && (
+            <View style={[styles.pieChartCard, { backgroundColor: colors.card }, getShadow(colors)]}>
+              <Text style={[styles.pieChartTitle, { color: colors.text }]}>
+                Distribuição por Categoria
+              </Text>
+              
+              <View style={styles.pieChartContainer}>
+                {/* Gráfico de Pizza SVG */}
+                <View style={styles.pieChartCircle}>
+                  <Svg width="140" height="140" viewBox="0 0 140 140">
+                    <G rotation="-90" origin="70, 70">
+                      {(() => {
+                        const size = 140;
+                        const center = size / 2;
+                        const strokeWidth = 24;
+                        const radius = (size - strokeWidth) / 2;
+                        const circumference = 2 * Math.PI * radius;
+
+                        const total = pieChartData.reduce((sum, item) => sum + item.value, 0);
+                        let cumulative = 0;
+
+                        return pieChartData.map((item, index) => {
+                          const fraction = total > 0 ? item.value / total : 0;
+                          const length = fraction * circumference;
+                          const dasharray = `${length} ${circumference}`;
+                          const dashoffset = -cumulative * circumference;
+                          cumulative += fraction;
+
+                          return (
+                            <Circle
+                              key={index}
+                              cx={center}
+                              cy={center}
+                              r={radius}
+                              stroke={item.color}
+                              strokeWidth={strokeWidth}
+                              strokeLinecap="butt"
+                              fill="none"
+                              strokeDasharray={dasharray}
+                              strokeDashoffset={dashoffset}
+                            />
+                          );
+                        });
+                      })()}
+                    </G>
+                  </Svg>
+                  
+                  {/* Centro com total */}
+                  <View style={[styles.totalCircleOverlay, { backgroundColor: colors.card }]}>
+                    <Text style={[styles.totalLabel, { color: colors.textMuted }]}>Total</Text>
+                    <Text style={[styles.totalValue, { color: valueColor }]}>
+                      {formatCurrencyBRL(currentPeriodData.total)}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Legenda com barras */}
+                <View style={styles.pieLegend}>
+                  {pieChartData.map((item, index) => (
+                    <View key={index} style={styles.legendItem}>
+                      <View style={[styles.legendDot, { backgroundColor: item.color }]} />
+                      <Text style={[styles.legendText, { color: colors.text }]} numberOfLines={1}>
+                        {item.name}
+                      </Text>
+                      <Text style={[styles.legendPercent, { color: colors.textMuted }]}>
+                        {item.percentage.toFixed(0)}%
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </View>
+          )}
 
           {/* Content */}
           {loading ? (
@@ -648,8 +610,6 @@ export default function CategoryDetails() {
           )}
           </View>
         </ScrollView>
-
-        {renderYearPickerModal()}
       </View>
     </MainLayout>
   );
@@ -697,47 +657,94 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 2,
   },
-  todayButtonContainer: {
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  todayButton: {
+  transactionTypeTabs: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.sm,
-    gap: spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: 'transparent',
+    marginTop: spacing.md,
   },
-  todayButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  yearSelector: {
+  tab: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
-    paddingVertical: spacing.sm,
+    paddingVertical: 12,
+    borderBottomWidth: 3,
+    borderBottomColor: 'transparent',
+  },
+  activeTab: {
+    borderBottomWidth: 3,
+  },
+  tabText: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  pieChartCard: {
+    borderRadius: 24,
+    padding: 20,
     marginBottom: spacing.md,
   },
-  yearSelectorText: {
+  pieChartTitle: {
     fontSize: 16,
     fontWeight: '600',
+    marginBottom: spacing.md,
   },
-  viewModeToggle: {
+  pieChartContainer: {
     flexDirection: 'row',
-    borderRadius: borderRadius.md,
-    padding: 4,
-  },
-  toggleButton: {
-    flex: 1,
-    paddingVertical: spacing.sm,
     alignItems: 'center',
-    borderRadius: borderRadius.sm,
+    gap: 20,
   },
-  toggleText: {
+  pieChartCircle: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 140,
+    height: 140,
+  },
+  totalCircleOverlay: {
+    position: 'absolute',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    top: 30,
+    left: 30,
+  },
+  totalLabel: {
+    fontSize: 10,
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  totalValue: {
     fontSize: 14,
+    fontWeight: '700',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  pieLegend: {
+    flex: 1,
+    gap: 8,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  legendText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  legendPercent: {
+    fontSize: 12,
     fontWeight: '600',
   },
   loadingContainer: {
@@ -822,56 +829,5 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     lineHeight: 20,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.xl,
-  },
-  yearPickerContainer: {
-    width: '100%',
-    maxWidth: 400,
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-  },
-  yearPickerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: spacing.lg,
-    textAlign: 'center',
-  },
-  yearOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    gap: spacing.md,
-  },
-  radioButton: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radioButtonInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  yearOptionText: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  cancelButton: {
-    marginTop: spacing.lg,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
   },
 });
