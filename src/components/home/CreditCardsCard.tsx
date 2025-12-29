@@ -255,7 +255,7 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
                 color={cardColor}
               />
             </View>
-            <Text style={[styles.cardItemName, { color: DS_COLORS.text }]} numberOfLines={1}>
+            <Text style={[styles.cardItemName, { color: DS_COLORS.textBody }]} numberOfLines={1}>
               {card.name}
             </Text>
             <View style={[styles.statusBadgeNew, { backgroundColor: DS_COLORS.textMuted + '15' }]}>
@@ -270,7 +270,7 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
             <Text style={[styles.cardItemDueDate, { color: DS_COLORS.textMuted }]}>
               Vencimento {bill ? `${bill.dueDate.getDate()} ${getMonthShortPtBr(bill.dueDate.getMonth() + 1)}` : `${card.dueDay}`}
             </Text>
-            <Text style={[styles.cardItemValue, { color: DS_COLORS.text }]}>
+            <Text style={[styles.cardItemValue, { color: DS_COLORS.textBody }]}>
               {formatCurrencyBRL(billAmount)}
             </Text>
           </View>
@@ -284,7 +284,7 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
       {/* Header */}
       <View style={styles.headerSection}>
         <View style={styles.titleRow}>
-          <Text style={[styles.mainTitle, { color: DS_COLORS.text }]}>
+          <Text style={[styles.mainTitle, { color: DS_COLORS.textTitle }]}>
             Meus cartões
           </Text>
           {monthTotalUsed > 0 && (

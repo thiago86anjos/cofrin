@@ -628,11 +628,14 @@ export default function ConfigureAccounts({ navigation }: any) {
                     pressed && { opacity: 0.7 },
                   ]}
                 >
-                  <View style={[styles.iconCircle, { backgroundColor: colors.primaryBg }]}>
+                  <View style={[
+                    styles.iconCircle, 
+                    { backgroundColor: (account.color || colors.primary) + '15' }
+                  ]}>
                     <MaterialCommunityIcons 
                       name={getAccountIcon(account.type, account.icon) as any} 
                       size={20} 
-                      color={colors.primary} 
+                      color={account.color || colors.primary} 
                     />
                   </View>
                   <View style={styles.accountInfo}>
@@ -640,6 +643,16 @@ export default function ConfigureAccounts({ navigation }: any) {
                     <Text style={[styles.accountType, { color: colors.textMuted }]}>
                       {ACCOUNT_TYPE_LABELS[account.type]}
                     </Text>
+                    <View style={styles.visibilityBadge}>
+                      <MaterialCommunityIcons 
+                        name={account.includeInTotal === false ? 'eye-off' : 'eye'} 
+                        size={12} 
+                        color={colors.textMuted} 
+                      />
+                      <Text style={[styles.visibilityText, { color: colors.textMuted }]}>
+                        {account.includeInTotal === false ? 'Oculta' : 'Visível'}
+                      </Text>
+                    </View>
                   </View>
                   <View style={styles.accountRight}>
                     <Text style={[
@@ -1205,6 +1218,16 @@ const styles = StyleSheet.create({
   accountType: {
     fontSize: 12,
     marginTop: 2,
+  },
+  visibilityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  visibilityText: {
+    fontSize: 11,
+    fontWeight: '500',
   },
   accountBalance: {
     fontSize: 14,
