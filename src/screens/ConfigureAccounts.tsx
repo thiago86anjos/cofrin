@@ -63,6 +63,7 @@ export default function ConfigureAccounts({ navigation }: any) {
   const [accountName, setAccountName] = useState('');
   const [accountType, setAccountType] = useState<AccountType>('checking');
   const [accountIcon, setAccountIcon] = useState('bank');
+  const [accountColor, setAccountColor] = useState('#6366F1');
   const [accountInitialBalance, setAccountInitialBalance] = useState('');
   const [accountIncludeInTotal, setAccountIncludeInTotal] = useState(true);
   
@@ -122,6 +123,7 @@ export default function ConfigureAccounts({ navigation }: any) {
         name: accountName.trim(),
         type: accountType,
         icon: accountIcon,
+        color: accountColor,
         initialBalance: balance,
         includeInTotal: accountIncludeInTotal,
         isArchived: false,
@@ -147,6 +149,7 @@ export default function ConfigureAccounts({ navigation }: any) {
     setAccountName('');
     setAccountType('checking');
     setAccountIcon('bank');
+    setAccountColor('#6366F1');
     setAccountInitialBalance('');
     setAccountIncludeInTotal(true);
     setEditingAccount(null);
@@ -168,6 +171,7 @@ export default function ConfigureAccounts({ navigation }: any) {
     setAccountName(account.name);
     setAccountType(account.type);
     setAccountIcon(account.icon || getAccountIcon(account.type));
+    setAccountColor(account.color || '#6366F1');
     setAccountInitialBalance('');
     setAccountIncludeInTotal(account.includeInTotal !== false);
     setIsCreateMode(false);
@@ -178,11 +182,13 @@ export default function ConfigureAccounts({ navigation }: any) {
   function hasChanges(): boolean {
     if (!editingAccount) return false;
     const originalIcon = editingAccount.icon || getAccountIcon(editingAccount.type);
+    const originalColor = editingAccount.color || '#6366F1';
     const originalIncludeInTotal = editingAccount.includeInTotal !== false;
     return (
       accountName.trim() !== editingAccount.name ||
       accountType !== editingAccount.type ||
       accountIcon !== originalIcon ||
+      accountColor !== originalColor ||
       accountIncludeInTotal !== originalIncludeInTotal
     );
   }
@@ -207,6 +213,7 @@ export default function ConfigureAccounts({ navigation }: any) {
         name: accountName.trim(),
         type: accountType,
         icon: accountIcon,
+        color: accountColor,
         includeInTotal: accountIncludeInTotal,
       });
 
@@ -838,6 +845,47 @@ export default function ConfigureAccounts({ navigation }: any) {
               </View>
             </View>
 
+            {/* Seletor de cor do ícone */}
+            <View style={styles.formGroup}>
+              <Text style={[styles.label, { color: colors.text }]}>Cor do ícone</Text>
+              <View style={styles.colorGrid}>
+                {[
+                  { color: '#6366F1', label: 'Roxo' },
+                  { color: '#2FAF8E', label: 'Verde' },
+                  { color: '#E07A3F', label: 'Laranja' },
+                  { color: '#3B82F6', label: 'Azul' },
+                  { color: '#EC4899', label: 'Rosa' },
+                  { color: '#F59E0B', label: 'Amarelo' },
+                  { color: '#8B5CF6', label: 'Violeta' },
+                  { color: '#EF4444', label: 'Vermelho' },
+                  { color: '#14B8A6', label: 'Turquesa' },
+                  { color: '#6B7280', label: 'Cinza' },
+                ].map((item) => {
+                  const isSelected = accountColor === item.color;
+                  return (
+                    <Pressable
+                      key={item.color}
+                      onPress={() => setAccountColor(item.color)}
+                      style={[
+                        styles.colorOption,
+                        { 
+                          backgroundColor: item.color + '20',
+                          borderColor: isSelected ? item.color : colors.border,
+                          borderWidth: isSelected ? 2 : 1,
+                        },
+                      ]}
+                    >
+                      <View style={[styles.colorCircle, { backgroundColor: item.color }]}>
+                        {isSelected && (
+                          <MaterialCommunityIcons name="check" size={14} color="#fff" />
+                        )}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+
             {/* Checkbox para ocultar conta do saldo principal - SOMENTE NO MODO EDIÇÃO */}
             {!isCreateMode && (
               <View style={styles.formGroup}>
@@ -1250,6 +1298,25 @@ const styles = StyleSheet.create({
   typeLabel: {
     fontSize: 10,
     marginTop: 2,
+  },
+  colorGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  colorOption: {
+    width: 56,
+    height: 56,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  colorCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   typeOptionSmall: {
     flex: 1,

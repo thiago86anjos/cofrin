@@ -10,11 +10,11 @@ import { useMonthlyGoals } from "../hooks/useMonthlyGoals";
 import React, { useCallback, useState, useEffect, useDeferredValue } from "react";
 import MainLayout from "../components/MainLayout";
 import {
-  UpcomingFlowsCardShimmer,
-  AccountsCardShimmer,
-  CreditCardsCardShimmer, CategoryCardShimmer
+    UpcomingFlowsCardShimmer,
+    AccountsCardShimmer,
+    CreditCardsCardShimmer, CategoryCardShimmer
 } from "../components/home/HomeShimmer";
-import AccountsCard from "../components/home/AccountsCard";
+import BalanceOverviewCard from "../components/home/BalanceOverviewCard";
 import { UpcomingFlowsCard } from "../components/home";
 import TopCategoriesCard from "../components/TopCategoriesCard";
 import CreditCardsCard from "../components/home/CreditCardsCard";
@@ -239,13 +239,9 @@ export default function Home() {
             {loadingAccounts ? (
               <AccountsCardShimmer />
             ) : (
-              <AccountsCard 
+              <BalanceOverviewCard 
                 accounts={accounts}
                 totalBalance={totalAccountsBalance}
-                totalIncome={totalIncome}
-                totalExpense={totalExpense}
-                pendingTransactions={[...pendingIncomes, ...pendingExpenses]}
-                creditCards={activeCards}
                 username={userName}
                 onAccountPress={handleAccountPress}
                 onAddPress={navigateToConfigureAccounts}
