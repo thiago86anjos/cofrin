@@ -1822,7 +1822,7 @@ export default function AddTransactionModal({
         ) : (
           // Main form fullscreen
           <View style={[styles.fullscreenModal, { backgroundColor: colors.bg, paddingTop: insets.top }]}>
-            {/* Header colorido com valor */}
+            {/* Header colorido com valor e gradiente sutil */}
             <View style={[styles.header, { backgroundColor: headerColor }]}> 
               {/* Type selector com título integrado - ocultar para transações de meta e descontos de antecipação */}
               {!isGoalTransaction && !isMetaCategoryTransaction && !isAnticipationDiscount && (
@@ -1831,22 +1831,26 @@ export default function AddTransactionModal({
                     <Pressable
                       key={t}
                       onPress={() => setType(t)}
-                      style={[ 
+                      style={({ pressed }) => [ 
                         styles.typeChip,
                         type === t && styles.typeChipActive,
+                        pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] },
                       ]}
                       disabled={activeAccounts.length === 0}
                     >
-                      <View style={{ alignItems: 'center' }}>
-                        <Text
-                          style={[ 
-                            styles.typeChipText,
-                            type === t && styles.typeChipTextActive,
-                          ]}
-                        >
-                          {t === 'despesa' ? 'Despesa' : t === 'receita' ? 'Receita' : 'Transf.'}
-                        </Text>
-                      </View>
+                      <MaterialCommunityIcons 
+                        name={t === 'despesa' ? 'arrow-down' : t === 'receita' ? 'arrow-up' : 'swap-horizontal'} 
+                        size={16} 
+                        color={type === t ? '#322438' : 'rgba(255,255,255,0.9)'} 
+                      />
+                      <Text
+                        style={[ 
+                          styles.typeChipText,
+                          type === t && styles.typeChipTextActive,
+                        ]}
+                      >
+                        {t === 'despesa' ? 'Despesa' : t === 'receita' ? 'Receita' : 'Transf.'}
+                      </Text>
                     </Pressable>
                   ))}
                 </View>
@@ -1858,7 +1862,8 @@ export default function AddTransactionModal({
                 onChangeText={handleAmountChange}
                 keyboardType="numeric"
                 style={styles.amountInput}
-                placeholderTextColor="rgba(255,255,255,0.6)"
+                placeholder="R$ 0,00"
+                placeholderTextColor="rgba(255,255,255,0.5)"
                 selectionColor="#fff"
                 editable={activeAccounts.length > 0 && !isGoalTransaction}
                 onFocus={() => { shouldAutoFocus.current = false; }}
@@ -2478,28 +2483,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm + 2,
-    borderRadius: borderRadius.lg,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.xl,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     gap: spacing.xs,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   typeChipActive: {
     backgroundColor: '#fff',
+    borderColor: '#fff',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
   typeChipText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.9)',
+    fontSize: 13,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.95)',
+    letterSpacing: 0.2,
   },
   typeChipTextActive: {
     color: '#322438',
   },
   amountInput: {
-    fontSize: 32,
-    fontWeight: '700',
+    fontSize: 40,
+    fontWeight: '800',
     color: '#fff',
     textAlign: 'center',
-    paddingVertical: 0,
+    paddingVertical: spacing.sm,
+    letterSpacing: -0.5,
   },
   fieldRow: {
     flexDirection: 'row',
@@ -2507,7 +2528,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     gap: spacing.sm,
-    borderWidth: 0,
+    marginHorizontal: spacing.md,
+    marginVertical: spacing.xs,
+    backgroundColor: '#FFFFFF',
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: '#E6E2F0',
   },
   inputWrapper: {
     flex: 1,
@@ -2522,12 +2548,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     gap: spacing.sm,
-    backgroundColor: 'transparent',
+    marginHorizontal: spacing.md,
+    marginVertical: spacing.xs,
+    backgroundColor: '#FFFFFF',
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: '#E6E2F0',
   },
   fieldIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: borderRadius.md,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2535,21 +2566,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   fieldLabel: {
-    fontSize: 12,
+    fontSize: 11,
     marginBottom: 2,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   fieldSubtitle: {
     fontSize: 12,
     fontWeight: '600',
   },
   fieldValue: {
-    fontSize: 15,
-    fontWeight: '500',
+    fontSize: 16,
+    fontWeight: '600',
   },
   dashedDivider: {
-    height: 1,
-    borderTopWidth: 1,
-    borderStyle: 'dashed',
+    height: spacing.xs,
     marginHorizontal: spacing.lg,
   },
   moveSeriesContainer: {
@@ -2698,7 +2730,19 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     gap: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: '#E6E2F0',
+    backgroundColor: '#FFFFFF',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#28043b',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   iconButton: {
     width: 48,
@@ -2716,21 +2760,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconButtonPrimary: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
     ...Platform.select({
       web: {
-        boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.2)',
+        boxShadow: '0px 4px 12px rgba(47, 175, 142, 0.4)',
       },
       default: {
-        elevation: 4,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
+        elevation: 6,
+        shadowColor: '#2FAF8E',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
       },
     }),
   },
