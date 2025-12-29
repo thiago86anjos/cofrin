@@ -7,7 +7,7 @@ import { CreditCard } from '../../types/firebase';
 import { getCreditCardTransactionsByMonth, calculateBillTotal, isBillPaid } from '../../services/creditCardBillService';
 import { useAuth } from '../../contexts/authContext';
 import { useTransactionRefresh } from '../../contexts/transactionRefreshContext';
-import { DS_COLORS, DS_TYPOGRAPHY, DS_ICONS, DS_CARD, DS_BADGE, DS_SPACING } from '../../theme/designSystem';
+import { DS_COLORS, DS_TYPOGRAPHY, DS_ICONS, DS_CARD, DS_SPACING } from '../../theme/designSystem';
 
 interface Props {
   cards?: CreditCard[];
@@ -201,10 +201,13 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
     });
   }, [cards, openBills]);
 
-  // Componente de item do cartão (layout minimalista)
+  // Componente de item do cartão (layout igual à imagem)
   const CardItem = ({ card, index }: { card: CreditCard; index: number }) => {
     const bill = openBills[card.id];
     const billAmount = bill?.amount || 0;
+
+    // Usar cor personalizada ou fallback
+    const cardColor = card.color || '#6366F1';
 
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -218,100 +221,109 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
       if (isOverdue) return 'Vencida';
       if (isDueToday) return 'Vence hoje';
       if (isPending) return 'Pendente';
-      return null;
-    };
-
-    const getStatusBadgeColors = () => {
-      if (isOverdue) return DS_BADGE.variants.error;
-      if (isDueToday) return DS_BADGE.variants.warning;
-      return DS_BADGE.variants.neutral;
-    };
-    
-    const getBillValueColor = () => {
-      if (isOverdue) return DS_COLORS.error;
-      if (isDueToday) return DS_COLORS.warning;
-      return DS_COLORS.textMuted;
+      return 'Pendente';
     };
     
     const statusText = getStatusText();
-    
-    const badgeColors = getStatusBadgeColors();
+
+    // Calcular percentual de uso em relação ao limite
+    const usagePercentage = card.limit > 0 ? (billAmount / card.limit) * 100 : 0;
     
     return (
-      <>
-        {index > 0 && (
-          <View style={[styles.divider, { borderColor: DS_COLORS.divider }]} />
-        )}
+      <View
+        style={[
+          styles.cardItemContainer,
+          { 
+            backgroundColor: DS_COLORS.card,
+            borderColor: DS_COLORS.border,
+          }
+        ]}
+      >
         <Pressable
           onPress={() => onCardPress?.(card)}
           style={({ pressed }) => [
-            styles.cardItem,
+            styles.cardItemContent,
             { opacity: pressed ? 0.7 : 1 }
           ]}
         >
-          {/* Primeira linha: ícone + nome + badge */}
-          <View style={styles.cardHeader}>
-            <MaterialCommunityIcons
-              name={(card.icon as any) || 'credit-card'}
-              size={DS_ICONS.size.default}
-              color={DS_ICONS.color}
-            />
-            <Text style={[styles.cardName, { color: DS_COLORS.textBody }]} numberOfLines={1}>
+          {/* Header: ícone + nome + badge */}
+          <View style={styles.cardItemHeader}>
+            <View style={[styles.cardIconCircle, { backgroundColor: cardColor + '15' }]}>
+              <MaterialCommunityIcons
+                name={(card.icon as any) || 'credit-card'}
+                size={22}
+                color={cardColor}
+              />
+            </View>
+            <Text style={[styles.cardItemName, { color: DS_COLORS.text }]} numberOfLines={1}>
               {card.name}
             </Text>
-            {statusText && (
-              <View style={[styles.statusBadge, { backgroundColor: badgeColors.backgroundColor }]}>
-                <Text style={[styles.statusBadgeText, { color: badgeColors.color }]}>
-                  {statusText}
-                </Text>
-              </View>
-            )}
+            <View style={[styles.statusBadgeNew, { backgroundColor: DS_COLORS.textMuted + '15' }]}>
+              <Text style={[styles.statusBadgeTextNew, { color: DS_COLORS.textMuted }]}>
+                {statusText}
+              </Text>
+            </View>
           </View>
 
-          {/* Segunda linha: vencimento + valor na mesma linha */}
-          <View style={styles.cardInfo}>
-            <Text style={[styles.infoLabel, { color: DS_COLORS.textMuted }]}>
-              {bill ? `Vencimento ${bill.dueDate.getDate()} ${getMonthShortPtBr(bill.dueDate.getMonth() + 1)}` : `Vencimento ${card.dueDay}`}
+          {/* Info: vencimento + valor */}
+          <View style={styles.cardItemInfo}>
+            <Text style={[styles.cardItemDueDate, { color: DS_COLORS.textMuted }]}>
+              Vencimento {bill ? `${bill.dueDate.getDate()} ${getMonthShortPtBr(bill.dueDate.getMonth() + 1)}` : `${card.dueDay}`}
             </Text>
-            <Text style={[styles.billValue, { color: getBillValueColor() }]}>
+            <Text style={[styles.cardItemValue, { color: DS_COLORS.text }]}>
               {formatCurrencyBRL(billAmount)}
             </Text>
           </View>
+
+          {/* Barra de progresso */}
+          <View style={styles.cardProgressSection}>
+            <View style={[styles.cardProgressBg, { backgroundColor: DS_COLORS.grayLight }]}>
+              <View 
+                style={[
+                  styles.cardProgressFill, 
+                  { 
+                    width: `${Math.min(usagePercentage, 100)}%`,
+                    backgroundColor: cardColor
+                  }
+                ]} 
+              />
+            </View>
+          </View>
         </Pressable>
-      </>
+      </View>
     );
   };
 
   return (
-    <View style={[styles.card, { backgroundColor: DS_COLORS.card }]}>
+    <View style={[styles.mainCard, { backgroundColor: DS_COLORS.card }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.titleSection}>
-          <View style={styles.titleRow}>
-            <Text style={[styles.title, DS_TYPOGRAPHY.styles.sectionTitle, { color: DS_COLORS.primary }]}>
-              Meus cartões
-            </Text>
-            {monthTotalUsed > 0 && (
-              <Pressable 
-                onPress={() => setShowStatusModal(true)}
-                style={({ pressed }) => [
-                  styles.statusIconButton,
-                  { opacity: pressed ? 0.7 : 1 }
-                ]}
-              >
+      <View style={styles.headerSection}>
+        <View style={styles.titleRow}>
+          <Text style={[styles.mainTitle, { color: DS_COLORS.text }]}>
+            Meus cartões
+          </Text>
+          {monthTotalUsed > 0 && (
+            <Pressable 
+              onPress={() => setShowStatusModal(true)}
+              style={({ pressed }) => [
+                styles.statusIconButton,
+                { opacity: pressed ? 0.7 : 1 }
+              ]}
+            >
+              <View style={[styles.infoIconCircle, { backgroundColor: usageStatus.color + '15' }]}>
                 <MaterialCommunityIcons 
                   name="information" 
-                  size={22} 
+                  size={16} 
                   color={usageStatus.color} 
                 />
-              </Pressable>
-            )}
-          </View>
+              </View>
+            </Pressable>
+          )}
         </View>
       </View>
 
       {/* Lista de cartões */}
-      <View style={styles.cardsList}>
+      <View style={styles.cardsGrid}>
         {cardsWithPendingBills.map((card, index) => (
           <CardItem key={card.id} card={card} index={index} />
         ))}
@@ -320,8 +332,8 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
       {/* Mensagem vazia */}
       {cardsWithPendingBills.length === 0 && (
         <View style={styles.emptyState}>
-          <MaterialCommunityIcons name="credit-card-check" size={48} color={DS_COLORS.textMuted} />
-          <Text style={[styles.emptyText, { color: DS_COLORS.textMuted }]}>
+          <MaterialCommunityIcons name="credit-card-check" size={64} color={DS_COLORS.textMuted} />
+          <Text style={[styles.emptyStateText, { color: DS_COLORS.textMuted }]}>
             Nenhuma fatura em aberto
           </Text>
         </View>
@@ -449,96 +461,112 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
 });
 
 const styles = StyleSheet.create({
-  card: {
-    ...DS_CARD,
-    ...DS_CARD.shadow,
+  mainCard: {
+    borderRadius: 24,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
-  header: {
-    marginBottom: DS_SPACING.lg,
+  headerSection: {
+    marginBottom: 16,
   },
-  titleSection: {
-    gap: DS_SPACING.xs,
-  },
-  title: {
-    ...DS_TYPOGRAPHY.styles.sectionTitle,
-  },
-  subtitle: {
-    ...DS_TYPOGRAPHY.styles.label,
-  },
-  cardsList: {
-    gap: 0,
-  },
-  cardItem: {
-    paddingVertical: DS_SPACING.lg,
-  },
-  divider: {
-    borderBottomWidth: 1,
-    borderStyle: 'dashed',
-    marginVertical: 0,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: DS_SPACING.sm,
-    marginBottom: DS_SPACING.sm,
-  },
-  cardName: {
-    flex: 1,
-    ...DS_TYPOGRAPHY.styles.valueSecondary,
-  },
-  statusText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  statusBadge: {
-    ...DS_BADGE,
-  },
-  statusBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  cardInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  infoLabel: {
-    ...DS_TYPOGRAPHY.styles.label,
-  },
-  billValue: {
-    ...DS_TYPOGRAPHY.styles.valueSecondary,
-    fontWeight: '700',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 32,
-    gap: DS_SPACING.md,
-  },
-  emptyText: {
-    ...DS_TYPOGRAPHY.styles.body,
-  },
-  emptyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: DS_SPACING.lg,
-    borderRadius: 20,
-    marginTop: 4,
-  },
-  emptyButtonText: {
-    ...DS_TYPOGRAPHY.styles.body,
-    color: DS_COLORS.textInverse,
-    fontWeight: '600',
-  },
-  // Estilos do ícone de status
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: DS_SPACING.sm,
+    justifyContent: 'space-between',
+  },
+  mainTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 24,
   },
   statusIconButton: {
     padding: 4,
+  },
+  infoIconCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardsGrid: {
+    gap: 12,
+  },
+  cardItemContainer: {
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  cardItemContent: {
+    padding: 16,
+    gap: 12,
+  },
+  cardItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  cardIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardItemName: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  statusBadgeNew: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  statusBadgeTextNew: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  cardItemInfo: {
+    gap: 4,
+  },
+  cardItemDueDate: {
+    fontSize: 13,
+    fontWeight: '400',
+    lineHeight: 18,
+  },
+  cardItemValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    lineHeight: 24,
+  },
+  cardProgressSection: {
+    marginTop: 4,
+  },
+  cardProgressBg: {
+    height: 8,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  cardProgressFill: {
+    height: '100%',
+    borderRadius: 8,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+    gap: 16,
+  },
+  emptyStateText: {
+    fontSize: 15,
+    fontWeight: '400',
+    textAlign: 'center',
   },
   // Estilos da modal
   modalOverlay: {

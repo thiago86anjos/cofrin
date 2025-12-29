@@ -50,6 +50,7 @@ export default function CreditCards({ navigation }: any) {
   const [cardDueDay, setCardDueDay] = useState('');
   const [cardAccountId, setCardAccountId] = useState('');
   const [cardAccountName, setCardAccountName] = useState('');
+  const [cardColor, setCardColor] = useState('#6366F1');
   const [showAccountPicker, setShowAccountPicker] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
@@ -170,7 +171,7 @@ export default function CreditCards({ navigation }: any) {
       const cardData: any = {
         name: cardName.trim(),
         icon: 'credit-card',
-        color: '#3B82F6',
+        color: cardColor,
         limit: parseValue(cardLimit),
         closingDay: closingDayNum,
         dueDay: dueDayNum,
@@ -203,6 +204,7 @@ export default function CreditCards({ navigation }: any) {
     setCardDueDay('');
     setCardAccountId('');
     setCardAccountName('');
+    setCardColor('#6366F1');
     setEditingCard(null);
     setIsCreateMode(false);
   }
@@ -248,6 +250,7 @@ export default function CreditCards({ navigation }: any) {
     setCardDueDay(card.dueDay.toString());
     setCardAccountId(card.paymentAccountId || '');
     setCardAccountName(account?.name || '');
+    setCardColor(card.color || '#6366F1');
     setModalVisible(true);
   }
 
@@ -280,6 +283,7 @@ export default function CreditCards({ navigation }: any) {
         limit: parseValue(cardLimit),
         closingDay: closingDayNum,
         dueDay: dueDayNum,
+        color: cardColor,
       };
       
       // Só adiciona paymentAccountId se tiver valor, senão remove
@@ -619,6 +623,47 @@ export default function CreditCards({ navigation }: any) {
                   onFocus={() => setFocusedField('dueDay')}
                   onBlur={() => setFocusedField(null)}
                 />
+              </View>
+
+              {/* Seletor de cor do ícone */}
+              <View style={styles.formGroup}>
+                <Text style={[styles.label, { color: colors.text }]}>Cor do ícone</Text>
+                <View style={styles.colorGrid}>
+                  {[
+                    { color: '#6366F1', label: 'Roxo' },
+                    { color: '#2FAF8E', label: 'Verde' },
+                    { color: '#E07A3F', label: 'Laranja' },
+                    { color: '#3B82F6', label: 'Azul' },
+                    { color: '#EC4899', label: 'Rosa' },
+                    { color: '#F59E0B', label: 'Amarelo' },
+                    { color: '#8B5CF6', label: 'Violeta' },
+                    { color: '#EF4444', label: 'Vermelho' },
+                    { color: '#14B8A6', label: 'Turquesa' },
+                    { color: '#6B7280', label: 'Cinza' },
+                  ].map((item) => {
+                    const isSelected = cardColor === item.color;
+                    return (
+                      <Pressable
+                        key={item.color}
+                        onPress={() => setCardColor(item.color)}
+                        style={[
+                          styles.colorOption,
+                          { 
+                            backgroundColor: item.color + '20',
+                            borderColor: isSelected ? item.color : colors.border,
+                            borderWidth: isSelected ? 2 : 1,
+                          },
+                        ]}
+                      >
+                        <View style={[styles.colorCircle, { backgroundColor: item.color }]}>
+                          {isSelected && (
+                            <MaterialCommunityIcons name="check" size={14} color="#fff" />
+                          )}
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
               </View>
 
               {/* Conta de pagamento */}
@@ -1082,5 +1127,24 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '700',
+  },
+  colorGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  colorOption: {
+    width: 56,
+    height: 56,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  colorCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
