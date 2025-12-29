@@ -14,6 +14,8 @@ import MainLayout from '../components/MainLayout';
 import SimpleHeader from '../components/SimpleHeader';
 import { useNavigation } from '@react-navigation/native';
 import { DS_COLORS } from '../theme/designSystem';
+import { useCategories } from '../hooks/useCategories';
+import type { Category } from '../types/firebase';
 
 type TransactionTypeFilter = 'expense' | 'income';
 
@@ -33,8 +35,9 @@ const MONTH_NAMES = [
 export default function CategoryDetails() {
   const { user } = useAuth();
   const { colors } = useAppTheme();
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const { refreshKey } = useTransactionRefresh();
+  const { expenseCategories, incomeCategories } = useCategories();
   const [transactionType, setTransactionType] = useState<TransactionTypeFilter>('expense');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -345,6 +348,40 @@ export default function CategoryDetails() {
     });
   }, [currentPeriodData, CHART_COLORS]);
 
+  const categoriesOfType: Category[] = transactionType === 'expense' ? expenseCategories : incomeCategories;
+
+  const buildCategoryIdsForFilter = useCallback((categoryId: string): string[] => {
+    const selected = categoriesOfType.find((c) => c.id === categoryId);
+    if (!selected) return [categoryId];
+
+    // Se clicar numa categoria pai, incluir subcategorias
+    if (!selected.parentId) {
+      const childIds = categoriesOfType
+        .filter((c) => c.parentId === categoryId)
+        .map((c) => c.id);
+      return [categoryId, ...childIds];
+    }
+
+    // Se clicar numa subcategoria, filtrar apenas ela
+    return [categoryId];
+  }, [categoriesOfType]);
+
+  const handleOpenLaunchesFiltered = useCallback((category: any) => {
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+
+    const filterCategoryIds = buildCategoryIdsForFilter(category.categoryId);
+
+    navigation.navigate('Lançamentos', {
+      month,
+      year,
+      filterType: transactionType,
+      filterCategoryIds,
+      filterCategoryName: category.categoryName,
+    });
+  }, [navigation, transactionType, buildCategoryIdsForFilter]);
+
   const renderCategoryCard = (category: any, index: number) => {
     if (!currentPeriodData) return null;
 
@@ -356,7 +393,16 @@ export default function CategoryDetails() {
     const categoryColor = CHART_COLORS[index % CHART_COLORS.length];
 
     return (
-      <View key={category.categoryId} style={[styles.categoryCard, { backgroundColor: colors.card }, getShadow(colors)]}>
+      <Pressable
+        key={category.categoryId}
+        onPress={() => handleOpenLaunchesFiltered(category)}
+        style={({ pressed }) => [
+          styles.categoryCard,
+          { backgroundColor: colors.card },
+          getShadow(colors),
+          pressed && { opacity: 0.9 },
+        ]}
+      >
         <View style={styles.categoryHeader}>
           <View style={[styles.categoryIcon, { backgroundColor: categoryColor + '15' }]}>
             <MaterialCommunityIcons name={category.categoryIcon as any} size={24} color={categoryColor} />
@@ -383,7 +429,7 @@ export default function CategoryDetails() {
             ]} 
           />
         </View>
-      </View>
+      </Pressable>
     );
   };
 

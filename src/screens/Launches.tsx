@@ -29,6 +29,12 @@ import {
 interface RouteParams {
   accountId?: string;
   accountName?: string;
+  month?: number;
+  year?: number;
+  filterType?: 'expense' | 'income';
+  filterStatus?: TransactionStatus;
+  filterCategoryIds?: string[];
+  filterCategoryName?: string;
 }
 
 // Nomes dos meses em português
@@ -57,12 +63,28 @@ export default function Launches() {
   const params = (route.params as RouteParams) || {};
   const [filterAccountId, setFilterAccountId] = useState<string | undefined>(params.accountId);
   const [filterAccountName, setFilterAccountName] = useState<string | undefined>(params.accountName);
+
+  const [filterCategoryIds, setFilterCategoryIds] = useState<string[] | undefined>(params.filterCategoryIds);
+  const [filterCategoryName, setFilterCategoryName] = useState<string | undefined>(params.filterCategoryName);
+  const [filterType, setFilterType] = useState<RouteParams['filterType']>(params.filterType);
+  const [filterStatus, setFilterStatus] = useState<RouteParams['filterStatus']>(params.filterStatus);
   
   // Atualizar filtro quando parâmetros mudarem
   useEffect(() => {
     const newParams = (route.params as RouteParams) || {};
     setFilterAccountId(newParams.accountId);
     setFilterAccountName(newParams.accountName);
+
+    setFilterCategoryIds(newParams.filterCategoryIds);
+    setFilterCategoryName(newParams.filterCategoryName);
+    setFilterType(newParams.filterType);
+    setFilterStatus(newParams.filterStatus);
+
+    // Se vier um mês/ano explícito pela navegação, respeitar
+    if (newParams.month && newParams.year) {
+      setSelectedMonth(newParams.month);
+      setSelectedYear(newParams.year);
+    }
   }, [route.params]);
   
   // Estado do mês/ano selecionado
@@ -161,6 +183,19 @@ export default function Launches() {
     navigation.setParams({ accountId: undefined, accountName: undefined } as any);
   };
 
+  const clearCategoryFilter = () => {
+    setFilterCategoryIds(undefined);
+    setFilterCategoryName(undefined);
+    setFilterType(undefined);
+    setFilterStatus(undefined);
+    navigation.setParams({
+      filterCategoryIds: undefined,
+      filterCategoryName: undefined,
+      filterType: undefined,
+      filterStatus: undefined,
+    } as any);
+  };
+
   // Refresh when refreshKey changes (triggered after saving a new transaction)
   useEffect(() => {
     if (refreshKey > 0) {
@@ -182,8 +217,50 @@ export default function Launches() {
   // Filtra transações de pagamento de fatura (são automáticas e redundantes visualmente)
   // INCLUI faturas de cartão de crédito na lista, ordenadas por data de vencimento
   const listItems = useMemo(() => {
-    const transactionItems = transactions
-      .filter((t: Transaction) => !t.creditCardId && !t.creditCardBillId) // Exclui transações de cartão e pagamentos de fatura
+    const categorySet = filterCategoryIds && filterCategoryIds.length > 0
+      ? new Set(filterCategoryIds)
+      : null;
+
+    // Fonte de transações:
+    // - Normal: usar apenas `transactions` (evita duplicidade com faturas)
+    // - Com filtro por categoria: também incluir transações vindas das faturas
+    //   para garantir que compras de cartão apareçam mesmo quando não estiverem
+    //   no array principal por algum motivo.
+    const billTransactions = categorySet
+      ? creditCardBills.flatMap((b) => b.transactions || [])
+      : [];
+
+    const mergedTransactions = categorySet
+      ? Array.from(
+          new Map(
+            [...transactions, ...billTransactions]
+              .filter(Boolean)
+              .map((t) => [t.id, t] as const)
+          ).values()
+        )
+      : transactions;
+
+    const transactionItems = mergedTransactions
+      .filter((t: Transaction) => {
+        // Pagamentos de fatura são automáticos e redundantes visualmente
+        if (t.creditCardBillId) return false;
+
+        // No modo normal, compras de cartão aparecem apenas via fatura (evita duplicidade)
+        // Porém, quando há filtro por categoria, precisamos incluir as compras de cartão
+        // porque as faturas não têm categoryId e não conseguiriam passar no filtro.
+        if (!categorySet && t.creditCardId) return false;
+
+        return true;
+      })
+      .filter((t: Transaction) => {
+        if (filterType && t.type !== filterType) return false;
+        if (filterStatus && t.status !== filterStatus) return false;
+        if (categorySet) {
+          if (!t.categoryId) return false;
+          return categorySet.has(t.categoryId);
+        }
+        return true;
+      })
       .map((t: Transaction) => {
         // Usar valor absoluto para garantir consistência
         const absAmount = Math.abs(t.amount);
@@ -199,7 +276,7 @@ export default function Launches() {
           id: t.id,
           date: t.date.toDate().toISOString().split('T')[0],
           title,
-          account: t.accountName || '',
+          account: t.accountName || t.creditCardName || '',
           toAccountName: t.toAccountName, // Conta destino para transferências
           amount,
           type: t.type === 'transfer' ? 'transfer' : (t.type === 'expense' ? 'paid' : 'received'),
@@ -216,7 +293,10 @@ export default function Launches() {
       });
 
     // Adicionar faturas como itens especiais
-    const billItems = creditCardBills.map((bill) => {
+    // - Não faz sentido quando há filtro por categoria
+    // - Também não faz sentido quando filtroType=income
+    const shouldIncludeBills = !categorySet && (!filterType || filterType === 'expense');
+    const billItems = shouldIncludeBills ? creditCardBills.map((bill) => {
       // Calcular a data de vencimento correta
       // Se dueDay < closingDay, vencimento é no próximo mês
       // Caso contrário, é no mesmo mês da fatura
@@ -255,13 +335,13 @@ export default function Launches() {
         itemType: 'bill' as const,
         billData: bill, // Dados completos da fatura para renderização
       };
-    });
+    }) : [];
 
     // Combinar e ordenar por data (mais antigo primeiro)
     return [...transactionItems, ...billItems].sort((a, b) => {
       return new Date(a.date).getTime() - new Date(b.date).getTime();
     });
-  }, [transactions, creditCardBills]) as Array<{
+  }, [transactions, creditCardBills, filterCategoryIds, filterType, filterStatus]) as Array<{
     id: string;
     date: string;
     title: string;
@@ -556,6 +636,20 @@ export default function Launches() {
                         style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}
                       >
                         <MaterialCommunityIcons name="close-circle" size={18} color={colors.primary} />
+                      </Pressable>
+                    </View>
+                  )}
+
+                  {filterCategoryName && (
+                    <View style={[styles.filterChip, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, marginTop: filterAccountName ? spacing.xs : 0 }]}>
+                      <MaterialCommunityIcons name="tag" size={16} color={colors.textMuted} />
+                      <Text style={[styles.filterChipText, { color: colors.text }]}> {filterCategoryName} </Text>
+                      <Pressable
+                        onPress={clearCategoryFilter}
+                        hitSlop={8}
+                        style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}
+                      >
+                        <MaterialCommunityIcons name="close-circle" size={18} color={colors.textMuted} />
                       </Pressable>
                     </View>
                   )}
