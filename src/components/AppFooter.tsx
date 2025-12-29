@@ -64,7 +64,7 @@ export default function AppFooter({ onHome, onAdd, onLaunches, onCategories, onS
           styles.container,
           {
             backgroundColor: colors.card,
-            paddingBottom: Math.max(insets.bottom, 8),
+            paddingBottom: Math.max(insets.bottom, 10),
           },
           getShadow(colors, 'lg'),
         ]}

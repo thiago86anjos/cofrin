@@ -178,10 +178,12 @@ export default function ConfigureAccounts({ navigation }: any) {
   function hasChanges(): boolean {
     if (!editingAccount) return false;
     const originalIcon = editingAccount.icon || getAccountIcon(editingAccount.type);
+    const originalIncludeInTotal = editingAccount.includeInTotal !== false;
     return (
       accountName.trim() !== editingAccount.name ||
       accountType !== editingAccount.type ||
-      accountIcon !== originalIcon
+      accountIcon !== originalIcon ||
+      accountIncludeInTotal !== originalIncludeInTotal
     );
   }
 

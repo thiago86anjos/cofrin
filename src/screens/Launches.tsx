@@ -675,7 +675,8 @@ export default function Launches() {
 
       {/* Summary Bar - Colado no footer */}
       <View style={[styles.summaryContainer, { bottom: summaryBottom }]}>
-        <View style={[styles.summaryBar, { backgroundColor: colors.card, borderTopColor: colors.border, borderBottomColor: colors.border }]}>
+        <View style={[styles.summaryBar, { backgroundColor: colors.card, borderTopColor: colors.border, borderBottomColor: colors.border, 
+          paddingBottom: spacing.lg }, getShadow(colors)]}>
           {/* Linha principal - Saldo + Botão */}
           <View style={styles.summaryMainRow}>
             {/* Saldo Atual */}
