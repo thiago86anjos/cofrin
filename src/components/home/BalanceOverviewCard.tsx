@@ -122,26 +122,28 @@ export default memo(function BalanceOverviewCard({
             />
           </View>
 
-          {/* Barra de progresso e percentual */}
-          <View style={styles.accountProgressSection}>
-            <Text style={[
-              styles.accountPercentage, 
-              { color: isZero ? colors.textMuted : colors.textSecondary }
-            ]}>
-              {percentage.toFixed(0)}% do total
-            </Text>
-            <View style={[styles.accountProgressBg, { backgroundColor: colors.grayLight }]}>
-              <View 
-                style={[
-                  styles.accountProgressFill, 
-                  { 
-                    width: `${percentage}%`,
-                    backgroundColor: isZero ? colors.gray : accountColor
-                  }
-                ]} 
-              />
+          {/* Barra de progresso e percentual - apenas se houver mais de 1 conta */}
+          {visibleAccounts.length > 1 && (
+            <View style={styles.accountProgressSection}>
+              <Text style={[
+                styles.accountPercentage, 
+                { color: isZero ? colors.textMuted : colors.textSecondary }
+              ]}>
+                {percentage.toFixed(0)}% do total
+              </Text>
+              <View style={[styles.accountProgressBg, { backgroundColor: colors.grayLight }]}>
+                <View 
+                  style={[
+                    styles.accountProgressFill, 
+                    { 
+                      width: `${percentage}%`,
+                      backgroundColor: isZero ? colors.gray : accountColor
+                    }
+                  ]} 
+                />
+              </View>
             </View>
-          </View>
+          )}
         </Pressable>
       </View>
     );
@@ -228,17 +230,19 @@ export default memo(function BalanceOverviewCard({
           </Text>
         </View>
 
-        {/* Seção "Distribuição por conta" */}
-        <View style={styles.distributionSection}>
-          <Text style={[styles.distributionTitle, { color: colors.textMuted }]}>
-            Distribuição por conta
-          </Text>
-
-          <View style={styles.accountsGrid}>
-            {visibleAccounts.map((account) => (
-              <AccountDistributionItem key={account.id} account={account} />
-            ))}
+        {/* Seção "Distribuição por conta" - apenas se houver mais de 1 conta */}
+        {visibleAccounts.length > 1 && (
+          <View style={styles.distributionSection}>
+            <Text style={[styles.distributionTitle, { color: colors.textMuted }]}>
+              Distribuição por conta
+            </Text>
           </View>
+        )}
+
+        <View style={styles.accountsGrid}>
+          {visibleAccounts.map((account) => (
+            <AccountDistributionItem key={account.id} account={account} />
+          ))}
         </View>
       </View>
     </View>
