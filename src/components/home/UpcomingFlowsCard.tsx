@@ -23,18 +23,33 @@ export default memo(function UpcomingFlowsCard({
   const navigation = useNavigation<any>();
   const [currentSlide, setCurrentSlide] = useState(0);
 
+  const currentPeriod = useMemo(() => {
+    const now = new Date();
+    return { month: now.getMonth() + 1, year: now.getFullYear() };
+  }, []);
+
+  const isPendingInCurrentMonth = (tx: Transaction) => {
+    if (tx.status !== 'pending') return false;
+    if (tx.month === currentPeriod.month && tx.year === currentPeriod.year) return true;
+
+    // Fallback defensivo caso algum dado antigo não tenha month/year consistente
+    const date = tx.date?.toDate?.();
+    if (!date) return false;
+    return date.getMonth() + 1 === currentPeriod.month && date.getFullYear() === currentPeriod.year;
+  };
+
   // Calcular totais
   const totalIncome = useMemo(() => {
     return incomeTransactions
-      .filter(tx => tx.status === 'pending')
+      .filter(isPendingInCurrentMonth)
       .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
-  }, [incomeTransactions]);
+  }, [incomeTransactions, currentPeriod.month, currentPeriod.year]);
 
   const totalExpense = useMemo(() => {
     return expenseTransactions
-      .filter(tx => tx.status === 'pending')
+      .filter(isPendingInCurrentMonth)
       .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
-  }, [expenseTransactions]);
+  }, [expenseTransactions, currentPeriod.month, currentPeriod.year]);
 
   // Determinar quais slides mostrar
   const slides: Array<{ type: 'income' | 'expense'; total: number }> = [];
@@ -96,8 +111,6 @@ export default memo(function UpcomingFlowsCard({
       </Text>
     );
   };
-
-  const accentColor = currentData.type === 'income' ? colors.income : colors.expense;
 
   // Mostrar seta esquerda apenas no slide 2+ e seta direita apenas antes do ultimo
   const showLeftArrow = hasMultipleSlides && currentSlide > 0;
