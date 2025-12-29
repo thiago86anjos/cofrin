@@ -240,7 +240,7 @@ export default function Settings({ navigation }: any) {
     <MainLayout>
       <ScrollView 
         style={[styles.scrollView, { backgroundColor: colors.bg }]} 
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomPad }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 16 }]}
       >
         {/* Header simples */}
         <SimpleHeader title="Configurações" />
