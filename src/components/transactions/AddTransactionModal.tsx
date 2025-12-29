@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-    View,
-    StyleSheet,
-    ScrollView,
-    Platform,
-    Pressable,
-    Modal,
-    Dimensions,
-    Text,
-    TextInput,
-    ActivityIndicator
+  View,
+  StyleSheet,
+  ScrollView,
+  Platform,
+  Pressable,
+  Modal,
+  Dimensions,
+  Text,
+  TextInput,
+  ActivityIndicator
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -1737,27 +1737,6 @@ export default function AddTransactionModal({
         ) : (
           // Main form fullscreen
           <View style={[styles.fullscreenModal, { backgroundColor: colors.bg, paddingTop: insets.top }]}>
-            {/* Header Fullscreen */}
-            <View style={[styles.fullscreenHeader, { borderBottomColor: colors.border }]}>
-              <Text style={[styles.fullscreenTitle, { color: colors.text }]}>
-                {isEditMode ? 'Editar Lançamento' : 
-                  type === 'despesa' ? 'Nova Despesa' : 
-                  type === 'receita' ? 'Nova Receita' : 'Nova Transferência'}
-              </Text>
-              <Pressable 
-                onPress={onClose}
-                disabled={saving}
-                style={({ pressed }) => [
-                  styles.closeButton,
-                  { backgroundColor: colors.grayLight },
-                  pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] },
-                  saving && { opacity: 0.5 },
-                ]}
-              >
-                <MaterialCommunityIcons name="close" size={22} color={colors.text} />
-              </Pressable>
-            </View>
-
             {/* Header colorido com valor */}
             <View style={[styles.header, { backgroundColor: headerColor }]}> 
               {/* Type selector com título integrado - ocultar para transações de meta e descontos de antecipação */}
@@ -3034,6 +3013,11 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
   },
   createCategoryButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  saveButtonText: {
     fontSize: 15,
     fontWeight: '600',
     color: '#fff',
