@@ -58,24 +58,6 @@ export default function GoalProgressCard({
   const timeframeDescription = GOAL_TIMEFRAME_DESCRIPTIONS[goal.timeframe];
   const remaining = goal.targetAmount - goal.currentAmount;
 
-  // Gerar texto contextual baseado no comportamento do mês
-  const getContextualText = () => {
-    if (progressPercentage >= 100) {
-      return '🎉 Parabéns! Você alcançou sua meta. Hora de celebrar e definir um novo objetivo.';
-    }
-
-    if (monthBalance > 0) {
-      if (progressPercentage >= 75) {
-        return 'Neste mês, seu saldo positivo te aproximou ainda mais da sua meta. Você está quase lá!';
-      }
-      return 'Neste mês, seu saldo positivo ajudou você a avançar na sua meta. Continue assim!';
-    } else if (monthBalance < 0) {
-      return 'Reduzir gastos e aumentar o saldo pode acelerar o progresso da sua meta.';
-    }
-
-    return 'Manter um saldo positivo todo mês ajuda a conquistar sua meta mais rápido.';
-  };
-
   return (
     <Pressable
       onPress={onGoalPress}
@@ -86,57 +68,31 @@ export default function GoalProgressCard({
         pressed && { opacity: 0.95 }
       ]}
     >
+      {/* Header com ícone e nome da meta */}
       <View style={styles.header}>
         <View style={[styles.iconCircle, { backgroundColor: colors.primaryBg }]}>
           <MaterialCommunityIcons 
-            name={(goal.icon as any) || 'flag-checkered'} 
+            name={(goal.icon as any) || 'piggy-bank'} 
             size={24} 
             color={colors.primary} 
           />
         </View>
-        <View style={styles.headerText}>
-          <Text style={[styles.title, { color: colors.text }]}>Sua meta financeira</Text>
-        </View>
-      </View>
-
-      {/* Informações da meta */}
-      <View style={styles.goalInfo}>
-        <Text style={[styles.goalName, { color: colors.text }]}>
-          {goal.name}
-        </Text>
-        <Text style={[styles.goalTimeframe, { color: colors.textMuted }]}>
-          {timeframeLabel} • {timeframeDescription}
-        </Text>
-      </View>
-
-      {/* Valores e progresso */}
-      <View style={styles.valuesRow}>
-        <View style={styles.valueItem}>
-          <Text style={[styles.valueLabel, { color: colors.textMuted }]}>Conquistado</Text>
-          <Text style={[styles.valueAmount, { color: colors.primary }]}>
-            {formatCurrencyBRL(goal.currentAmount)}
+        <View style={styles.headerInfo}>
+          <Text style={[styles.goalName, { color: colors.text }]}>
+            {goal.name}
           </Text>
-        </View>
-        <View style={[styles.valueDivider, { backgroundColor: colors.border }]} />
-        <View style={styles.valueItem}>
-          <Text style={[styles.valueLabel, { color: colors.textMuted }]}>Faltam</Text>
-          <Text style={[styles.valueAmount, { color: colors.text }]}>
-            {formatCurrencyBRL(remaining > 0 ? remaining : 0)}
+          <Text style={[styles.goalTimeframe, { color: colors.textMuted }]}>
+            {timeframeLabel}
           </Text>
         </View>
       </View>
 
-      {/* Barra de progresso */}
+      {/* Progresso visual */}
       <View style={styles.progressSection}>
-        <View style={styles.progressHeader}>
-          <Text style={[styles.progressLabel, { color: colors.textMuted }]}>
-            Progresso
-          </Text>
-          <Text style={[styles.progressPercentage, { color: colors.primary }]}>
-            {Math.round(progressPercentage)}%
-          </Text>
-        </View>
-        <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
+        <Text style={[styles.progressLabel, { color: colors.textMuted }]}>
+          Progresso {formatCurrencyBRL(goal.currentAmount)} de {formatCurrencyBRL(goal.targetAmount)}
+        </Text>
+        <View style={[styles.progressTrack, { backgroundColor: colors.grayLight }]}>
           <View 
             style={[
               styles.progressFill, 
@@ -147,102 +103,127 @@ export default function GoalProgressCard({
             ]} 
           />
         </View>
-      </View>
-
-      {/* Texto contextual educativo */}
-      <View style={[styles.contextBox, { backgroundColor: colors.primaryBg }]}>
-        <MaterialCommunityIcons name="lightbulb-on" size={16} color={colors.primary} />
-        <Text style={[styles.contextText, { color: colors.primary }]}>
-          {getContextualText()}
+        <Text style={[styles.progressStatus, { color: colors.textMuted }]}>
+          {Math.round(progressPercentage)}% concluído
         </Text>
       </View>
+
+      {/* Informações detalhadas */}
+      <View style={styles.detailsRow}>
+        <View style={styles.detailItem}>
+          <MaterialCommunityIcons name="clock-outline" size={16} color={colors.textMuted} />
+          <Text style={[styles.detailText, { color: colors.textMuted }]}>
+            Faltam: {timeframeDescription}
+          </Text>
+        </View>
+        <View style={styles.detailItem}>
+          <MaterialCommunityIcons name="wallet-outline" size={16} color={colors.textMuted} />
+          <Text style={[styles.detailText, { color: colors.textMuted }]}>
+            Aporte necessário: {formatCurrencyBRL(remaining > 0 ? remaining / (goal.monthsRemaining || 1) : 0)} por mês
+          </Text>
+        </View>
+      </View>
+
+      {/* Botão de adicionar progresso */}
+      <Pressable
+        onPress={onGoalPress}
+        style={({ pressed }) => [
+          styles.addButton,
+          { backgroundColor: colors.success + '15', borderColor: colors.success },
+          pressed && { opacity: 0.7 }
+        ]}
+      >
+        <MaterialCommunityIcons name="plus" size={18} color={colors.success} />
+        <Text style={[styles.addButtonText, { color: colors.success }]}>
+          Adicionar progresso
+        </Text>
+      </Pressable>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    padding: spacing.lg,
-    borderRadius: borderRadius.lg,
+    padding: 20,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
     marginBottom: spacing.md,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
+    gap: 12,
   },
   iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.md,
   },
-  headerText: {
+  headerInfo: {
     flex: 1,
   },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  goalInfo: {
-    marginBottom: spacing.md,
-  },
   goalName: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 24,
   },
   goalTimeframe: {
     fontSize: 13,
-  },
-  valuesRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  valueItem: {
-    flex: 1,
-  },
-  valueDivider: {
-    width: 1,
-    height: 32,
-    marginHorizontal: spacing.md,
-  },
-  valueLabel: {
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  valueAmount: {
-    fontSize: 18,
-    fontWeight: '700',
+    marginTop: 2,
   },
   progressSection: {
-    marginBottom: spacing.md,
-  },
-  progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
+    marginBottom: spacing.lg,
+    gap: 8,
   },
   progressLabel: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  progressPercentage: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '400',
   },
   progressTrack: {
-    height: 10,
-    borderRadius: 5,
+    height: 8,
+    borderRadius: 8,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: 5,
+    borderRadius: 8,
+  },
+  progressStatus: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  detailsRow: {
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  detailText: {
+    fontSize: 12,
+    flex: 1,
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  addButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   emptyText: {
     fontSize: 14,
@@ -262,17 +243,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  contextBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: spacing.sm,
-    borderRadius: borderRadius.sm,
-    gap: spacing.xs,
-  },
-  contextText: {
-    flex: 1,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '500',
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
   },
 });

@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import {
-  View,
-  StyleSheet,
-  Modal,
-  Pressable,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
+    View,
+    StyleSheet,
+    Modal,
+    Pressable,
+    TextInput,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from 'react-native-paper';
@@ -141,44 +141,35 @@ export default function AddToGoalModal({ visible, onClose, onSave, goal, progres
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Info da meta */}
+            {/* Info da meta - compacta */}
             <View style={[styles.goalInfo, { backgroundColor: colors.card }]}>
               <View style={styles.goalHeader}>
-                <MaterialCommunityIcons 
-                  name={(goal.icon as any) || 'flag-checkered'} 
-                  size={24} 
-                  color={colors.primary}
-                  style={{ marginRight: spacing.sm }}
-                />
-                <Text style={[styles.goalName, { color: colors.text }]}>{goal.name}</Text>
-              </View>
-              <View style={styles.goalProgress}>
-                <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
-                  <View 
-                    style={[
-                      styles.progressFill, 
-                      { width: `${Math.min(progressPercentage, 100)}%`, backgroundColor: colors.primary }
-                    ]} 
+                <View style={[styles.iconCircle, { backgroundColor: colors.primaryBg }]}>
+                  <MaterialCommunityIcons 
+                    name={(goal.icon as any) || 'flag-checkered'} 
+                    size={20} 
+                    color={colors.primary}
                   />
                 </View>
-                <Text style={[styles.progressText, { color: colors.textMuted }]}>
-                  {formatCurrencyBRL(goal.currentAmount)} de {formatCurrencyBRL(goal.targetAmount)}
-                </Text>
+                <View style={styles.goalDetails}>
+                  <Text style={[styles.goalName, { color: colors.text }]} numberOfLines={1}>{goal.name}</Text>
+                  <Text style={[styles.goalSubtitle, { color: colors.textMuted }]}>
+                    {formatCurrencyBRL(goal.currentAmount)} de {formatCurrencyBRL(goal.targetAmount)}
+                  </Text>
+                </View>
               </View>
-            </View>
-
-            {/* Quanto falta */}
-            <View style={[styles.remainingBox, { backgroundColor: isGoalComplete ? colors.successBg : colors.primaryBg }]}>
-              <MaterialCommunityIcons 
-                name={isGoalComplete ? "check-circle" : "flag-checkered"} 
-                size={18} 
-                color={isGoalComplete ? colors.success : colors.primary}
-                style={{ marginRight: spacing.sm }}
-              />
-              <Text style={[styles.remainingText, { color: isGoalComplete ? colors.success : colors.primary }]}>
+              <View style={[styles.progressTrack, { backgroundColor: colors.grayLight }]}>
+                <View 
+                  style={[
+                    styles.progressFill, 
+                    { width: `${Math.min(progressPercentage, 100)}%`, backgroundColor: colors.primary }
+                  ]} 
+                />
+              </View>
+              <Text style={[styles.remainingText, { color: isGoalComplete ? colors.success : colors.textMuted }]}>
                 {isGoalComplete 
-                  ? 'Parabéns! Você já atingiu sua meta!' 
-                  : `Faltam ${formatCurrencyBRL(remaining > 0 ? remaining : 0)} para alcançar sua meta!`
+                  ? '✓ Meta concluída!' 
+                  : `Faltam ${formatCurrencyBRL(remaining > 0 ? remaining : 0)}`
                 }
               </Text>
             </View>
@@ -208,8 +199,8 @@ export default function AddToGoalModal({ visible, onClose, onSave, goal, progres
                       style={[
                         styles.accountCard,
                         { 
-                          backgroundColor: isSelected ? colors.primary : colors.bg,
-                          borderColor: isSelected ? colors.primary : colors.border,
+                          backgroundColor: isSelected ? colors.primary : colors.card,
+                          borderColor: isSelected ? colors.primary : colors.card,
                         }
                       ]}
                     >
@@ -218,12 +209,6 @@ export default function AddToGoalModal({ visible, onClose, onSave, goal, progres
                         { color: isSelected ? '#fff' : colors.text }
                       ]} numberOfLines={1}>
                         {account.name}
-                      </Text>
-                      <Text style={[
-                        styles.accountBalance,
-                        { color: isSelected ? 'rgba(255,255,255,0.8)' : colors.textMuted }
-                      ]}>
-                        {formatCurrencyBRL(account.balance)}
                       </Text>
                     </Pressable>
                   );
@@ -316,51 +301,54 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   modalBody: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
+    paddingHorizontal: 20,
+    paddingTop: 20,
     width: '100%',
     maxWidth: 720,
     alignSelf: 'center',
   },
   goalInfo: {
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.md,
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 20,
+    gap: 10,
   },
   goalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    gap: 12,
+  },
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  goalDetails: {
+    flex: 1,
   },
   goalName: {
     fontSize: 16,
-    fontWeight: '600',
-    flex: 1,
+    fontWeight: '700',
+    lineHeight: 20,
   },
-  goalProgress: {},
+  goalSubtitle: {
+    fontSize: 13,
+    marginTop: 2,
+  },
   progressTrack: {
-    height: 8,
-    borderRadius: 4,
+    height: 6,
+    borderRadius: 6,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: 4,
-  },
-  progressText: {
-    fontSize: 13,
-  },
-  remainingBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.lg,
+    borderRadius: 6,
   },
   remainingText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 12,
+    fontWeight: '600',
   },
   noAccountsBox: {
     flexDirection: 'row',
@@ -373,40 +361,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   accountsScroll: {
-    marginBottom: spacing.lg,
+    marginBottom: 20,
     marginHorizontal: 0,
   },
   accountsList: {
     paddingHorizontal: 0,
+    gap: 8,
   },
   accountCard: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    minWidth: 120,
-    marginRight: spacing.sm,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 2,
+    minWidth: 110,
+    marginRight: 8,
+    position: 'relative',
   },
   accountName: {
     fontSize: 14,
     fontWeight: '600',
-    marginBottom: 2,
-  },
-  accountBalance: {
-    fontSize: 13,
   },
   label: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
-    marginBottom: spacing.sm,
+    marginBottom: 12,
+    marginTop: 4,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.md,
+    borderWidth: 2,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    marginBottom: 16,
   },
   currencyPrefix: {
     fontSize: 18,
@@ -437,37 +424,39 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   errorText: {
-    fontSize: 14,
-    marginBottom: spacing.md,
+    fontSize: 13,
+    marginBottom: 16,
     textAlign: 'center',
+    fontWeight: '500',
   },
   buttons: {
     flexDirection: 'row',
-    marginTop: spacing.sm,
+    marginTop: 8,
+    gap: 12,
   },
   cancelButton: {
     flex: 1,
-    borderWidth: 1,
-    borderRadius: borderRadius.md,
+    borderWidth: 2,
+    borderRadius: 12,
     paddingVertical: 14,
-    marginRight: spacing.md,
     alignItems: 'center',
   },
   cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
   },
   saveButton: {
     flex: 1,
     flexDirection: 'row',
-    borderRadius: borderRadius.md,
+    borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
   },
   saveButtonText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
   },
 });
