@@ -285,13 +285,6 @@ export default function Tutorial({ navigation }: Props) {
             </View>
           );
         })}
-
-        <View style={[styles.footer, { backgroundColor: colors.infoCard || colors.card, borderColor: colors.border }]}>
-          <MaterialCommunityIcons name="information" size={20} color={colors.primary} />
-          <Text style={[styles.footerText, { color: colors.textSecondary }]}>
-            Precisa de mais ajuda? Entre em contato através do menu Sobre.
-          </Text>
-        </View>
             </View>
           </View>
         </ScrollView>
