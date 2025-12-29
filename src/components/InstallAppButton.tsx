@@ -1,6 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { StyleSheet, Platform } from 'react-native';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { isMobileWeb, isStandalone } from '../utils/platform';
 
@@ -35,39 +34,39 @@ export function InstallAppButton(): React.ReactElement | null {
   }
 
   // iOS: Mostra instruções manuais
-  if (showIOSInstructions) {
-    return (
-      <View style={styles.iosContainer}>
-        <View style={styles.iosIconRow}>
-          <MaterialCommunityIcons name="cellphone-arrow-down" size={20} color="#6B7280" />
-          <Text style={styles.iosTitle}>Instalar este aplicativo</Text>
-        </View>
-        <Text style={styles.iosText}>
-          Toque em{' '}
-          <MaterialCommunityIcons name="export-variant" size={14} color="#5B3CC4" />
-          {' '}Compartilhar e depois em{'\n'}"Adicionar à Tela de Início"
-        </Text>
-      </View>
-    );
-  }
+  // if (showIOSInstructions) {
+  //   return (
+  //     <View style={styles.iosContainer}>
+  //       <View style={styles.iosIconRow}>
+  //         <MaterialCommunityIcons name="cellphone-arrow-down" size={20} color="#6B7280" />
+  //         <Text style={styles.iosTitle}>Instalar este aplicativo</Text>
+  //       </View>
+  //       <Text style={styles.iosText}>
+  //         Toque em{' '}
+  //         <MaterialCommunityIcons name="export-variant" size={14} color="#5B3CC4" />
+  //         {' '}Compartilhar e depois em{'\n'}"Adicionar à Tela de Início"
+  //       </Text>
+  //     </View>
+  //   );
+  // }
 
   // Android: Mostra botão de instalação (sempre que for Android, mesmo sem prompt)
-  if (isAndroid) {
-    return (
-      <Pressable
-        onPress={install}
-        style={({ pressed }) => [
-          styles.androidButton,
-          pressed && styles.androidButtonPressed,
-        ]}
-        accessibilityLabel="Instalar este aplicativo"
-        accessibilityRole="button"
-      >
-        <MaterialCommunityIcons name="cellphone-arrow-down" size={20} color="#5B3CC4" />
-        <Text style={styles.androidButtonText}>Instalar este aplicativo</Text>
-      </Pressable>
-    );
-  }
+  // if (isAndroid) {
+  //   return (
+  //     <Pressable
+  //       onPress={install}
+  //       style={({ pressed }) => [
+  //         styles.androidButton,
+  //         pressed && styles.androidButtonPressed,
+  //       ]}
+  //       accessibilityLabel="Instalar este aplicativo"
+  //       accessibilityRole="button"
+  //     >
+  //       <MaterialCommunityIcons name="cellphone-arrow-down" size={20} color="#5B3CC4" />
+  //       <Text style={styles.androidButtonText}>Instalar este aplicativo</Text>
+  //     </Pressable>
+  //   );
+  // }
 
   // Nada para mostrar
   return null;
