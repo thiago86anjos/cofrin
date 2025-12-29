@@ -867,11 +867,9 @@ export default function ConfigureAccounts({ navigation }: any) {
                   { color: '#2FAF8E', label: 'Verde' },
                   { color: '#E07A3F', label: 'Laranja' },
                   { color: '#3B82F6', label: 'Azul' },
-                  { color: '#EC4899', label: 'Rosa' },
                   { color: '#F59E0B', label: 'Amarelo' },
                   { color: '#8B5CF6', label: 'Violeta' },
                   { color: '#EF4444', label: 'Vermelho' },
-                  { color: '#14B8A6', label: 'Turquesa' },
                   { color: '#6B7280', label: 'Cinza' },
                 ].map((item) => {
                   const isSelected = accountColor === item.color;
@@ -1319,19 +1317,19 @@ const styles = StyleSheet.create({
   colorGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
+    gap: 6,
   },
   colorOption: {
-    width: 48,
-    height: 48,
-    borderRadius: borderRadius.md,
+    width: 32,
+    height: 32,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   colorCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
   },
