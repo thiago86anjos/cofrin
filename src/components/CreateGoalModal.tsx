@@ -38,6 +38,7 @@ interface Props {
     targetDate: Date;
     icon: string;
   }) => Promise<void>; // Callback para salvar como principal
+  lockedName?: string; // Nome pré-preenchido e bloqueado (ex: Reserva de emergência)
 }
 
 export default function CreateGoalModal({ 
@@ -49,7 +50,8 @@ export default function CreateGoalModal({
   existingGoals = [],
   progressPercentage = 0,
   showSetPrimaryOption = false,
-  onSaveAsPrimary
+  onSaveAsPrimary,
+  lockedName
 }: Props) {
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
@@ -108,20 +110,20 @@ export default function CreateGoalModal({
       // Reset para nova meta
       const defaultDate = new Date(); // Data de hoje
       
-      setName('');
+      setName(lockedName || '');
       setTargetAmount('');
       setTargetDate(defaultDate);
-      setIcon('piggy-bank');
+      setIcon(lockedName === 'Reserva de emergência' ? 'piggy-bank' : 'home-variant');
       
       // Limpar originais
-      setOriginalName('');
+      setOriginalName(lockedName || '');
       setOriginalAmount('');
       setOriginalDate(defaultDate);
-      setOriginalIcon('piggy-bank');
+      setOriginalIcon(lockedName === 'Reserva de emergência' ? 'piggy-bank' : 'home-variant');
     }
     setError('');
     setFocusedField(null);
-  }, [existingGoal, visible]);
+  }, [existingGoal, visible, lockedName]);
   
   // Verificar se houve alterações (modo edição)
   const hasChanges = (): boolean => {
@@ -257,6 +259,7 @@ export default function CreateGoalModal({
                 borderColor: focusedField === 'name' ? colors.primary : colors.border,
               },
               Platform.select({ web: { outlineStyle: 'none' as const } }),
+              (lockedName && !existingGoal) && { opacity: 0.6 },
             ]}
             placeholder="Ex: Comprar um carro, Viagem, Reserva..."
             placeholderTextColor={colors.textMuted}
@@ -265,6 +268,7 @@ export default function CreateGoalModal({
             onFocus={() => setFocusedField('name')}
             onBlur={() => setFocusedField(null)}
             maxLength={50}
+            editable={!lockedName || !!existingGoal}
           />
 
           {/* Valor da meta */}
@@ -304,7 +308,16 @@ export default function CreateGoalModal({
           {/* Ícone */}
           <Text style={[styles.label, { color: colors.text }]}>Escolha uma categoria</Text>
           <View style={styles.chipGrid}>
-            {GOAL_ICONS.map((iconName) => {
+            {GOAL_ICONS
+              .filter((iconName) => {
+                // Se for reserva de emergência, mostrar APENAS piggy-bank
+                if (lockedName === 'Reserva de emergência') {
+                  return iconName === 'piggy-bank';
+                }
+                // Se NÃO for reserva de emergência, ESCONDER piggy-bank
+                return iconName !== 'piggy-bank';
+              })
+              .map((iconName) => {
               const isSelected = icon === iconName;
               const label = GOAL_ICON_LABELS[iconName] || iconName;
               return (

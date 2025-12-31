@@ -54,6 +54,7 @@ export default function Goals() {
   const [selectedGoal, setSelectedGoal] = useState<any>(null);
   const [selectedMonthlyGoal, setSelectedMonthlyGoal] = useState<any>(null);
   const [accounts, setAccounts] = useState<any[]>([]);
+  const [isCreatingEmergencyFund, setIsCreatingEmergencyFund] = useState(false);
 
   // Se receber activeTab via navegação, aplicar
   useEffect(() => {
@@ -80,6 +81,12 @@ export default function Goals() {
   const handleSelectMonthly = () => {
     setShowChooseTypeModal(false);
     setShowMonthlyGoalModal(true);
+  };
+
+  const handleSelectEmergencyFund = () => {
+    setShowChooseTypeModal(false);
+    setIsCreatingEmergencyFund(true);
+    setShowLongTermGoalModal(true);
   };
 
   const handleCreateMonthlyGoal = async (data: {
@@ -171,6 +178,7 @@ export default function Goals() {
     await refreshLongTermGoals();
     showSnackbar('Meta de longo prazo criada com sucesso!');
     setShowLongTermGoalModal(false);
+    setIsCreatingEmergencyFund(false);
   };
 
   const handleEditLongTermGoal = (goal: any) => {
@@ -319,6 +327,8 @@ export default function Goals() {
         onClose={() => setShowChooseTypeModal(false)}
         onSelectLongTerm={handleSelectLongTerm}
         onSelectMonthly={handleSelectMonthly}
+        onSelectEmergencyFund={handleSelectEmergencyFund}
+        existingGoals={allLongTermGoals}
       />
 
       <CreateMonthlyGoalModal
@@ -334,11 +344,15 @@ export default function Goals() {
 
       <CreateGoalModal
         visible={showLongTermGoalModal}
-        onClose={() => setShowLongTermGoalModal(false)}
+        onClose={() => {
+          setShowLongTermGoalModal(false);
+          setIsCreatingEmergencyFund(false);
+        }}
         onSave={handleSaveLongTermGoal}
         onDelete={selectedGoal ? handleDeleteLongTermGoal : undefined}
         existingGoals={allLongTermGoals}
         existingGoal={selectedGoal}
+        lockedName={isCreatingEmergencyFund ? 'Reserva de emergência' : undefined}
       />
 
       {selectedGoal && (

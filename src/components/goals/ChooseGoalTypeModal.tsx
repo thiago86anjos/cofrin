@@ -10,9 +10,13 @@ interface Props {
   onClose: () => void;
   onSelectLongTerm: () => void;
   onSelectMonthly: () => void;
+  onSelectEmergencyFund: () => void;
+  existingGoals?: any[]; // Para verificar se já existe reserva de emergência
 }
 
-export default function ChooseGoalTypeModal({ visible, onClose, onSelectLongTerm, onSelectMonthly }: Props) {
+export default function ChooseGoalTypeModal({ visible, onClose, onSelectLongTerm, onSelectMonthly, onSelectEmergencyFund, existingGoals = [] }: Props) {
+  // Verificar se já existe uma meta com o nome "Reserva de emergência"
+  const hasEmergencyFund = existingGoals.some(goal => goal.name === 'Reserva de emergência');
   return (
     <Modal
       visible={visible}
@@ -26,7 +30,6 @@ export default function ChooseGoalTypeModal({ visible, onClose, onSelectLongTerm
             <MaterialCommunityIcons name="flag-checkered" size={40} color={DS_COLORS.primary} />
           </View>
           
-          <Text style={styles.title}>Criar nova meta</Text>
           <Text style={styles.subtitle}>
             Escolha o tipo de meta que deseja criar
           </Text>
@@ -48,6 +51,26 @@ export default function ChooseGoalTypeModal({ visible, onClose, onSelectLongTerm
             </View>
             <MaterialCommunityIcons name="chevron-right" size={24} color={DS_COLORS.textMuted} />
           </Pressable>
+
+          {!hasEmergencyFund && (
+            <Pressable
+              style={styles.optionCard}
+              onPress={onSelectEmergencyFund}
+            >
+              <View style={[styles.optionIcon, { backgroundColor: DS_COLORS.successLight }]}>
+                <MaterialCommunityIcons name="piggy-bank-outline" size={28} color={DS_COLORS.success} />
+              </View>
+              <View style={styles.optionContent}>
+                <Text style={styles.optionTitle}>
+                  Reserva de emergência
+                </Text>
+                <Text style={styles.optionDescription}>
+                  Fundo de segurança para imprevistos
+                </Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={24} color={DS_COLORS.textMuted} />
+            </Pressable>
+          )}
 
           <Pressable
             style={styles.optionCard}
