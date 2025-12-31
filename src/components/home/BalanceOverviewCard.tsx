@@ -319,6 +319,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    paddingBottom: 12,
   },
   accountsGrid: {
     gap: 12,
