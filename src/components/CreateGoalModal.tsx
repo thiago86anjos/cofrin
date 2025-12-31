@@ -258,28 +258,35 @@ export default function CreateGoalModal({
             contentContainerStyle={styles.cardContent}
             keyboardShouldPersistTaps="handled"
           >
-          {/* Nome da meta */}
-          <Text style={[styles.label, { color: colors.text }]}>Qual é sua meta?</Text>
-          <TextInput
-            style={[
-              styles.input, 
-              { 
-                backgroundColor: colors.bg, 
-                color: colors.text, 
-                borderColor: focusedField === 'name' ? colors.primary : colors.border,
-              },
-              Platform.select({ web: { outlineStyle: 'none' as const } }),
-              (lockedName && !existingGoal) && { opacity: 0.6 },
-            ]}
-            placeholder="Ex: Comprar um carro, Viagem, Reserva..."
-            placeholderTextColor={colors.textMuted}
-            value={name}
-            onChangeText={setName}
-            onFocus={() => setFocusedField('name')}
-            onBlur={() => setFocusedField(null)}
-            maxLength={50}
-            editable={!lockedName || !!existingGoal}
-          />
+          {/* Título */}
+          <Text style={[styles.title, { color: colors.text }]}>
+            {existingGoal ? 'Editar meta' : (lockedName || 'Criar nova meta')}
+          </Text>
+
+          {/* Nome da meta - esconder se for Reserva de emergência (criando ou editando) */}
+          {lockedName !== 'Reserva de emergência' && existingGoal?.name !== 'Reserva de emergência' && (
+            <>
+              <Text style={[styles.label, { color: colors.text }]}>Qual é sua meta?</Text>
+              <TextInput
+                style={[
+                  styles.input, 
+                  { 
+                    backgroundColor: colors.bg, 
+                    color: colors.text, 
+                    borderColor: focusedField === 'name' ? colors.primary : colors.border,
+                  },
+                  Platform.select({ web: { outlineStyle: 'none' as const } }),
+                ]}
+                placeholder="Ex: Comprar um carro, Viagem, Reserva..."
+                placeholderTextColor={colors.textMuted}
+                value={name}
+                onChangeText={setName}
+                onFocus={() => setFocusedField('name')}
+                onBlur={() => setFocusedField(null)}
+                maxLength={50}
+              />
+            </>
+          )}
 
           {/* Valor da meta */}
           <Text style={[styles.label, { color: colors.text }]}>Quanto você precisa?</Text>
@@ -306,6 +313,14 @@ export default function CreateGoalModal({
               keyboardType="numeric"
             />
           </View>
+
+          {/* Data de finalização */}
+          <DatePickerCrossPlatform
+            label="Quando você quer atingir?"
+            value={targetDate}
+            onChange={setTargetDate}
+            minimumDate={new Date()}
+          />
 
           {/* Saldo inicial (apenas para Reserva de emergência na criação) */}
           {lockedName === 'Reserva de emergência' && !existingGoal && (
@@ -340,89 +355,94 @@ export default function CreateGoalModal({
             </>
           )}
 
-          {/* Data de finalização */}
-          <DatePickerCrossPlatform
-            label="Quando você quer atingir?"
-            value={targetDate}
-            onChange={setTargetDate}
-            minimumDate={new Date()}
-          />
-
-          {/* Ícone */}
-          <Text style={[styles.label, { color: colors.text }]}>Escolha uma categoria</Text>
-          <View style={styles.chipGrid}>
-            {GOAL_ICONS
-              .filter((iconName) => {
-                // Se for reserva de emergência, mostrar APENAS piggy-bank
-                if (lockedName === 'Reserva de emergência') {
-                  return iconName === 'piggy-bank';
-                }
-                // Se NÃO for reserva de emergência, ESCONDER piggy-bank
-                return iconName !== 'piggy-bank';
-              })
-              .map((iconName) => {
-              const isSelected = icon === iconName;
-              const label = GOAL_ICON_LABELS[iconName] || iconName;
-              return (
-                <Pressable
-                  key={iconName}
-                  onPress={() => setIcon(iconName)}
-                  style={[
-                    styles.chip,
-                    { 
-                      backgroundColor: isSelected ? colors.primary : colors.bg,
-                      borderColor: isSelected ? colors.primary : colors.border,
-                    }
-                  ]}
-                >
-                  <Text style={[
-                    styles.chipText,
-                    { color: isSelected ? '#fff' : colors.text }
-                  ]}>
-                    {label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          {/* Ícone - esconder se for Reserva de emergência (criando ou editando) */}
+          {lockedName !== 'Reserva de emergência' && existingGoal?.name !== 'Reserva de emergência' && (
+            <>
+              <Text style={[styles.label, { color: colors.text }]}>Escolha uma categoria</Text>
+              <View style={styles.chipGrid}>
+                {GOAL_ICONS
+                  .filter((iconName) => iconName !== 'piggy-bank')
+                  .map((iconName) => {
+                  const isSelected = icon === iconName;
+                  const label = GOAL_ICON_LABELS[iconName] || iconName;
+                  return (
+                    <Pressable
+                      key={iconName}
+                      onPress={() => setIcon(iconName)}
+                      style={[
+                        styles.chip,
+                        { 
+                          backgroundColor: isSelected ? colors.primary : colors.bg,
+                          borderColor: isSelected ? colors.primary : colors.border,
+                        }
+                      ]}
+                    >
+                      <Text style={[
+                        styles.chipText,
+                        { color: isSelected ? '#fff' : colors.text }
+                      ]}>
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          )}
 
           {/* Erro */}
           {error ? (
             <Text style={[styles.errorText, { color: colors.expense }]}>{error}</Text>
           ) : null}
 
-          {/* Botão de excluir (só aparece ao editar) */}
-          {existingGoal && onDelete && (
+          {/* Botões */}
+          <View style={styles.buttonContainer}>
+            {/* Botão Excluir (só aparece ao editar) - à esquerda */}
+            {existingGoal && onDelete && (
+              <Pressable
+                onPress={handleDelete}
+                disabled={deleting}
+                style={[
+                  styles.deleteButton,
+                  { borderColor: colors.border, backgroundColor: colors.bg },
+                  deleting && { opacity: 0.6 }
+                ]}
+              >
+                <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.text} />
+                <Text style={[styles.deleteButtonText, { color: colors.text }]}>
+                  {deleting ? 'Excluindo...' : 'Excluir'}
+                </Text>
+              </Pressable>
+            )}
+
+            {/* Botão Cancelar - no meio */}
             <Pressable
-              onPress={handleDelete}
-              disabled={deleting}
+              onPress={onClose}
               style={[
-                styles.deleteButton,
-                { borderColor: colors.expense },
-                deleting && { opacity: 0.6 }
+                styles.cancelButton,
+                { borderColor: colors.border, backgroundColor: colors.bg }
               ]}
             >
-              <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.expense} />
-              <Text style={[styles.deleteButtonText, { color: colors.expense }]}>
-                {deleting ? 'Excluindo...' : 'Excluir meta'}
+              <Text style={[styles.cancelButtonText, { color: colors.text }]}>
+                Cancelar
               </Text>
             </Pressable>
-          )}
 
-          {/* Botão Salvar */}
-          <Pressable
-            onPress={handleSave}
-            disabled={saving || (existingGoal && !hasChanges())}
-            style={[
-              styles.saveButton, 
-              { backgroundColor: colors.primary },
-              (saving || (existingGoal && !hasChanges())) && { opacity: 0.6 }
-            ]}
-          >
-            <Text style={styles.saveButtonText}>
-              {saving ? 'Salvando...' : existingGoal ? 'Salvar Alterações' : 'Criar Meta'}
-            </Text>
-          </Pressable>
+            {/* Botão Salvar - à direita (principal) */}
+            <Pressable
+              onPress={handleSave}
+              disabled={saving || (existingGoal && !hasChanges())}
+              style={[
+                styles.saveButton, 
+                { backgroundColor: colors.primary },
+                (saving || (existingGoal && !hasChanges())) && { opacity: 0.6 }
+              ]}
+            >
+              <Text style={styles.saveButtonText}>
+                {saving ? 'Salvando...' : existingGoal ? 'Salvar' : 'Criar'}
+              </Text>
+            </Pressable>
+          </View>
         </ScrollView>
         </Pressable>
       </Pressable>
@@ -463,6 +483,12 @@ const styles = StyleSheet.create({
   },
   cardContent: {
     padding: spacing.xl,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: spacing.lg,
+    textAlign: 'center',
   },
   label: {
     fontSize: 15,
@@ -519,24 +545,40 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   deleteButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
     borderWidth: 1,
     borderRadius: borderRadius.md,
-    paddingVertical: 12,
-    marginTop: spacing.lg,
+    paddingVertical: 16,
   },
   deleteButtonText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
   },
-  saveButton: {
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.lg,
+  },
+  cancelButton: {
+    flex: 1,
     borderRadius: borderRadius.md,
     paddingVertical: 16,
     alignItems: 'center',
-    marginTop: spacing.lg,
+    borderWidth: 1,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  saveButton: {
+    flex: 1,
+    borderRadius: borderRadius.md,
+    paddingVertical: 16,
+    alignItems: 'center',
   },
   saveButtonText: {
     color: '#fff',

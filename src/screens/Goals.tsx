@@ -80,16 +80,20 @@ export default function Goals() {
 
   const handleSelectLongTerm = () => {
     setShowChooseTypeModal(false);
+    setSelectedGoal(null); // Limpar estado ao criar nova meta
+    setIsCreatingEmergencyFund(false);
     setShowLongTermGoalModal(true);
   };
 
   const handleSelectMonthly = () => {
     setShowChooseTypeModal(false);
+    setSelectedMonthlyGoal(null); // Limpar estado ao criar nova meta
     setShowMonthlyGoalModal(true);
   };
 
   const handleSelectEmergencyFund = () => {
     setShowChooseTypeModal(false);
+    setSelectedGoal(null); // Limpar estado ao criar nova meta
     setIsCreatingEmergencyFund(true);
     setShowLongTermGoalModal(true);
   };
@@ -172,19 +176,36 @@ export default function Goals() {
     const timeframe: 'short' | 'medium' | 'long' = 
       monthsDiff <= 12 ? 'short' : monthsDiff <= 60 ? 'medium' : 'long';
     
-    await goalService.createGoal(user.uid, {
-      name: data.name,
-      targetAmount: data.targetAmount,
-      currentAmount: data.initialBalance || 0,
-      targetDate: Timestamp.fromDate(data.targetDate),
-      timeframe,
-      icon: data.icon,
-      isActive: true,
-    }, true);
+    if (selectedGoal) {
+      // Modo edição: atualizar meta existente
+      await goalService.updateGoal(selectedGoal.id, {
+        name: data.name,
+        targetAmount: data.targetAmount,
+        targetDate: Timestamp.fromDate(data.targetDate),
+        timeframe,
+        icon: data.icon,
+      });
+      
+      await refreshLongTermGoals();
+      showSnackbar('Meta atualizada com sucesso!');
+    } else {
+      // Modo criação: criar nova meta
+      await goalService.createGoal(user.uid, {
+        name: data.name,
+        targetAmount: data.targetAmount,
+        currentAmount: data.initialBalance || 0,
+        targetDate: Timestamp.fromDate(data.targetDate),
+        timeframe,
+        icon: data.icon,
+        isActive: true,
+      }, true);
 
-    await refreshLongTermGoals();
-    showSnackbar('Meta de longo prazo criada com sucesso!');
+      await refreshLongTermGoals();
+      showSnackbar('Meta de longo prazo criada com sucesso!');
+    }
+    
     setShowLongTermGoalModal(false);
+    setSelectedGoal(null);
     setIsCreatingEmergencyFund(false);
   };
 
@@ -353,6 +374,7 @@ export default function Goals() {
         visible={showLongTermGoalModal}
         onClose={() => {
           setShowLongTermGoalModal(false);
+          setSelectedGoal(null); // Limpar ao fechar
           setIsCreatingEmergencyFund(false);
         }}
         onSave={handleSaveLongTermGoal}

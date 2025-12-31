@@ -309,20 +309,36 @@ export default function CreateMonthlyGoalModal({ visible, onClose, onSave, exist
             </View>
           )}
 
-          {/* Botão Criar/Salvar Meta */}
-          <Pressable
-            onPress={handleSave}
-            disabled={!canSave}
-            style={[
-              styles.createButton,
-              { backgroundColor: colors.primary },
-              !canSave && { opacity: 0.6 }
-            ]}
-          >
-            <Text style={styles.createButtonText}>
-              {existingGoal ? 'Salvar Alterações' : 'Criar Meta'}
-            </Text>
-          </Pressable>
+          {/* Botões */}
+          <View style={styles.buttonContainer}>
+            {/* Botão Cancelar */}
+            <Pressable
+              onPress={onClose}
+              style={[
+                styles.cancelButton,
+                { borderColor: colors.border, backgroundColor: colors.card }
+              ]}
+            >
+              <Text style={[styles.cancelButtonText, { color: colors.text }]}>
+                Cancelar
+              </Text>
+            </Pressable>
+
+            {/* Botão Criar/Salvar Meta */}
+            <Pressable
+              onPress={handleSave}
+              disabled={!canSave}
+              style={[
+                styles.createButton,
+                { backgroundColor: colors.primary },
+                !canSave && { opacity: 0.6 }
+              ]}
+            >
+              <Text style={styles.createButtonText}>
+                {existingGoal ? 'Salvar' : 'Criar'}
+              </Text>
+            </Pressable>
+          </View>
         </ScrollView>
         </Pressable>
       </Pressable>
@@ -470,8 +486,25 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
-  createButton: {
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: spacing.md,
     marginTop: spacing.lg,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: spacing.md + 2,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  createButton: {
+    flex: 1,
     paddingVertical: spacing.md + 2,
     borderRadius: borderRadius.md,
     alignItems: 'center',

@@ -252,7 +252,6 @@ export const GOAL_ICONS = [
   'home-variant',      // Bens Materiais
   'airplane',          // Viagens
   'school',            // Educação
-  'heart-pulse',       // Bem-estar
   'chart-line',        // Investimentos
 ];
 
@@ -261,7 +260,6 @@ export const GOAL_ICON_LABELS: Record<string, string> = {
   'home-variant': 'Bens Materiais',
   'airplane': 'Viagens',
   'school': 'Educação',
-  'heart-pulse': 'Bem-estar',
   'chart-line': 'Investimentos',
 };
 
