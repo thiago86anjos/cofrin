@@ -29,7 +29,7 @@ export default function Home() {
   const { width } = useWindowDimensions();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
-  const { goals: monthlyGoals, hasAlert: hasMonthlyAlert, refresh: refreshMonthlyGoals } = useMonthlyGoals();
+  const { goals: monthlyGoals, loading: loadingMonthlyGoals, hasAlert: hasMonthlyAlert, refresh: refreshMonthlyGoals } = useMonthlyGoals();
   const { goals: longTermGoals, refresh: refreshLongTermGoals } = useAllGoals();
   const isNarrow = width < 700;
   const userName = user?.displayName || user?.email?.split("@")?.[0] || "Usuário";
@@ -43,19 +43,32 @@ export default function Home() {
     return [...monthlyGoals, ...longTermGoals];
   }, [monthlyGoals, longTermGoals]);
 
-  // Verificar se há alertas (apenas metas mensais estouradas não reconhecidas)
-  const hasAlert = React.useMemo(() => {
-    return monthlyGoals.some(goal => {
-      // Ignorar se já foi reconhecido
+  // Verificar tipo de alerta
+  const alertType = React.useMemo(() => {
+    // Prioridade 1: Meta de receita completa (sucesso)
+    const hasSuccessAlert = monthlyGoals.some(goal => {
       if (goal.alertAcknowledged) return false;
-      
-      // Apenas metas mensais (que são limites de gastos)
+      if (goal.isMonthlyGoal && goal.goalType === 'income') {
+        const percentage = (goal.currentAmount / goal.targetAmount) * 100;
+        return percentage >= 100;
+      }
+      return false;
+    });
+
+    if (hasSuccessAlert) return 'success';
+
+    // Prioridade 2: Meta de despesa ultrapassada (warning)
+    const hasWarningAlert = monthlyGoals.some(goal => {
+      if (goal.alertAcknowledged) return false;
       if (goal.isMonthlyGoal && goal.goalType === 'expense') {
         return goal.currentAmount > goal.targetAmount;
       }
-      
       return false;
     });
+
+    if (hasWarningAlert) return 'warning';
+
+    return null;
   }, [monthlyGoals]);
 
   // Determinar saudação baseada na hora
@@ -196,18 +209,22 @@ export default function Home() {
                     {getGreeting().text}, {userName}
                   </Text>
                 </View>
-                <Pressable 
-                  onPress={() => setNotificationModalVisible(true)}
-                  style={styles.bellButton}
-                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                >
-                  <MaterialCommunityIcons 
-                    name={hasAlert ? "bell-alert" : "bell-outline"} 
-                    size={24} 
-                    color={hasAlert ? DS_COLORS.warning : DS_COLORS.primary} 
-                  />
-                  {hasAlert && <View style={styles.bellDot} />}
-                </Pressable>
+                {!loadingMonthlyGoals && (
+                  <Pressable 
+                    onPress={() => setNotificationModalVisible(true)}
+                    style={styles.bellButton}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  >
+                    <MaterialCommunityIcons 
+                      name={alertType ? "bell-alert" : "bell-outline"} 
+                      size={24} 
+                      color={alertType === 'success' ? DS_COLORS.success : alertType === 'warning' ? DS_COLORS.warning : DS_COLORS.primary} 
+                    />
+                    {alertType && (
+                      <View style={[styles.bellDot, { backgroundColor: alertType === 'success' ? DS_COLORS.success : DS_COLORS.warning }]} />
+                    )}
+                  </Pressable>
+                )}
               </View>
             </View>
 

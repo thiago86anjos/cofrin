@@ -14,11 +14,12 @@ type Props = {
   onRefreshGoals: () => void;
 };
 
-type AlertType = 'goal_exceeded' | 'none';
+type AlertType = 'goal_exceeded' | 'goal_completed' | 'none';
 
 export default function NotificationModal({ visible, onClose, allGoals, onRefreshGoals }: Props) {
   const [alertType, setAlertType] = useState<AlertType>('none');
   const [exceededGoal, setExceededGoal] = useState<Goal | null>(null);
+  const [completedGoal, setCompletedGoal] = useState<Goal | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -30,7 +31,27 @@ export default function NotificationModal({ visible, onClose, allGoals, onRefres
   }, [visible, allGoals]);
 
   const checkAlerts = () => {
-    // Priority 1: Goal Exceeded (only monthly goals - spending limits)
+    // Priority 1: Income Goal Completed (100%)
+    const completed = allGoals.find(g => {
+      // Skip if already acknowledged
+      if (g.alertAcknowledged) return false;
+      
+      // Only monthly income goals that reached 100%
+      if (g.isMonthlyGoal && g.goalType === 'income') {
+        const percentage = (g.currentAmount / g.targetAmount) * 100;
+        return percentage >= 100;
+      }
+      
+      return false;
+    });
+
+    if (completed) {
+      setCompletedGoal(completed);
+      setAlertType('goal_completed');
+      return;
+    }
+
+    // Priority 2: Goal Exceeded (only monthly expense goals)
     const exceeded = allGoals.find(g => {
       // Skip if already acknowledged
       if (g.alertAcknowledged) return false;
@@ -52,14 +73,16 @@ export default function NotificationModal({ visible, onClose, allGoals, onRefres
     // No alerts
     setAlertType('none');
     setExceededGoal(null);
+    setCompletedGoal(null);
   };
 
   const handleAcknowledge = async () => {
-    if (!exceededGoal || !acknowledged) return;
+    const goalToAck = exceededGoal || completedGoal;
+    if (!goalToAck || !acknowledged) return;
     
     setLoading(true);
     try {
-      await goalService.updateGoal(exceededGoal.id, { alertAcknowledged: true });
+      await goalService.updateGoal(goalToAck.id, { alertAcknowledged: true });
       onRefreshGoals();
       onClose();
     } catch (error) {
@@ -90,6 +113,50 @@ export default function NotificationModal({ visible, onClose, allGoals, onRefres
             </Button>
           </View>
         </Pressable>
+      </Modal>
+    );
+  }
+
+  // Goal completed (income) - congratulations!
+  if (alertType === 'goal_completed') {
+    return (
+      <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+        <View style={styles.overlay}>
+          <View style={styles.card}>
+            <View style={[styles.iconCircle, { backgroundColor: DS_COLORS.successLight }]}>
+              <MaterialCommunityIcons name="trophy" size={40} color={DS_COLORS.success} />
+            </View>
+            
+            <Text style={styles.congratsTitle}>Parabéns!</Text>
+            
+            <Text style={styles.alertMessage}>
+              Você concluiu sua meta "{completedGoal?.name}"! Continue assim e alcance seus objetivos financeiros.
+            </Text>
+            
+            <Pressable 
+              style={styles.checkboxRow} 
+              onPress={() => setAcknowledged(!acknowledged)}
+            >
+              <Checkbox.Android 
+                status={acknowledged ? 'checked' : 'unchecked'} 
+                onPress={() => setAcknowledged(!acknowledged)} 
+                color={DS_COLORS.primary} 
+              />
+              <Text style={styles.checkboxLabel}>Ok, entendi</Text>
+            </Pressable>
+
+            <Button 
+              mode="contained" 
+              onPress={handleAcknowledge} 
+              disabled={!acknowledged || loading}
+              loading={loading}
+              style={styles.confirmButton}
+              buttonColor={DS_COLORS.success}
+            >
+              Confirmar
+            </Button>
+          </View>
+        </View>
       </Modal>
     );
   }
@@ -182,6 +249,13 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: DS_COLORS.error,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
+  congratsTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: DS_COLORS.success,
     textAlign: 'center',
     marginBottom: spacing.md,
   },

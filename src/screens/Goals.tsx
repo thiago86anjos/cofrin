@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { FAB } from 'react-native-paper';
+import { Button } from 'react-native-paper';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { Timestamp } from 'firebase/firestore';
 import MainLayout from '../components/MainLayout';
@@ -297,13 +297,21 @@ export default function Goals() {
           )}
         </ScrollView>
 
-        {/* FAB */}
-        <FAB
-          icon="plus"
-          style={[styles.fab, { backgroundColor: colors.primary }]}
-          color="#FFFFFF"
-          onPress={handleCreateGoal}
-        />
+        {/* Botão Criar Meta */}
+        <View style={styles.createButtonContainer}>
+          <Button
+            mode="contained"
+            onPress={handleCreateGoal}
+            buttonColor={DS_COLORS.primary}
+            textColor="#FFFFFF"
+            style={styles.createButton}
+            contentStyle={styles.createButtonContent}
+            labelStyle={styles.createButtonLabel}
+            icon="plus-circle"
+          >
+            Criar Meta
+          </Button>
+        </View>
       </View>
 
       <ChooseGoalTypeModal
@@ -538,78 +546,160 @@ function MonthlyGoalsContent({ goals, categories, loading, colors, getPercentage
     );
   }
 
+  // Separar metas por tipo
+  const expenseGoals = goals.filter(g => g.goalType === 'expense');
+  const incomeGoals = goals.filter(g => g.goalType === 'income');
+
   return (
     <View style={styles.goalsContainer}>
-      {goals.map((goal) => {
-        const category = categories.find(c => c.id === goal.categoryId);
-        if (!category) return null; // Categoria não encontrada
+      {/* Despesas */}
+      {expenseGoals.length > 0 && (
+        <>
+          <View style={styles.typeSeparator}>
+            <View style={[styles.separatorLine, { backgroundColor: colors.border }]} />
+            <Text style={[styles.separatorText, { color: colors.textMuted }]}>Despesas</Text>
+            <View style={[styles.separatorLine, { backgroundColor: colors.border }]} />
+          </View>
+          {expenseGoals.map((goal) => {
+            const category = categories.find(c => c.id === goal.categoryId);
+            if (!category) return null;
 
-        const percentage = getPercentage(goal.currentAmount, goal.targetAmount);
-        const isExpense = goal.goalType === 'expense';
-        const showWarning = isExpense && percentage >= 85;
-        const progressColor = isExpense ? DS_COLORS.error : DS_COLORS.success;
+            const percentage = getPercentage(goal.currentAmount, goal.targetAmount);
+            const showWarning = percentage >= 85;
+            const progressColor = DS_COLORS.error;
 
-        return (
-          <Pressable key={goal.id} style={[styles.goalCard, { backgroundColor: colors.card }, getShadow(colors)]} onPress={() => onEdit(goal)}>
-            {/* Header */}
-            <View style={styles.goalHeader}>
-              <View style={styles.goalHeaderLeft}>
-                <View style={[styles.categoryIcon, { backgroundColor: category.color + '15' }]}>
-                  <MaterialCommunityIcons 
-                    name={category.icon as any} 
-                    size={24} 
-                    color={category.color} 
-                  />
+            return (
+              <Pressable key={goal.id} style={[styles.goalCard, { backgroundColor: colors.card }, getShadow(colors)]} onPress={() => onEdit(goal)}>
+                {/* Header */}
+                <View style={styles.goalHeader}>
+                  <View style={styles.goalHeaderLeft}>
+                    <View style={[styles.categoryIcon, { backgroundColor: category.color + '15' }]}>
+                      <MaterialCommunityIcons 
+                        name={category.icon as any} 
+                        size={24} 
+                        color={category.color} 
+                      />
+                    </View>
+                    <View>
+                      <Text style={[styles.goalCategoryName, { color: colors.text }]}>
+                        {category.name}
+                      </Text>
+                      <Text style={[styles.goalType, { color: colors.textMuted }]}>Meta de despesa</Text>
+                    </View>
+                  </View>
+                  
+                  {showWarning && (
+                    <View style={styles.warningBadge}>
+                      <MaterialCommunityIcons name="alert" size={16} color={DS_COLORS.warning} />
+                    </View>
+                  )}
                 </View>
-                <View>
-                  <Text style={[styles.goalCategoryName, { color: colors.text }]}>
-                    {category.name}
-                  </Text>
-                  <Text style={[styles.goalType, { color: colors.textMuted }]}>
-                    {isExpense ? 'Meta de despesa' : 'Meta de receita'}
-                  </Text>
-                </View>
-              </View>
-              
-              {showWarning && (
-                <View style={styles.warningBadge}>
-                  <MaterialCommunityIcons name="alert" size={16} color={DS_COLORS.warning} />
-                </View>
-              )}
-            </View>
 
-            {/* Progress Bar */}
-            <View style={styles.progressSection}>
-              <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
-                <View 
-                  style={[
-                    styles.progressFill, 
-                    { 
-                      width: `${percentage}%`,
-                      backgroundColor: progressColor 
-                    }
-                  ]} 
-                />
-              </View>
-              
-              <View style={styles.progressInfo}>
-                <Text style={[styles.progressAmount, { color: colors.text }]}>
-                  R$ {goal.currentAmount.toFixed(2).replace('.', ',')}
-                </Text>
-                <Text style={[styles.progressTarget, { color: colors.textMuted }]}>
-                  de R$ {goal.targetAmount.toFixed(2).replace('.', ',')}
-                </Text>
-              </View>
+                {/* Progress Bar */}
+                <View style={styles.progressSection}>
+                  <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
+                    <View 
+                      style={[
+                        styles.progressFill, 
+                        { 
+                          width: `${percentage}%`,
+                          backgroundColor: progressColor 
+                        }
+                      ]} 
+                    />
+                  </View>
+                  
+                  <View style={styles.progressInfo}>
+                    <Text style={[styles.progressAmount, { color: colors.text }]}>
+                      R$ {goal.currentAmount.toFixed(2).replace('.', ',')}
+                    </Text>
+                    <Text style={[styles.progressTarget, { color: colors.textMuted }]}>
+                      de R$ {goal.targetAmount.toFixed(2).replace('.', ',')}
+                    </Text>
+                  </View>
 
-              <View style={[styles.percentageBadge, { backgroundColor: progressColor + '15' }]}>
-                <Text style={[styles.percentageText, { color: progressColor }]}>
-                  {percentage.toFixed(0)}%
-                </Text>
-              </View>
-            </View>
-          </Pressable>
-        );
-      })}
+                  <View style={[styles.percentageBadge, { backgroundColor: progressColor + '15' }]}>
+                    <Text style={[styles.percentageText, { color: progressColor }]}>
+                      {percentage.toFixed(0)}%
+                    </Text>
+                  </View>
+                </View>
+              </Pressable>
+            );
+          })}
+        </>
+      )}
+
+      {/* Receitas */}
+      {incomeGoals.length > 0 && (
+        <>
+          <View style={styles.typeSeparator}>
+            <View style={[styles.separatorLine, { backgroundColor: colors.border }]} />
+            <Text style={[styles.separatorText, { color: colors.textMuted }]}>Receitas</Text>
+            <View style={[styles.separatorLine, { backgroundColor: colors.border }]} />
+          </View>
+          {incomeGoals.map((goal) => {
+            const category = categories.find(c => c.id === goal.categoryId);
+            if (!category) return null;
+
+            const percentage = getPercentage(goal.currentAmount, goal.targetAmount);
+            const progressColor = DS_COLORS.success;
+
+            return (
+              <Pressable key={goal.id} style={[styles.goalCard, { backgroundColor: colors.card }, getShadow(colors)]} onPress={() => onEdit(goal)}>
+                {/* Header */}
+                <View style={styles.goalHeader}>
+                  <View style={styles.goalHeaderLeft}>
+                    <View style={[styles.categoryIcon, { backgroundColor: category.color + '15' }]}>
+                      <MaterialCommunityIcons 
+                        name={category.icon as any} 
+                        size={24} 
+                        color={category.color} 
+                      />
+                    </View>
+                    <View>
+                      <Text style={[styles.goalCategoryName, { color: colors.text }]}>
+                        {category.name}
+                      </Text>
+                      <Text style={[styles.goalType, { color: colors.textMuted }]}>Meta de receita</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Progress Bar */}
+                <View style={styles.progressSection}>
+                  <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
+                    <View 
+                      style={[
+                        styles.progressFill, 
+                        { 
+                          width: `${percentage}%`,
+                          backgroundColor: progressColor 
+                        }
+                      ]} 
+                    />
+                  </View>
+                  
+                  <View style={styles.progressInfo}>
+                    <Text style={[styles.progressAmount, { color: colors.text }]}>
+                      R$ {goal.currentAmount.toFixed(2).replace('.', ',')}
+                    </Text>
+                    <Text style={[styles.progressTarget, { color: colors.textMuted }]}>
+                      de R$ {goal.targetAmount.toFixed(2).replace('.', ',')}
+                    </Text>
+                  </View>
+
+                  <View style={[styles.percentageBadge, { backgroundColor: progressColor + '15' }]}>
+                    <Text style={[styles.percentageText, { color: progressColor }]}>
+                      {percentage.toFixed(0)}%
+                    </Text>
+                  </View>
+                </View>
+              </Pressable>
+            );
+          })}
+        </>
+      )}
     </View>
   );
 }
@@ -640,14 +730,43 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  typeSeparator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: spacing.lg,
+    paddingHorizontal: spacing.md,
+  },
+  separatorLine: {
+    flex: 1,
+    height: 1,
+  },
+  separatorText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginHorizontal: spacing.md,
+  },
   content: {
     flex: 1,
     padding: spacing.md,
   },
-  fab: {
-    position: 'absolute',
-    right: spacing.md,
-    bottom: spacing.md,
+  createButtonContainer: {
+    padding: spacing.md,
+    paddingTop: spacing.sm,
+    backgroundColor: 'transparent',
+  },
+  createButton: {
+    borderRadius: borderRadius.md,
+    elevation: 0,
+  },
+  createButtonContent: {
+    height: 48,
+  },
+  createButtonLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   emptyContainer: {
     flex: 1,

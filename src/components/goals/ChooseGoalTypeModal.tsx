@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, Modal, Pressable } from 'react-native';
+import { Button } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useAppTheme } from '../../contexts/themeContext';
+import { DS_COLORS } from '../../theme/designSystem';
 import { spacing, borderRadius } from '../../theme';
 
 interface Props {
@@ -12,8 +13,6 @@ interface Props {
 }
 
 export default function ChooseGoalTypeModal({ visible, onClose, onSelectLongTerm, onSelectMonthly }: Props) {
-  const { colors } = useAppTheme();
-
   return (
     <Modal
       visible={visible}
@@ -21,64 +20,63 @@ export default function ChooseGoalTypeModal({ visible, onClose, onSelectLongTerm
       animationType="fade"
       onRequestClose={onClose}
     >
-      <Pressable 
-        style={styles.overlay}
-        onPress={onClose}
-      >
-        <Pressable 
-          style={[styles.container, { backgroundColor: colors.card }]}
-          onPress={(e) => e.stopPropagation()}
-        >
-          <Text style={[styles.title, { color: colors.text }]}>
-            Qual tipo de meta deseja criar?
+      <View style={styles.overlay}>
+        <View style={styles.card}>
+          <View style={[styles.iconCircle, { backgroundColor: DS_COLORS.primaryLight }]}>
+            <MaterialCommunityIcons name="flag-checkered" size={40} color={DS_COLORS.primary} />
+          </View>
+          
+          <Text style={styles.title}>Criar nova meta</Text>
+          <Text style={styles.subtitle}>
+            Escolha o tipo de meta que deseja criar
           </Text>
 
           <Pressable
-            style={[styles.option, { borderColor: colors.border }]}
+            style={styles.optionCard}
             onPress={onSelectLongTerm}
           >
-            <View style={[styles.iconContainer, { backgroundColor: colors.primaryBg }]}>
-              <MaterialCommunityIcons name="target" size={32} color={colors.primary} />
+            <View style={[styles.optionIcon, { backgroundColor: DS_COLORS.primaryLight }]}>
+              <MaterialCommunityIcons name="piggy-bank" size={28} color={DS_COLORS.primary} />
             </View>
             <View style={styles.optionContent}>
-              <Text style={[styles.optionTitle, { color: colors.text }]}>
-                Metas de Investimentos 
+              <Text style={styles.optionTitle}>
+                Meta de Investimento
               </Text>
-              <Text style={[styles.optionDescription, { color: colors.textMuted }]}>
+              <Text style={styles.optionDescription}>
                 Para objetivos futuros, com aportes e prazos
               </Text>
             </View>
-            <MaterialCommunityIcons name="chevron-right" size={24} color={colors.textMuted} />
+            <MaterialCommunityIcons name="chevron-right" size={24} color={DS_COLORS.textMuted} />
           </Pressable>
 
           <Pressable
-            style={[styles.option, { borderColor: colors.border }]}
+            style={styles.optionCard}
             onPress={onSelectMonthly}
           >
-            <View style={[styles.iconContainer, { backgroundColor: colors.successBg }]}>
-              <MaterialCommunityIcons name="calendar-month" size={32} color={colors.success} />
+            <View style={[styles.optionIcon, { backgroundColor: DS_COLORS.warningLight }]}>
+              <MaterialCommunityIcons name="calendar-month" size={28} color={DS_COLORS.warning} />
             </View>
             <View style={styles.optionContent}>
-              <Text style={[styles.optionTitle, { color: colors.text }]}>
-                Meta mensal de gastos
+              <Text style={styles.optionTitle}>
+                Meta Mensal de Gastos
               </Text>
-              <Text style={[styles.optionDescription, { color: colors.textMuted }]}>
+              <Text style={styles.optionDescription}>
                 Controle de gastos ou receitas do mês atual
               </Text>
             </View>
-            <MaterialCommunityIcons name="chevron-right" size={24} color={colors.textMuted} />
+            <MaterialCommunityIcons name="chevron-right" size={24} color={DS_COLORS.textMuted} />
           </Pressable>
 
-          <Pressable
-            style={[styles.cancelButton, { borderColor: colors.border }]}
-            onPress={onClose}
+          <Button 
+            mode="text" 
+            onPress={onClose} 
+            textColor={DS_COLORS.textMuted}
+            style={styles.closeButton}
           >
-            <Text style={[styles.cancelButtonText, { color: colors.textMuted }]}>
-              Cancelar
-            </Text>
-          </Pressable>
-        </Pressable>
-      </Pressable>
+            Cancelar
+          </Button>
+        </View>
+      </View>
     </Modal>
   );
 }
@@ -86,60 +84,74 @@ export default function ChooseGoalTypeModal({ visible, onClose, onSelectLongTerm
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.lg,
   },
-  container: {
-    width: '100%',
-    maxWidth: 400,
+  card: {
+    backgroundColor: 'white',
     borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    gap: spacing.md,
+    padding: spacing.xl,
+    width: '100%',
+    maxWidth: 380,
+    alignItems: 'center',
+  },
+  iconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
   },
   title: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: 'bold',
+    color: DS_COLORS.textTitle,
     textAlign: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
-  option: {
+  subtitle: {
+    fontSize: 15,
+    color: DS_COLORS.textMuted,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+  },
+  optionCard: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     padding: spacing.md,
+    backgroundColor: DS_COLORS.background,
     borderRadius: borderRadius.md,
+    marginBottom: spacing.sm,
     borderWidth: 1,
-    gap: spacing.sm,
+    borderColor: DS_COLORS.border,
   },
-  iconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: borderRadius.md,
+  optionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: spacing.md,
   },
   optionContent: {
     flex: 1,
-    gap: 4,
   },
   optionTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
+    color: DS_COLORS.textTitle,
+    marginBottom: 2,
   },
   optionDescription: {
     fontSize: 13,
+    color: DS_COLORS.textMuted,
     lineHeight: 18,
   },
-  cancelButton: {
+  closeButton: {
     marginTop: spacing.sm,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
   },
 });

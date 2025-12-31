@@ -111,35 +111,20 @@ export default function CreateMonthlyGoalModal({ visible, onClose, onSave, exist
   return (
     <Modal
       visible={visible}
-      animationType="slide"
-      presentationStyle="formSheet"
+      transparent
+      animationType="fade"
       onRequestClose={onClose}
     >
-      <View style={[styles.modalContainer, { backgroundColor: colors.bg }]}>
-        {/* Header */}
-        <View 
-          style={[
-            styles.modalHeader, 
-            { 
-              backgroundColor: colors.card,
-              paddingTop: Math.max(insets.top, spacing.md),
-            }
-          ]}
-        >
-          <Pressable onPress={onClose} hitSlop={10}>
-            <MaterialCommunityIcons name="close" size={24} color={colors.text} />
-          </Pressable>
+      <Pressable style={styles.overlay} onPress={onClose}>
+        <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
+          <ScrollView 
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.cardContent}
+            keyboardShouldPersistTaps="handled"
+          >
           <Text style={[styles.modalTitle, { color: colors.text }]}>
             {existingGoal ? 'Editar Meta Mensal' : 'Nova Meta Mensal'}
           </Text>
-          <View style={{ width: 24 }} />
-        </View>
-
-        <ScrollView 
-          style={styles.modalContent}
-          contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, spacing.lg) }}
-          showsVerticalScrollIndicator={false}
-        >
           {error ? (
             <View style={[styles.errorBanner, { backgroundColor: colors.dangerBg }]}>
               <MaterialCommunityIcons name="alert-circle" size={20} color={colors.danger} />
@@ -261,7 +246,7 @@ export default function CreateMonthlyGoalModal({ visible, onClose, onSave, exist
                     <View style={[styles.categoryIconContainer, { backgroundColor: category.color + '15' }]}>
                       <MaterialCommunityIcons 
                         name={category.icon as any} 
-                        size={18} 
+                        size={24} 
                         color={category.color} 
                       />
                     </View>
@@ -325,47 +310,49 @@ export default function CreateMonthlyGoalModal({ visible, onClose, onSave, exist
           )}
 
           {/* Botão Criar/Salvar Meta */}
-          <View style={[styles.bottomButtonContainer, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
-            <Pressable
-              onPress={handleSave}
-              disabled={!canSave}
-              style={[
-                styles.createButton,
-                { backgroundColor: colors.primary },
-                !canSave && { opacity: 0.6 }
-              ]}
-            >
-              <Text style={styles.createButtonText}>
-                {existingGoal ? 'Salvar Alterações' : 'Criar Meta'}
-              </Text>
-            </Pressable>
-          </View>
+          <Pressable
+            onPress={handleSave}
+            disabled={!canSave}
+            style={[
+              styles.createButton,
+              { backgroundColor: colors.primary },
+              !canSave && { opacity: 0.6 }
+            ]}
+          >
+            <Text style={styles.createButtonText}>
+              {existingGoal ? 'Salvar Alterações' : 'Criar Meta'}
+            </Text>
+          </Pressable>
         </ScrollView>
-      </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  modalContainer: {
+  overlay: {
     flex: 1,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
+    padding: spacing.lg,
+  },
+  card: {
+    backgroundColor: 'white',
+    borderRadius: borderRadius.lg,
+    width: '100%',
+    maxWidth: 500,
+    maxHeight: '90%',
+  },
+  cardContent: {
+    padding: spacing.xl,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-  },
-  modalContent: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
   },
   errorBanner: {
     flexDirection: 'row',
@@ -418,8 +405,8 @@ const styles = StyleSheet.create({
     width: '23%',
     aspectRatio: 1,
     borderRadius: borderRadius.md,
-    borderWidth: 2,
-    padding: spacing.xs,
+    borderWidth: 0,
+    padding: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -431,17 +418,17 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   categoryIconContainer: {
-    width: 32,
-    height: 32,
+    width: 40,
+    height: 40,
     borderRadius: borderRadius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
   categoryName: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '500',
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 6,
   },
   selectedCategoryName: {
     flex: 1,
@@ -483,11 +470,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
-  bottomButtonContainer: {
-    marginTop: spacing.xl,
-    paddingTop: spacing.lg,
-  },
   createButton: {
+    marginTop: spacing.lg,
     paddingVertical: spacing.md + 2,
     borderRadius: borderRadius.md,
     alignItems: 'center',

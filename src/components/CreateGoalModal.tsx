@@ -235,34 +235,17 @@ export default function CreateGoalModal({
   return (
     <Modal
       visible={visible}
-      animationType="slide"
-      transparent={false}
+      transparent
+      animationType="fade"
       onRequestClose={onClose}
-      statusBarTranslucent
     >
-      <View style={[styles.fullscreenModal, { backgroundColor: colors.bg, paddingTop: insets.top }]}>
-        {/* Header moderno com botão de fechar */}
-        <View style={[styles.fullscreenHeader, { borderBottomColor: colors.border }]}>
-          <Text style={[styles.fullscreenTitle, { color: colors.text }]}>
-            {existingGoal ? 'Editar Meta' : 'Nova Meta'}
-          </Text>
-          <Pressable 
-            onPress={onClose} 
-            style={({ pressed }) => [
-              styles.closeButton,
-              { backgroundColor: colors.grayLight },
-              pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] },
-            ]}
+      <Pressable style={styles.overlay} onPress={onClose}>
+        <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
+          <ScrollView 
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.cardContent}
+            keyboardShouldPersistTaps="handled"
           >
-            <MaterialCommunityIcons name="close" size={22} color={colors.text} />
-          </Pressable>
-        </View>
-        
-        <ScrollView 
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.modalBody}
-          keyboardShouldPersistTaps="handled"
-        >
           {/* Nome da meta */}
           <Text style={[styles.label, { color: colors.text }]}>Qual é sua meta?</Text>
           <TextInput
@@ -385,7 +368,8 @@ export default function CreateGoalModal({
             </Text>
           </Pressable>
         </ScrollView>
-      </View>
+        </Pressable>
+      </Pressable>
 
       {/* Alert de confirmação de exclusão */}
       <CustomAlert
@@ -407,33 +391,22 @@ export default function CreateGoalModal({
 }
 
 const styles = StyleSheet.create({
-  // Fullscreen modal styles
-  fullscreenModal: {
+  overlay: {
     flex: 1,
-    overflow: 'hidden',
-  },
-  fullscreenHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-  },
-  fullscreenTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
-  },
-  modalBody: {
+    alignItems: 'center',
     padding: spacing.lg,
-    paddingBottom: spacing.xl * 2,
+  },
+  card: {
+    backgroundColor: 'white',
+    borderRadius: borderRadius.lg,
+    width: '100%',
+    maxWidth: 340,
+    maxHeight: '90%',
+  },
+  cardContent: {
+    padding: spacing.xl,
   },
   label: {
     fontSize: 15,
