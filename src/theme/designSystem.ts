@@ -34,6 +34,10 @@ export const DS_COLORS = {
   error: '#d1195d',
   errorLight: '#FBE3ED',
   
+  // Status - Info
+  info: '#3B82F6',
+  infoLight: '#EFF6FF',
+  
   // Bordas e separadores
   border: '#E6E6EB',
   divider: '#E6E6EB',

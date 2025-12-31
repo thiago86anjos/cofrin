@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, View, StyleSheet, Pressable } from 'react-native';
 import { Text, Checkbox, Button } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Goal } from '../../types/firebase';
 import { DS_COLORS } from '../../theme/designSystem';
 import { spacing, borderRadius } from '../../theme';
@@ -12,11 +13,13 @@ type Props = {
   onClose: () => void;
   allGoals: Goal[]; // Todas as metas (longo prazo + mensais)
   onRefreshGoals: () => void;
+  onNavigateToCreateEmergencyFund?: () => void;
+  userEmail?: string;
 };
 
-type AlertType = 'goal_exceeded' | 'goal_completed' | 'none';
+type AlertType = 'goal_exceeded' | 'goal_completed' | 'emergency_fund_tip' | 'none';
 
-export default function NotificationModal({ visible, onClose, allGoals, onRefreshGoals }: Props) {
+export default function NotificationModal({ visible, onClose, allGoals, onRefreshGoals, onNavigateToCreateEmergencyFund, userEmail }: Props) {
   const [alertType, setAlertType] = useState<AlertType>('none');
   const [exceededGoal, setExceededGoal] = useState<Goal | null>(null);
   const [completedGoal, setCompletedGoal] = useState<Goal | null>(null);
@@ -30,7 +33,7 @@ export default function NotificationModal({ visible, onClose, allGoals, onRefres
     }
   }, [visible, allGoals]);
 
-  const checkAlerts = () => {
+  const checkAlerts = async () => {
     // Priority 1: Income Goal Completed (100%)
     const completed = allGoals.find(g => {
       // Skip if already acknowledged
@@ -68,6 +71,33 @@ export default function NotificationModal({ visible, onClose, allGoals, onRefres
       setExceededGoal(exceeded);
       setAlertType('goal_exceeded');
       return;
+    }
+
+    // Priority 3: Emergency Fund Tip (only on Mondays, once per week)
+    const hasEmergencyFund = allGoals.some(g => g.name === 'Reserva de emergência');
+    
+    if (!hasEmergencyFund) {
+      const today = new Date();
+      const isMonday = today.getDay() === 1; // 0 = domingo, 1 = segunda
+      const isTestUser = (userEmail ?? '').toLowerCase() === 'thiago.w3c@gmail.com';
+      
+      // Para teste: mostrar todos os dias se for thiago.w3c@gmail.com
+      // Para outros: apenas segundas-feiras
+      if (isMonday || isTestUser) {
+        try {
+          const lastShownDate = await AsyncStorage.getItem('@emergency_fund_tip_last_shown');
+          const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+          
+          // Se nunca mostrou ou se já passou uma semana (ou se for test user e outro dia)
+          if (!lastShownDate || lastShownDate !== todayStr) {
+            await AsyncStorage.setItem('@emergency_fund_tip_last_shown', todayStr);
+            setAlertType('emergency_fund_tip');
+            return;
+          }
+        } catch (error) {
+          console.error('Error checking emergency fund tip:', error);
+        }
+      }
     }
 
     // No alerts
@@ -113,6 +143,50 @@ export default function NotificationModal({ visible, onClose, allGoals, onRefres
             </Button>
           </View>
         </Pressable>
+      </Modal>
+    );
+  }
+
+  // Emergency Fund Tip
+  if (alertType === 'emergency_fund_tip') {
+    return (
+      <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+        <View style={styles.overlay}>
+          <View style={styles.card}>
+            <View style={[styles.iconCircle, { backgroundColor: DS_COLORS.infoLight }]}>
+              <MaterialCommunityIcons name="lightbulb-on-outline" size={40} color={DS_COLORS.info} />
+            </View>
+            
+            <Text style={styles.tipTitle}>Dica financeira</Text>
+            
+            <Text style={styles.alertMessage}>
+              Você ainda não criou sua Reserva de emergência. Ter um fundo de segurança é essencial para imprevistos e tranquilidade financeira.
+            </Text>
+            
+            <Button 
+              mode="contained" 
+              onPress={() => {
+                onClose();
+                if (onNavigateToCreateEmergencyFund) {
+                  onNavigateToCreateEmergencyFund();
+                }
+              }}
+              style={styles.confirmButton}
+              buttonColor={DS_COLORS.info}
+            >
+              Criar agora
+            </Button>
+
+            <Button 
+              mode="text" 
+              onPress={onClose} 
+              textColor={DS_COLORS.textMuted}
+              style={styles.closeButton}
+            >
+              Fechar
+            </Button>
+          </View>
+        </View>
       </Modal>
     );
   }
@@ -256,6 +330,13 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: DS_COLORS.success,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
+  tipTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: DS_COLORS.info,
     textAlign: 'center',
     marginBottom: spacing.md,
   },

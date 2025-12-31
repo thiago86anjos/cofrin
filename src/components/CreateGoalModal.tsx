@@ -26,6 +26,7 @@ interface Props {
     targetAmount: number;
     targetDate: Date;
     icon: string;
+    initialBalance?: number;
   }) => Promise<void>;
   onDelete?: (confirmed: boolean) => Promise<void>;
   existingGoal?: Goal | null;
@@ -58,6 +59,7 @@ export default function CreateGoalModal({
   
   const [name, setName] = useState('');
   const [targetAmount, setTargetAmount] = useState('');
+  const [initialBalance, setInitialBalance] = useState('');
   const [targetDate, setTargetDate] = useState(new Date());
   const [icon, setIcon] = useState('piggy-bank');
   const [saving, setSaving] = useState(false);
@@ -112,6 +114,7 @@ export default function CreateGoalModal({
       
       setName(lockedName || '');
       setTargetAmount('');
+      setInitialBalance('0,00');
       setTargetDate(defaultDate);
       setIcon(lockedName === 'Reserva de emergência' ? 'piggy-bank' : 'home-variant');
       
@@ -174,11 +177,18 @@ export default function CreateGoalModal({
     try {
       setSaving(true);
       setError('');
+      
+      // Extrair saldo inicial se for reserva de emergência
+      const initial = lockedName === 'Reserva de emergência' && !existingGoal
+        ? parseFloat(initialBalance.replace(/[^\d,]/g, '').replace(',', '.'))
+        : 0;
+      
       await onSave({
         name: name.trim(),
         targetAmount: amount,
         targetDate,
         icon,
+        initialBalance: initial,
       });
       onClose();
     } catch (err: any) {
@@ -296,6 +306,39 @@ export default function CreateGoalModal({
               keyboardType="numeric"
             />
           </View>
+
+          {/* Saldo inicial (apenas para Reserva de emergência na criação) */}
+          {lockedName === 'Reserva de emergência' && !existingGoal && (
+            <>
+              <Text style={[styles.label, { color: colors.text }]}>Saldo inicial da reserva</Text>
+              <View style={[
+                styles.inputContainer, 
+                { 
+                  backgroundColor: colors.bg, 
+                  borderColor: focusedField === 'initialBalance' ? colors.primary : colors.border,
+                }
+              ]}>
+                <Text style={[styles.currencyPrefix, { color: colors.textMuted }]}>R$</Text>
+                <TextInput
+                  style={[
+                    styles.amountInput, 
+                    { color: colors.text },
+                    Platform.select({ web: { outlineStyle: 'none' as const } }),
+                  ]}
+                  placeholder="0,00"
+                  placeholderTextColor={colors.textMuted}
+                  value={initialBalance}
+                  onChangeText={(text) => setInitialBalance(formatCurrency(text))}
+                  onFocus={() => setFocusedField('initialBalance')}
+                  onBlur={() => setFocusedField(null)}
+                  keyboardType="numeric"
+                />
+              </View>
+              <Text style={[styles.helperText, { color: colors.textMuted }]}>
+                Valor que você já possui na reserva
+              </Text>
+            </>
+          )}
 
           {/* Data de finalização */}
           <DatePickerCrossPlatform
@@ -449,6 +492,11 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     paddingVertical: spacing.md,
+  },
+  helperText: {
+    fontSize: 13,
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
   },
   chipGrid: {
     flexDirection: 'row',

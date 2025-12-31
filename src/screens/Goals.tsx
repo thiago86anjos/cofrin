@@ -29,6 +29,7 @@ type TabType = 'longTerm' | 'monthly';
 type GoalsRouteParams = {
   'Metas do ano': {
     activeTab?: TabType;
+    createEmergencyFund?: boolean;
   };
 };
 
@@ -61,7 +62,11 @@ export default function Goals() {
     if (route.params?.activeTab) {
       setActiveTab(route.params.activeTab);
     }
-  }, [route.params?.activeTab]);
+    // Se receber createEmergencyFund, abrir fluxo de criação
+    if (route.params?.createEmergencyFund) {
+      handleSelectEmergencyFund();
+    }
+  }, [route.params?.activeTab, route.params?.createEmergencyFund]);
 
   // Atualizar metas quando houver nova transação
   useEffect(() => {
@@ -159,6 +164,7 @@ export default function Goals() {
     targetAmount: number;
     targetDate: Date;
     icon: string;
+    initialBalance?: number;
   }) => {
     if (!user) return;
 
@@ -169,6 +175,7 @@ export default function Goals() {
     await goalService.createGoal(user.uid, {
       name: data.name,
       targetAmount: data.targetAmount,
+      currentAmount: data.initialBalance || 0,
       targetDate: Timestamp.fromDate(data.targetDate),
       timeframe,
       icon: data.icon,

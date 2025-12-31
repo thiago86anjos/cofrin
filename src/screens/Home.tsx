@@ -68,8 +68,17 @@ export default function Home() {
 
     if (hasWarningAlert) return 'warning';
 
+    // Prioridade 3: Dica de reserva de emergência (info) - apenas segundas (ou todos os dias para teste)
+    const hasEmergencyFund = allGoals.some(g => g.name === 'Reserva de emergência');
+    if (!hasEmergencyFund) {
+      const today = new Date();
+      const isMonday = today.getDay() === 1;
+      const isTestUser = (user?.email ?? '').toLowerCase() === 'thiago.w3c@gmail.com';
+      if (isMonday || isTestUser) return 'info';
+    }
+
     return null;
-  }, [monthlyGoals]);
+  }, [monthlyGoals, allGoals]);
 
   // Determinar saudação baseada na hora
   const getGreeting = () => {
@@ -218,10 +227,24 @@ export default function Home() {
                     <MaterialCommunityIcons 
                       name={alertType ? "bell-alert" : "bell-outline"} 
                       size={24} 
-                      color={alertType === 'success' ? DS_COLORS.success : alertType === 'warning' ? DS_COLORS.warning : DS_COLORS.primary} 
+                      color={
+                        alertType === 'success' ? DS_COLORS.success : 
+                        alertType === 'warning' ? DS_COLORS.warning : 
+                        alertType === 'info' ? DS_COLORS.info : 
+                        DS_COLORS.primary
+                      } 
                     />
                     {alertType && (
-                      <View style={[styles.bellDot, { backgroundColor: alertType === 'success' ? DS_COLORS.success : DS_COLORS.warning }]} />
+                      <View style={[
+                        styles.bellDot, 
+                        { 
+                          backgroundColor: 
+                            alertType === 'success' ? DS_COLORS.success : 
+                            alertType === 'warning' ? DS_COLORS.warning :
+                            alertType === 'info' ? DS_COLORS.info :
+                            DS_COLORS.warning
+                        }
+                      ]} />
                     )}
                   </Pressable>
                 )}
@@ -330,6 +353,12 @@ export default function Home() {
           refreshMonthlyGoals();
           refreshLongTermGoals();
         }}
+        onNavigateToCreateEmergencyFund={() => {
+          navigation.navigate('Metas do ano', { 
+            createEmergencyFund: true 
+          });
+        }}
+        userEmail={user?.email || undefined}
       />
     </MainLayout>
   </View>
