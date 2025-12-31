@@ -5,11 +5,9 @@ import {
     Modal,
     Pressable,
     TextInput,
-    KeyboardAvoidingView,
     Platform,
     ScrollView,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -32,6 +30,7 @@ export default function AddToGoalModal({ visible, onClose, onSave, goal, progres
   
   const [amount, setAmount] = useState('');
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const [showDropdown, setShowDropdown] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -52,6 +51,7 @@ export default function AddToGoalModal({ visible, onClose, onSave, goal, progres
   const handleClose = () => {
     setAmount('');
     setSelectedAccountId(null);
+    setShowDropdown(false);
     setError('');
     onClose();
   };
@@ -113,103 +113,97 @@ export default function AddToGoalModal({ visible, onClose, onSave, goal, progres
   // Verificar se meta está completa
   const isGoalComplete = goal.currentAmount >= goal.targetAmount;
 
-  const insets = useSafeAreaInsets();
-
   return (
     <Modal
       visible={visible}
-      animationType="slide"
-      transparent={false}
-      statusBarTranslucent
+      transparent
+      animationType="fade"
       onRequestClose={handleClose}
     >
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
-        <View style={[styles.fullscreenModal, { backgroundColor: colors.bg, paddingTop: insets.top, paddingHorizontal: Platform.OS === 'web' ? 12 : 0 }]}>
-          {/* Header */}
-          <View style={[styles.fullscreenHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.fullscreenTitle, { color: colors.text }]}>Adicionar à meta</Text>
-            <Pressable onPress={handleClose} hitSlop={8} style={styles.closeButton}>
-              <MaterialCommunityIcons name="close" size={20} color={colors.textMuted} />
-            </Pressable>
-          </View>
-
+      <Pressable style={styles.overlay} onPress={handleClose}>
+        <Pressable style={[styles.card, { backgroundColor: colors.card }]} onPress={(e) => e.stopPropagation()}>
           <ScrollView 
-            contentContainerStyle={[styles.modalBody, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}
             showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.cardContent}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Info da meta - compacta */}
-            <View style={[styles.goalInfo, { backgroundColor: colors.card }]}>
-              <View style={styles.goalHeader}>
-                <View style={[styles.iconCircle, { backgroundColor: colors.primaryBg }]}>
-                  <MaterialCommunityIcons 
-                    name={(goal.icon as any) || 'flag-checkered'} 
-                    size={20} 
-                    color={colors.primary}
-                  />
-                </View>
-                <View style={styles.goalDetails}>
-                  <Text style={[styles.goalName, { color: colors.text }]} numberOfLines={1}>{goal.name}</Text>
-                  <Text style={[styles.goalSubtitle, { color: colors.textMuted }]}>
-                    {formatCurrencyBRL(goal.currentAmount)} de {formatCurrencyBRL(goal.targetAmount)}
-                  </Text>
-                </View>
-              </View>
-              <View style={[styles.progressTrack, { backgroundColor: colors.grayLight }]}>
-                <View 
-                  style={[
-                    styles.progressFill, 
-                    { width: `${Math.min(progressPercentage, 100)}%`, backgroundColor: colors.primary }
-                  ]} 
-                />
-              </View>
-              <Text style={[styles.remainingText, { color: isGoalComplete ? colors.success : colors.textMuted }]}>
-                {isGoalComplete 
-                  ? '✓ Meta concluída!' 
-                  : `Faltam ${formatCurrencyBRL(remaining > 0 ? remaining : 0)}`
-                }
-              </Text>
-            </View>
+            {/* Título */}
+            <Text style={[styles.title, { color: colors.text }]}>Adicionar à meta</Text>
 
             {/* Seleção de conta */}
-            <Text style={[styles.label, { color: colors.text }]}>De qual conta vai sair?</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Conta de origem</Text>
             {availableAccounts.length === 0 ? (
-              <View style={[styles.noAccountsBox, { backgroundColor: colors.bg }]}>
+              <View style={[styles.noAccountsBox, { backgroundColor: colors.bg, borderColor: colors.border }]}>
                 <MaterialCommunityIcons name="alert-circle-outline" size={20} color={colors.textMuted} />
                 <Text style={[styles.noAccountsText, { color: colors.textMuted }]}>
                   Nenhuma conta com saldo disponível
                 </Text>
               </View>
             ) : (
+              <>
+                <Pressable
+                  onPress={() => setShowDropdown(!showDropdown)}
+                  style={[
+                    styles.selectBox,
+                    { 
+                      backgroundColor: colors.bg,
+                      borderColor: showDropdown ? colors.primary : colors.border,
+                    }
+                  ]}
+                >
+                  <View style={styles.selectContent}>
+                    <MaterialCommunityIcons name="wallet-outline" size={20} color={colors.textMuted} />
+                    <Text style={[styles.selectText, { color: selectedAccount ? colors.text : colors.textMuted }]}>
+                      {selectedAccount ? `${selectedAccount.name} • ${formatCurrencyBRL(selectedAccount.balance)}` : 'Selecione uma conta'}
+                    </Text>
+                  </View>
+                  <MaterialCommunityIcons 
+                    name={showDropdown ? "chevron-up" : "chevron-down"} 
+                    size={20} 
+                    color={colors.textMuted} 
+                  />
+                </Pressable>
+              </>
+            )}
+            
+            {/* Lista de contas (dropdown) - só aparece quando showDropdown é true */}
+            {showDropdown && availableAccounts.length > 0 && (
               <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false}
-                style={styles.accountsScroll}
-                contentContainerStyle={styles.accountsList}
+                style={styles.accountsDropdown}
+                nestedScrollEnabled={true}
+                showsVerticalScrollIndicator={true}
               >
                 {availableAccounts.map((account) => {
                   const isSelected = selectedAccountId === account.id;
                   return (
                     <Pressable
                       key={account.id}
-                      onPress={() => setSelectedAccountId(account.id)}
+                      onPress={() => {
+                        setSelectedAccountId(account.id);
+                        setShowDropdown(false);
+                      }}
                       style={[
-                        styles.accountCard,
+                        styles.accountOption,
                         { 
-                          backgroundColor: isSelected ? colors.primary : colors.card,
-                          borderColor: isSelected ? colors.primary : colors.card,
+                          backgroundColor: isSelected ? colors.primaryBg : 'transparent',
+                          borderLeftColor: isSelected ? colors.primary : 'transparent',
                         }
                       ]}
                     >
-                      <Text style={[
-                        styles.accountName,
-                        { color: isSelected ? '#fff' : colors.text }
-                      ]} numberOfLines={1}>
-                        {account.name}
-                      </Text>
+                      <View style={styles.accountOptionContent}>
+                        <Text style={[
+                          styles.accountOptionName,
+                          { color: colors.text, fontWeight: isSelected ? '600' : '400' }
+                        ]}>
+                          {account.name}
+                        </Text>
+                        <Text style={[styles.accountOptionBalance, { color: colors.textMuted }]}>
+                          {formatCurrencyBRL(account.balance)}
+                        </Text>
+                      </View>
+                      {isSelected && (
+                        <MaterialCommunityIcons name="check" size={18} color={colors.primary} />
+                      )}
                     </Pressable>
                   );
                 })}
@@ -219,7 +213,7 @@ export default function AddToGoalModal({ visible, onClose, onSave, goal, progres
             {/* Input de valor - esconder se meta completa */}
             {!isGoalComplete && (
               <>
-                <Text style={[styles.label, { color: colors.text }]}>Quanto você quer adicionar?</Text>
+                <Text style={[styles.label, { color: colors.text }]}>Valor do aporte</Text>
                 <View style={[styles.inputContainer, { backgroundColor: colors.bg, borderColor: colors.border }]}>
                   <Text style={[styles.currencyPrefix, { color: colors.textMuted }]}>R$</Text>
                   <TextInput
@@ -243,16 +237,21 @@ export default function AddToGoalModal({ visible, onClose, onSave, goal, progres
             ) : null}
 
             {/* Botões */}
-            <View style={styles.buttons}>
+            <View style={styles.buttonContainer}>
+              {/* Botão Cancelar */}
               <Pressable
                 onPress={handleClose}
-                style={[styles.cancelButton, { borderColor: colors.border }, isGoalComplete && { flex: 1 }]}
+                style={[
+                  styles.cancelButton,
+                  { borderColor: colors.border, backgroundColor: colors.bg }
+                ]}
               >
                 <Text style={[styles.cancelButtonText, { color: colors.text }]}>
                   {isGoalComplete ? 'Fechar' : 'Cancelar'}
                 </Text>
               </Pressable>
               
+              {/* Botão Adicionar - só aparece se meta não completa */}
               {!isGoalComplete && (
                 <Pressable
                   onPress={handleSave}
@@ -263,7 +262,6 @@ export default function AddToGoalModal({ visible, onClose, onSave, goal, progres
                     saving && { opacity: 0.6 }
                   ]}
                 >
-                  <MaterialCommunityIcons name="plus" size={18} color="#fff" />
                   <Text style={styles.saveButtonText}>
                     {saving ? 'Salvando...' : 'Adicionar'}
                   </Text>
@@ -271,41 +269,35 @@ export default function AddToGoalModal({ visible, onClose, onSave, goal, progres
               )}
             </View>
           </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  fullscreenModal: {
+  overlay: {
     flex: 1,
-  },
-  fullscreenHeader: {
-    flexDirection: 'row',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
+    padding: spacing.lg,
   },
-  fullscreenTitle: {
+  card: {
+    backgroundColor: 'white',
+    borderRadius: borderRadius.lg,
+    width: '100%',
+    maxWidth: 500,
+    maxHeight: '90%',
+  },
+  cardContent: {
+    padding: spacing.xl,
+  },
+  title: {
     fontSize: 20,
     fontWeight: '700',
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalBody: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    width: '100%',
-    maxWidth: 720,
-    alignSelf: 'center',
+    marginBottom: spacing.lg,
+    textAlign: 'center',
   },
   goalInfo: {
     padding: 16,
@@ -353,33 +345,55 @@ const styles = StyleSheet.create({
   noAccountsBox: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.sm,
     padding: spacing.md,
     borderRadius: borderRadius.md,
+    borderWidth: 1,
     marginBottom: spacing.md,
   },
   noAccountsText: {
     fontSize: 14,
   },
-  accountsScroll: {
-    marginBottom: 20,
-    marginHorizontal: 0,
+  selectBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    marginBottom: spacing.sm,
   },
-  accountsList: {
-    paddingHorizontal: 0,
-    gap: 8,
+  selectContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
   },
-  accountCard: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 2,
-    minWidth: 110,
-    marginRight: 8,
-    position: 'relative',
+  selectText: {
+    fontSize: 15,
+    flex: 1,
   },
-  accountName: {
-    fontSize: 14,
-    fontWeight: '600',
+  accountsDropdown: {
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.md,
+    maxHeight: 240,
+  },
+  accountOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.md,
+    borderLeftWidth: 3,
+  },
+  accountOptionContent: {
+    flex: 1,
+  },
+  accountOptionName: {
+    fontSize: 15,
+    marginBottom: 2,
+  },
+  accountOptionBalance: {
+    fontSize: 13,
   },
   label: {
     fontSize: 14,
@@ -429,34 +443,32 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '500',
   },
-  buttons: {
+  buttonContainer: {
     flexDirection: 'row',
-    marginTop: 8,
-    gap: 12,
+    gap: spacing.md,
+    marginTop: spacing.lg,
   },
   cancelButton: {
     flex: 1,
-    borderWidth: 2,
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderRadius: borderRadius.md,
+    paddingVertical: 16,
     alignItems: 'center',
+    borderWidth: 1,
   },
   cancelButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
   },
   saveButton: {
     flex: 1,
-    flexDirection: 'row',
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderRadius: borderRadius.md,
+    paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
   },
   saveButtonText: {
     color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

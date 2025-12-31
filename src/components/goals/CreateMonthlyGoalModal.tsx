@@ -4,7 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '../../contexts/themeContext';
 import { useCategories } from '../../hooks/useCategories';
-import { spacing, borderRadius } from '../../theme';
+import { spacing, borderRadius, palette } from '../../theme';
 
 interface Props {
   visible: boolean;
@@ -25,10 +25,21 @@ export default function CreateMonthlyGoalModal({ visible, onClose, onSave, exist
   const [error, setError] = useState('');
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
-  // Filtrar categorias por tipo
-  const filteredCategories = useMemo(() => {
-    return categories.filter(c => c.type === type);
+  // Filtrar categorias por tipo e organizar pais/subcategorias
+  const organizedCategories = useMemo(() => {
+    const filtered = categories.filter(c => c.type === type);
+    const parents = filtered.filter(c => !c.parentId);
+    const result: any[] = [];
+    
+    parents.forEach(parent => {
+      result.push(parent);
+      const children = filtered.filter(c => c.parentId === parent.id);
+      result.push(...children);
+    });
+    
+    return result;
   }, [categories, type]);
 
   const selectedCategory = categories.find(c => c.id === categoryId);
@@ -132,26 +143,23 @@ export default function CreateMonthlyGoalModal({ visible, onClose, onSave, exist
             </View>
           ) : null}
 
-          {/* Tipo da Meta */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Tipo da meta</Text>
-            <View style={styles.typeToggle}>
+          {/* Tipo da Meta - ocultar quando editando */}
+          {!existingGoal && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Tipo da meta</Text>
+              <View style={styles.typeToggle}>
               <Pressable
                 style={[
                   styles.typeOption,
                   {
                     backgroundColor: type === 'expense' ? colors.expense : colors.card,
                     borderColor: type === 'expense' ? colors.expense : colors.border,
-                    opacity: existingGoal ? 0.5 : 1,
                   }
                 ]}
                 onPress={() => {
-                  if (!existingGoal) {
-                    setType('expense');
-                    setCategoryId('');
-                  }
+                  setType('expense');
+                  setCategoryId('');
                 }}
-                disabled={!!existingGoal}
               >
                 <MaterialCommunityIcons 
                   name="trending-down" 
@@ -172,16 +180,12 @@ export default function CreateMonthlyGoalModal({ visible, onClose, onSave, exist
                   {
                     backgroundColor: type === 'income' ? colors.income : colors.card,
                     borderColor: type === 'income' ? colors.income : colors.border,
-                    opacity: existingGoal ? 0.5 : 1,
                   }
                 ]}
                 onPress={() => {
-                  if (!existingGoal) {
-                    setType('income');
-                    setCategoryId('');
-                  }
+                  setType('income');
+                  setCategoryId('');
                 }}
-                disabled={!!existingGoal}
               >
                 <MaterialCommunityIcons 
                   name="trending-up" 
@@ -197,68 +201,108 @@ export default function CreateMonthlyGoalModal({ visible, onClose, onSave, exist
               </Pressable>
             </View>
           </View>
+          )}
 
           {/* Categoria */}
           <View style={styles.section}>
             <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Categoria</Text>
-            {selectedCategory ? (
-              <Pressable
-                style={[styles.selectedCategoryCard, { backgroundColor: colors.card, opacity: existingGoal ? 0.5 : 1 }]}
-                onPress={() => {
-                  if (!existingGoal) {
-                    setCategoryId('');
-                  }
-                }}
-                disabled={!!existingGoal}
-              >
-                <View style={[styles.categoryIconContainer, { backgroundColor: selectedCategory.color + '15' }]}>
-                  <MaterialCommunityIcons 
-                    name={selectedCategory.icon as any} 
-                    size={24} 
-                    color={selectedCategory.color} 
-                  />
-                </View>
-                <Text style={[styles.selectedCategoryName, { color: colors.text }]}>
-                  {selectedCategory.name}
+            
+            {/* Botão que abre/fecha o picker */}
+            <Pressable
+              onPress={() => {
+                if (!existingGoal) {
+                  setShowCategoryPicker(!showCategoryPicker);
+                }
+              }}
+              disabled={!!existingGoal}
+              style={[
+                styles.categorySelectButton,
+                { 
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                  opacity: existingGoal ? 0.5 : 1,
+                }
+              ]}
+            >
+              {selectedCategory ? (
+                <>
+                  <View style={[styles.categoryDot, { backgroundColor: selectedCategory.color }]} />
+                  <Text style={[styles.categorySelectText, { color: colors.text }]}>
+                    {selectedCategory.name}
+                  </Text>
+                </>
+              ) : (
+                <Text style={[styles.categorySelectText, { color: colors.textMuted }]}>
+                  Selecione uma categoria
                 </Text>
-                <MaterialCommunityIcons name="close-circle" size={20} color={colors.textMuted} />
-              </Pressable>
-            ) : (
-              <View style={styles.categoryGrid}>
-                {filteredCategories.map((category) => (
-                  <Pressable
-                    key={category.id}
-                    style={[
-                      styles.categoryCard,
-                      { 
-                        backgroundColor: colors.card,
-                        borderColor: categoryId === category.id ? colors.primary : colors.border,
-                        opacity: existingGoal ? 0.5 : 1,
-                      }
-                    ]}
-                    onPress={() => {
-                      if (!existingGoal) {
-                        setCategoryId(category.id);
-                      }
-                    }}
-                    disabled={!!existingGoal}
-                  >
-                    <View style={[styles.categoryIconContainer, { backgroundColor: category.color + '15' }]}>
-                      <MaterialCommunityIcons 
-                        name={category.icon as any} 
-                        size={24} 
-                        color={category.color} 
-                      />
-                    </View>
-                    <Text 
-                      style={[styles.categoryName, { color: colors.text }]}
-                      numberOfLines={2}
+              )}
+              <MaterialCommunityIcons 
+                name={showCategoryPicker ? "chevron-up" : "chevron-down"} 
+                size={20} 
+                color={colors.textMuted}
+              />
+            </Pressable>
+
+            {/* Dropdown de categorias */}
+            {showCategoryPicker && (
+              <ScrollView 
+                style={[styles.categoryScroll, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}
+                nestedScrollEnabled={true}
+                showsVerticalScrollIndicator={true}
+              >
+                {organizedCategories.map((category) => {
+                  const isSelected = categoryId === category.id;
+                  const isSubcategory = !!category.parentId;
+                  
+                  return (
+                    <Pressable
+                      key={category.id}
+                      onPress={() => {
+                        if (!existingGoal) {
+                          setCategoryId(category.id);
+                          setShowCategoryPicker(false);
+                        }
+                      }}
+                      disabled={!!existingGoal}
+                      style={[
+                        styles.categoryOption,
+                        { 
+                          backgroundColor: isSelected ? colors.primaryBg : 'transparent',
+                          opacity: existingGoal ? 0.5 : 1,
+                          paddingLeft: isSubcategory ? spacing.xl + spacing.md : spacing.md,
+                        }
+                      ]}
                     >
-                      {category.name}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+                      {isSubcategory && (
+                        <MaterialCommunityIcons 
+                          name="subdirectory-arrow-right" 
+                          size={16} 
+                          color={colors.textMuted}
+                          style={{ marginRight: spacing.xs }}
+                        />
+                      )}
+                      <View style={[styles.categoryDot, { backgroundColor: category.color }]} />
+                      <Text
+                        style={[
+                          styles.categoryOptionText,
+                          { color: colors.text },
+                          isSelected && { fontWeight: '600', color: colors.primary },
+                        ]}
+                      >
+                        {category.name}
+                      </Text>
+                      {isSelected && (
+                        <MaterialCommunityIcons 
+                          name="check" 
+                          size={18} 
+                          color={colors.primary}
+                          style={{ marginLeft: 'auto' }}
+                        />
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
             )}
           </View>
 
@@ -289,29 +333,27 @@ export default function CreateMonthlyGoalModal({ visible, onClose, onSave, exist
             </Text>
           </View>
 
-          {/* Botão Excluir (só aparece ao editar) */}
-          {existingGoal && onDelete && (
-            <View style={styles.section}>
+          {/* Botões */}
+          <View style={styles.buttonContainer}>
+            {/* Botão Excluir (só aparece ao editar) - à esquerda */}
+            {existingGoal && onDelete && (
               <Pressable
                 onPress={handleDelete}
                 disabled={deleting}
                 style={[
                   styles.deleteButton,
-                  { borderColor: colors.danger },
+                  { borderColor: colors.border, backgroundColor: colors.card },
                   deleting && { opacity: 0.6 }
                 ]}
               >
-                <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.danger} />
-                <Text style={[styles.deleteButtonText, { color: colors.danger }]}>
-                  {deleting ? 'Excluindo...' : 'Excluir meta'}
+                <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.text} />
+                <Text style={[styles.deleteButtonText, { color: colors.text }]}>
+                  {deleting ? 'Excluindo...' : 'Excluir'}
                 </Text>
               </Pressable>
-            </View>
-          )}
+            )}
 
-          {/* Botões */}
-          <View style={styles.buttonContainer}>
-            {/* Botão Cancelar */}
+            {/* Botão Cancelar - no meio */}
             <Pressable
               onPress={onClose}
               style={[
@@ -324,7 +366,7 @@ export default function CreateMonthlyGoalModal({ visible, onClose, onSave, exist
               </Text>
             </Pressable>
 
-            {/* Botão Criar/Salvar Meta */}
+            {/* Botão Criar/Salvar - à direita (principal) */}
             <Pressable
               onPress={handleSave}
               disabled={!canSave}
@@ -412,44 +454,41 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  categoryCard: {
-    width: '23%',
-    aspectRatio: 1,
-    borderRadius: borderRadius.md,
-    borderWidth: 0,
-    padding: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  selectedCategoryCard: {
+  categorySelectButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
     borderRadius: borderRadius.md,
+    borderWidth: 1,
     gap: spacing.sm,
   },
-  categoryIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: borderRadius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryName: {
-    fontSize: 11,
-    fontWeight: '500',
-    textAlign: 'center',
-    marginTop: 6,
-  },
-  selectedCategoryName: {
-    flex: 1,
+  categorySelectText: {
     fontSize: 15,
-    fontWeight: '600',
+    flex: 1,
+  },
+  categoryScroll: {
+    maxHeight: 280,
+    borderRadius: borderRadius.md,
+    marginTop: spacing.sm,
+  },
+  categoryOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: palette.border,
+  },
+  categoryDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: spacing.sm,
+  },
+  categoryOptionText: {
+    fontSize: 15,
+    flex: 1,
   },
   amountInputContainer: {
     flexDirection: 'row',
@@ -474,17 +513,18 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   deleteButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.md + 2,
     borderRadius: borderRadius.md,
-    borderWidth: 1.5,
+    borderWidth: 1,
   },
   deleteButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
   },
   buttonContainer: {
     flexDirection: 'row',
