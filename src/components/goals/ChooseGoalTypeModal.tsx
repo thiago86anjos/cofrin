@@ -42,7 +42,7 @@ export default function ChooseGoalTypeModal({ visible, onClose, onSelectLongTerm
             </View>
             <View style={styles.optionContent}>
               <Text style={[styles.optionTitle, { color: colors.text }]}>
-                Meta de longo prazo
+                Metas de Investimentos 
               </Text>
               <Text style={[styles.optionDescription, { color: colors.textMuted }]}>
                 Para objetivos futuros, com aportes e prazos
@@ -60,7 +60,7 @@ export default function ChooseGoalTypeModal({ visible, onClose, onSelectLongTerm
             </View>
             <View style={styles.optionContent}>
               <Text style={[styles.optionTitle, { color: colors.text }]}>
-                Meta mensal
+                Meta mensal de gastos
               </Text>
               <Text style={[styles.optionDescription, { color: colors.textMuted }]}>
                 Controle de gastos ou receitas do mês atual

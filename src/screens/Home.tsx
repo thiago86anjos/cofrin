@@ -1,4 +1,4 @@
-import { View, StyleSheet, ScrollView, useWindowDimensions, Pressable, TouchableOpacity, Image } from "react-native";
+import { View, StyleSheet, ScrollView, useWindowDimensions, Pressable } from "react-native";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,23 +7,21 @@ import { useAuth } from "../contexts/authContext";
 import { useAppTheme } from "../contexts/themeContext";
 import { useHomeData } from "../hooks/useHomeData";
 import { useMonthlyGoals } from "../hooks/useMonthlyGoals";
+import { useAllGoals } from "../hooks/useAllGoals";
 import React, { useCallback, useState, useEffect, useDeferredValue } from "react";
 import MainLayout from "../components/MainLayout";
 import {
-    UpcomingFlowsCardShimmer,
-    AccountsCardShimmer,
-    CreditCardsCardShimmer, CategoryCardShimmer
+  UpcomingFlowsCardShimmer,
+  AccountsCardShimmer,
+  CreditCardsCardShimmer, CategoryCardShimmer
 } from "../components/home/HomeShimmer";
 import BalanceOverviewCard from "../components/home/BalanceOverviewCard";
 import { UpcomingFlowsCard } from "../components/home";
 import TopCategoriesCard from "../components/TopCategoriesCard";
 import CreditCardsCard from "../components/home/CreditCardsCard";
 import GoalCard from "../components/home/GoalCard";
+import NotificationModal from "../components/home/NotificationModal";
 import { DS_COLORS } from "../theme/designSystem";
-import { checkRateLimit } from "../services/julius";
-
-// Avatar do Julius
-const JULIUS_AVATAR = require('../../assets/julius_avatar.jpg');
 
 export default function Home() {
   const { user } = useAuth();
@@ -31,11 +29,34 @@ export default function Home() {
   const { width } = useWindowDimensions();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
-  const { hasAlert } = useMonthlyGoals();
+  const { goals: monthlyGoals, hasAlert: hasMonthlyAlert, refresh: refreshMonthlyGoals } = useMonthlyGoals();
+  const { goals: longTermGoals, refresh: refreshLongTermGoals } = useAllGoals();
   const isNarrow = width < 700;
   const userName = user?.displayName || user?.email?.split("@")?.[0] || "Usuário";
   const canAccessAtivosBeta = (user?.email ?? '').toLowerCase() === 'thiago.w3c@gmail.com';
-  const [juliusRemaining, setJuliusRemaining] = useState<number | null>(null);
+  
+  // Estado do modal de notificações
+  const [notificationModalVisible, setNotificationModalVisible] = useState(false);
+
+  // Combinar todas as metas para verificação de alertas
+  const allGoals = React.useMemo(() => {
+    return [...monthlyGoals, ...longTermGoals];
+  }, [monthlyGoals, longTermGoals]);
+
+  // Verificar se há alertas (apenas metas mensais estouradas não reconhecidas)
+  const hasAlert = React.useMemo(() => {
+    return monthlyGoals.some(goal => {
+      // Ignorar se já foi reconhecido
+      if (goal.alertAcknowledged) return false;
+      
+      // Apenas metas mensais (que são limites de gastos)
+      if (goal.isMonthlyGoal && goal.goalType === 'expense') {
+        return goal.currentAmount > goal.targetAmount;
+      }
+      
+      return false;
+    });
+  }, [monthlyGoals]);
 
   // Determinar saudação baseada na hora
   const getGreeting = () => {
@@ -49,15 +70,6 @@ export default function Home() {
   const today = new Date();
   const currentMonth = today.getMonth() + 1;
   const currentYear = today.getFullYear();
-
-  // Verificar mensagens disponíveis do Julius (liberado para todos, com limite de 20/dia)
-  useEffect(() => {
-    if (user?.uid) {
-      checkRateLimit(user.uid, user.email).then((result) => {
-        setJuliusRemaining(result.remaining);
-      });
-    }
-  }, [user?.uid, user?.email]);
 
   // Hook consolidado - reduz ~14 queries para ~6 queries Firebase
   const {
@@ -158,66 +170,34 @@ export default function Home() {
         >
         <View style={styles.centeredContainer}>
           <View style={styles.content}>
-            {/* Saudação - integrada com Julius quando disponível */}
+            {/* Saudação simples com sininho de notificações */}
             <View style={styles.greetingSection}>
-              {juliusRemaining !== null && juliusRemaining > 0 ? (
-                /* Saudação com Julius integrado */
-                <TouchableOpacity 
-                  style={styles.greetingWithJulius}
-                  onPress={() => navigation.navigate('JuliusChat')}
-                  activeOpacity={0.85}
-                >
-                  <View style={styles.greetingJuliusLeft}>
-                    <View style={styles.greetingTitleRow}>
-                      <Text style={[styles.greeting, { color: DS_COLORS.primary }]}>
-                        {getGreeting().text}, {userName}!
-                      </Text>
-                      {hasAlert && (
-                        <MaterialCommunityIcons 
-                          name="bell-alert" 
-                          size={22} 
-                          color={DS_COLORS.warning}
-                          style={{ marginLeft: 8 }}
-                        />
-                      )}
-                    </View>
-                    <Text style={styles.juliusInviteText}>
-                      {hasAlert 
-                        ? 'Eita! Já passou das metas do mês hein... quer uma ajuda? 🤔'
-                        : 'Precisa de ajuda hoje? Só me chamar! 💪'
-                      }
-                    </Text>
-                  </View>
-                  <Image source={JULIUS_AVATAR} style={styles.greetingJuliusAvatar} />
-                </TouchableOpacity>
-              ) : (
-                /* Saudação normal (sem Julius ou sem mensagens) */
-                <View style={styles.greetingRow}>
+              <View style={styles.greetingRow}>
+                <View style={styles.greetingLeft}>
                   <Text style={[styles.greeting, { color: DS_COLORS.primary }]}>
                     {getGreeting().text}, {userName}
                   </Text>
-                  <View style={styles.greetingIcons}>
-                    <MaterialCommunityIcons 
-                      name={getGreeting().icon} 
-                      size={28} 
-                      color={DS_COLORS.primary} 
-                      style={styles.greetingIcon}
-                    />
-                    {hasAlert && (
-                      <Pressable 
-                        onPress={() => navigation.navigate('Metas do ano', { activeTab: 'monthly' })}
-                        style={styles.alertButton}
-                      >
-                        <MaterialCommunityIcons 
-                          name="bell-alert" 
-                          size={24} 
-                          color={DS_COLORS.warning} 
-                        />
-                      </Pressable>
-                    )}
-                  </View>
                 </View>
-              )}
+                <View style={styles.greetingIcons}>
+                  <MaterialCommunityIcons 
+                    name={getGreeting().icon} 
+                    size={24} 
+                    color={DS_COLORS.primary} 
+                  />
+                  <Pressable 
+                    onPress={() => setNotificationModalVisible(true)}
+                    style={styles.bellButton}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  >
+                    <MaterialCommunityIcons 
+                      name={hasAlert ? "bell-alert" : "bell-outline"} 
+                      size={24} 
+                      color={hasAlert ? DS_COLORS.warning : DS_COLORS.primary} 
+                    />
+                    {hasAlert && <View style={styles.bellDot} />}
+                  </Pressable>
+                </View>
+              </View>
             </View>
 
             <View style={{ height: 16 }} />
@@ -312,6 +292,17 @@ export default function Home() {
           </View>
         </View>
       </ScrollView>
+      
+      {/* Modal de Notificações */}
+      <NotificationModal
+        visible={notificationModalVisible}
+        onClose={() => setNotificationModalVisible(false)}
+        allGoals={allGoals}
+        onRefreshGoals={() => {
+          refreshMonthlyGoals();
+          refreshLongTermGoals();
+        }}
+      />
     </MainLayout>
   </View>
 );
@@ -334,22 +325,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  greetingLeft: {
+    flex: 1,
+  },
   greetingIcons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  greetingIcon: {
-    marginLeft: 8,
-  },
-  alertButton: {
-    padding: 4,
+    gap: 12,
   },
   greeting: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800',
-    lineHeight: 36,
-    letterSpacing: -0.5,
+    lineHeight: 32,
+    letterSpacing: -0.3,
+  },
+  bellButton: {
+    position: 'relative',
+    padding: 4,
+  },
+  bellDot: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: DS_COLORS.error,
   },
   betaCard: {
     borderRadius: 16,
@@ -382,29 +383,5 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: 12,
     fontWeight: '600',
-  },
-  // Saudação integrada com Julius
-  greetingWithJulius: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  greetingJuliusLeft: {
-    flex: 1,
-  },
-  greetingTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  juliusInviteText: {
-    fontSize: 14,
-    color: DS_COLORS.textMuted,
-    marginTop: 4,
-  },
-  greetingJuliusAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    marginLeft: 12,
   },
 });

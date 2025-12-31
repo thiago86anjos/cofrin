@@ -222,6 +222,9 @@ export interface Goal extends BaseDocument {
   categoryId?: string; // ID da categoria associada
   month?: number; // Mês da meta (1-12)
   year?: number; // Ano da meta
+  
+  // Alertas
+  alertAcknowledged?: boolean; // Se o alerta de meta estourada foi confirmado
 }
 
 export type CreateGoalInput = Omit<Goal, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'currentAmount'> & {

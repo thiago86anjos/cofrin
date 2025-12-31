@@ -218,7 +218,7 @@ export async function deleteMonthlyGoal(goalId: string): Promise<void> {
 }
 
 /**
- * Verifica se há metas mensais de despesa >= 85%
+ * Verifica se há metas mensais de despesa >= 85% que não foram reconhecidas
  */
 export async function hasMonthlyGoalsAlert(userId: string): Promise<boolean> {
   const goals = await getCurrentMonthlyGoals(userId);
@@ -226,6 +226,9 @@ export async function hasMonthlyGoalsAlert(userId: string): Promise<boolean> {
   const expenseGoals = goals.filter(g => g.goalType === 'expense');
   
   return expenseGoals.some(goal => {
+    // Ignorar se já foi reconhecido
+    if (goal.alertAcknowledged) return false;
+    
     const percentage = (goal.currentAmount / goal.targetAmount) * 100;
     return percentage >= 85;
   });

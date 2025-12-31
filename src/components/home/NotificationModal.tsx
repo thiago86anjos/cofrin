@@ -1,0 +1,210 @@
+import React, { useState, useEffect } from 'react';
+import { Modal, View, StyleSheet, Pressable } from 'react-native';
+import { Text, Checkbox, Button } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Goal } from '../../types/firebase';
+import { DS_COLORS } from '../../theme/designSystem';
+import { spacing, borderRadius } from '../../theme';
+import * as goalService from '../../services/goalService';
+
+type Props = {
+  visible: boolean;
+  onClose: () => void;
+  allGoals: Goal[]; // Todas as metas (longo prazo + mensais)
+  onRefreshGoals: () => void;
+};
+
+type AlertType = 'goal_exceeded' | 'none';
+
+export default function NotificationModal({ visible, onClose, allGoals, onRefreshGoals }: Props) {
+  const [alertType, setAlertType] = useState<AlertType>('none');
+  const [exceededGoal, setExceededGoal] = useState<Goal | null>(null);
+  const [acknowledged, setAcknowledged] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      checkAlerts();
+      setAcknowledged(false);
+    }
+  }, [visible, allGoals]);
+
+  const checkAlerts = () => {
+    // Priority 1: Goal Exceeded (only monthly goals - spending limits)
+    const exceeded = allGoals.find(g => {
+      // Skip if already acknowledged
+      if (g.alertAcknowledged) return false;
+      
+      // Only monthly expense goals (spending limits, not long-term savings)
+      if (g.isMonthlyGoal && g.goalType === 'expense') {
+        return g.currentAmount > g.targetAmount;
+      }
+      
+      return false;
+    });
+
+    if (exceeded) {
+      setExceededGoal(exceeded);
+      setAlertType('goal_exceeded');
+      return;
+    }
+
+    // No alerts
+    setAlertType('none');
+    setExceededGoal(null);
+  };
+
+  const handleAcknowledge = async () => {
+    if (!exceededGoal || !acknowledged) return;
+    
+    setLoading(true);
+    try {
+      await goalService.updateGoal(exceededGoal.id, { alertAcknowledged: true });
+      onRefreshGoals();
+      onClose();
+    } catch (error) {
+      console.error('Error acknowledging alert:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // No alerts - show friendly message
+  if (alertType === 'none') {
+    return (
+      <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+        <Pressable style={styles.overlay} onPress={onClose}>
+          <View style={styles.card}>
+            <View style={styles.iconCircle}>
+              <MaterialCommunityIcons name="bell-check-outline" size={40} color={DS_COLORS.success} />
+            </View>
+            <Text style={styles.noAlertTitle}>Tudo certo por aqui!</Text>
+            <Text style={styles.noAlertSubtext}>Você não tem novos alertas.</Text>
+            <Button 
+              mode="text" 
+              onPress={onClose} 
+              textColor={DS_COLORS.primary}
+              style={styles.closeButton}
+            >
+              Fechar
+            </Button>
+          </View>
+        </Pressable>
+      </Modal>
+    );
+  }
+
+  // Goal exceeded alert
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.overlay}>
+        <View style={styles.card}>
+          <View style={[styles.iconCircle, { backgroundColor: DS_COLORS.errorLight }]}>
+            <MaterialCommunityIcons name="alert-circle" size={40} color={DS_COLORS.error} />
+          </View>
+          
+          <Text style={styles.alertTitle}>Meta ultrapassada</Text>
+          
+          <Text style={styles.alertMessage}>
+            Sua meta "{exceededGoal?.name}" ultrapassou o limite definido. Reveja seus gastos para manter seu planejamento financeiro em dia.
+          </Text>
+          
+          <Pressable 
+            style={styles.checkboxRow} 
+            onPress={() => setAcknowledged(!acknowledged)}
+          >
+            <Checkbox.Android 
+              status={acknowledged ? 'checked' : 'unchecked'} 
+              onPress={() => setAcknowledged(!acknowledged)} 
+              color={DS_COLORS.primary} 
+            />
+            <Text style={styles.checkboxLabel}>Ok, entendi</Text>
+          </Pressable>
+
+          <Button 
+            mode="contained" 
+            onPress={handleAcknowledge} 
+            disabled={!acknowledged || loading}
+            loading={loading}
+            style={styles.confirmButton}
+            buttonColor={DS_COLORS.primary}
+          >
+            Confirmar
+          </Button>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  card: {
+    backgroundColor: 'white',
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
+    width: '100%',
+    maxWidth: 340,
+    alignItems: 'center',
+  },
+  iconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: DS_COLORS.successLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  noAlertTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: DS_COLORS.textTitle,
+    textAlign: 'center',
+    marginBottom: spacing.xs,
+  },
+  noAlertSubtext: {
+    fontSize: 15,
+    color: DS_COLORS.textMuted,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
+  closeButton: {
+    marginTop: spacing.sm,
+  },
+  alertTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: DS_COLORS.error,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
+  alertMessage: {
+    fontSize: 15,
+    color: DS_COLORS.textBody,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: spacing.lg,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginBottom: spacing.lg,
+  },
+  checkboxLabel: {
+    fontSize: 16,
+    color: DS_COLORS.textTitle,
+    marginLeft: spacing.xs,
+  },
+  confirmButton: {
+    width: '100%',
+    borderRadius: borderRadius.md,
+  },
+});
