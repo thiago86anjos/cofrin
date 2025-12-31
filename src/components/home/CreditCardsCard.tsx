@@ -425,13 +425,23 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
       if (isPending) return 'Pendente';
       return 'Pendente';
     };
-      const badgeBgColor = isPaid ? DS_COLORS.successLight : DS_COLORS.textMuted + '15';
-      const badgeTextColor = isPaid ? DS_COLORS.success : DS_COLORS.textMuted;
+    const badgeBgColor = isPaid
+      ? DS_COLORS.successLight
+      : isOverdue
+        ? DS_COLORS.errorLight
+        : isDueToday
+          ? DS_COLORS.warningLight
+          : DS_COLORS.textMuted + '15';
+
+    const badgeTextColor = isPaid
+      ? DS_COLORS.success
+      : isOverdue
+        ? DS_COLORS.error
+        : isDueToday
+          ? DS_COLORS.warning
+          : DS_COLORS.textMuted;
     
     const statusText = getStatusText();
-
-    // Calcular percentual de uso em relação ao limite
-    const usagePercentage = card.limit > 0 ? (billAmount / card.limit) * 100 : 0;
     
     return (
       <View
@@ -459,7 +469,7 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
                 color={cardColor}
               />
             </View>
-            <Text style={[styles.cardItemName, { color: DS_COLORS.textBody }]} numberOfLines={1}>
+            <Text style={[styles.cardItemName, { color: DS_COLORS.textTitle }]} numberOfLines={1}>
               {card.name}
             </Text>
             <View style={[styles.statusBadgeNew, { backgroundColor: badgeBgColor }]}>
@@ -469,13 +479,13 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
             </View>
           </View>
 
-          {/* Info: vencimento + valor */}
-          <View style={styles.cardItemInfo}>
-            <Text style={[styles.cardItemDueDate, { color: DS_COLORS.textMuted }]}>
-              Vencimento {`${bill.dueDate.getDate()} ${getMonthShortPtBr(bill.dueDate.getMonth() + 1)}`}
-            </Text>
-            <Text style={[styles.cardItemValue, { color: DS_COLORS.textBody }]}>
+          {/* Linha inferior: valor + vencimento */}
+          <View style={styles.cardItemBottomRow}>
+            <Text style={[styles.cardItemAmount, { color: DS_COLORS.textTitle }]}>
               {formatCurrencyBRL(billAmount)}
+            </Text>
+            <Text style={[styles.cardItemDueDate, { color: DS_COLORS.textMuted }]}>
+              {`Venc: ${bill.dueDate.getDate()} ${getMonthShortPtBr(bill.dueDate.getMonth() + 1)}`}
             </Text>
           </View>
         </Pressable>
@@ -824,13 +834,13 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   cardItemContainer: {
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
     overflow: 'hidden',
   },
   cardItemContent: {
-    padding: 16,
-    gap: 12,
+    padding: 14,
+    gap: 10,
   },
   cardItemHeader: {
     flexDirection: 'row',
@@ -851,23 +861,25 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   statusBadgeNew: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 999,
   },
   statusBadgeTextNew: {
     fontSize: 11,
     fontWeight: '500',
   },
-  cardItemInfo: {
-    gap: 4,
+  cardItemBottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   cardItemDueDate: {
     fontSize: 13,
     fontWeight: '400',
     lineHeight: 18,
   },
-  cardItemValue: {
+  cardItemAmount: {
     fontSize: 16,
     fontWeight: '600',
     lineHeight: 24,
