@@ -61,9 +61,21 @@ export default function Home() {
   // Determinar saudação baseada na hora
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour >= 5 && hour < 12) return { text: 'Bom dia', icon: 'weather-sunny' as const };
-    if (hour >= 12 && hour < 18) return { text: 'Boa tarde', icon: 'weather-partly-cloudy' as const };
-    return { text: 'Boa noite', icon: 'weather-night' as const };
+    if (hour >= 5 && hour < 12) return { 
+      text: 'Bom dia', 
+      icon: 'white-balance-sunny' as const,
+      iconColor: '#F59E0B' // Amarelo/laranja vibrante
+    };
+    if (hour >= 12 && hour < 18) return { 
+      text: 'Boa tarde', 
+      icon: 'weather-sunset' as const,
+      iconColor: '#F97316' // Laranja pôr do sol
+    };
+    return { 
+      text: 'Boa noite', 
+      icon: 'moon-waning-crescent' as const,
+      iconColor: '#6366F1' // Azul/roxo noturno
+    };
   };
 
   // Mês atual para buscar transações
@@ -174,29 +186,28 @@ export default function Home() {
             <View style={styles.greetingSection}>
               <View style={styles.greetingRow}>
                 <View style={styles.greetingLeft}>
+                  <MaterialCommunityIcons 
+                    name={getGreeting().icon} 
+                    size={24} 
+                    color={getGreeting().iconColor} 
+                    style={styles.greetingIcon}
+                  />
                   <Text style={[styles.greeting, { color: DS_COLORS.primary }]}>
                     {getGreeting().text}, {userName}
                   </Text>
                 </View>
-                <View style={styles.greetingIcons}>
+                <Pressable 
+                  onPress={() => setNotificationModalVisible(true)}
+                  style={styles.bellButton}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                >
                   <MaterialCommunityIcons 
-                    name={getGreeting().icon} 
+                    name={hasAlert ? "bell-alert" : "bell-outline"} 
                     size={24} 
-                    color={DS_COLORS.primary} 
+                    color={hasAlert ? DS_COLORS.warning : DS_COLORS.primary} 
                   />
-                  <Pressable 
-                    onPress={() => setNotificationModalVisible(true)}
-                    style={styles.bellButton}
-                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                  >
-                    <MaterialCommunityIcons 
-                      name={hasAlert ? "bell-alert" : "bell-outline"} 
-                      size={24} 
-                      color={hasAlert ? DS_COLORS.warning : DS_COLORS.primary} 
-                    />
-                    {hasAlert && <View style={styles.bellDot} />}
-                  </Pressable>
-                </View>
+                  {hasAlert && <View style={styles.bellDot} />}
+                </Pressable>
               </View>
             </View>
 
@@ -327,11 +338,12 @@ const styles = StyleSheet.create({
   },
   greetingLeft: {
     flex: 1,
-  },
-  greetingIcons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
+  },
+  greetingIcon: {
+    marginRight: 0,
   },
   greeting: {
     fontSize: 24,
