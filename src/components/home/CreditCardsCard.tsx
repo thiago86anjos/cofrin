@@ -1,13 +1,16 @@
 import { View, StyleSheet, Pressable, Modal } from 'react-native';
-import { Text } from 'react-native-paper';
+import { ActivityIndicator, Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useState, useMemo, memo, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { formatCurrencyBRL } from '../../utils/format';
 import { CreditCard } from '../../types/firebase';
 import { getCreditCardTransactionsByMonth, calculateBillTotal, isBillPaid } from '../../services/creditCardBillService';
 import { useAuth } from '../../contexts/authContext';
 import { useTransactionRefresh } from '../../contexts/transactionRefreshContext';
 import { DS_COLORS, DS_TYPOGRAPHY, DS_ICONS, DS_CARD, DS_SPACING } from '../../theme/designSystem';
+
+const SHOW_FUTURE_BILLS_STORAGE_KEY = '@cofrin:home_show_future_bills';
 
 interface Props {
   cards?: CreditCard[];
@@ -70,8 +73,30 @@ type OpenBillSummary = {
   dueDate: Date;
 };
 
+type CardBillViewModel = OpenBillSummary & {
+  isPaid?: boolean;
+};
+
 function getMonthShortPtBr(month: number) {
   const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  return months[month - 1] || '';
+}
+
+function getMonthNamePtBrLower(month: number) {
+  const months = [
+    'janeiro',
+    'fevereiro',
+    'março',
+    'abril',
+    'maio',
+    'junho',
+    'julho',
+    'agosto',
+    'setembro',
+    'outubro',
+    'novembro',
+    'dezembro',
+  ];
   return months[month - 1] || '';
 }
 
@@ -95,28 +120,69 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [openBills, setOpenBills] = useState<Record<string, OpenBillSummary>>({});
   const [currentMonthBills, setCurrentMonthBills] = useState<Record<string, number>>({});
+  const [currentMonthPaidBills, setCurrentMonthPaidBills] = useState<Record<string, boolean>>({});
+  const [showFutureBills, setShowFutureBills] = useState(false);
+  const [isLoadingBills, setIsLoadingBills] = useState(false);
 
   // Mês atual
   const currentDate = new Date();
   const currentMonth = currentDate.getMonth() + 1;
   const currentYear = currentDate.getFullYear();
 
+  const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+  const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
+
+  const creditCardsLabel = useMemo(() => {
+    return cards.length > 1 ? 'Cartões de crédito' : 'Seu cartão de crédito';
+  }, [cards.length]);
+
+  const currentMonthBillsLabel = useMemo(() => {
+    return `Faturas de ${getMonthNamePtBrLower(currentMonth)}`;
+  }, [currentMonth]);
+
+  // Carregar preferência (cache) do usuário para ver faturas futuras
+  useEffect(() => {
+    const loadPreference = async () => {
+      try {
+        const saved = await AsyncStorage.getItem(SHOW_FUTURE_BILLS_STORAGE_KEY);
+        if (saved === 'true') setShowFutureBills(true);
+        if (saved === 'false') setShowFutureBills(false);
+      } catch {
+        // Sem persistência disponível (não bloqueia UI)
+      }
+    };
+
+    loadPreference();
+  }, []);
+
+  // Persistir preferência ao alternar
+  useEffect(() => {
+    AsyncStorage.setItem(SHOW_FUTURE_BILLS_STORAGE_KEY, showFutureBills ? 'true' : 'false').catch(() => {
+      // Ignorar falhas de persistência
+    });
+  }, [showFutureBills]);
+
   // Buscar faturas do mês atual para cada cartão
   useEffect(() => {
     const fetchOpenBills = async () => {
-      if (!user?.uid || cards.length === 0) return;
+      if (!user?.uid || cards.length === 0) {
+        setOpenBills({});
+        return;
+      }
+
+      setIsLoadingBills(true);
       
       const billsMap: Record<string, OpenBillSummary> = {};
-
-      const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
-      const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
       
       for (const card of cards) {
         try {
-          const candidates: Array<{ month: number; year: number }> = [
-            { month: currentMonth, year: currentYear },
-            { month: nextMonth, year: nextYear },
-          ];
+          // Regra antiga: tenta mês atual; se não houver fatura pendente, tenta mês seguinte.
+          const candidates: Array<{ month: number; year: number }> = showFutureBills
+            ? [
+                { month: currentMonth, year: currentYear },
+                { month: nextMonth, year: nextYear },
+              ]
+            : [{ month: currentMonth, year: currentYear }];
 
           let chosen: OpenBillSummary | undefined;
           for (const candidate of candidates) {
@@ -151,28 +217,37 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
       }
       
       setOpenBills(billsMap);
+      setIsLoadingBills(false);
     };
     
     fetchOpenBills();
-  }, [cards, user?.uid, currentMonth, currentYear, refreshKey]);
+  }, [cards, user?.uid, currentMonth, currentYear, nextMonth, nextYear, refreshKey, showFutureBills]);
 
   // Buscar totais de gastos do mês atual (independente de fatura paga/pendente/vencida)
   useEffect(() => {
     const fetchCurrentMonthBills = async () => {
-      if (!user?.uid || cards.length === 0) return;
+      if (!user?.uid || cards.length === 0) {
+        setCurrentMonthBills({});
+        setCurrentMonthPaidBills({});
+        return;
+      }
 
       const billsMap: Record<string, number> = {};
+      const paidMap: Record<string, boolean> = {};
       for (const card of cards) {
         try {
           const transactions = await getCreditCardTransactionsByMonth(user.uid, card.id, currentMonth, currentYear);
           billsMap[card.id] = calculateBillTotal(transactions);
+          paidMap[card.id] = await isBillPaid(user.uid, card.id, currentMonth, currentYear);
         } catch (error) {
           console.error(`Erro ao buscar gastos do mês do cartão ${card.id}:`, error);
           billsMap[card.id] = 0;
+          paidMap[card.id] = false;
         }
       }
 
       setCurrentMonthBills(billsMap);
+      setCurrentMonthPaidBills(paidMap);
     };
 
     fetchCurrentMonthBills();
@@ -194,35 +269,66 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
     return (monthTotalUsed / totalIncome) * 100;
   }, [monthTotalUsed, totalIncome]);
 
-  // Filtrar apenas cartões com fatura pendente no mês atual
-  const cardsWithPendingBills = useMemo(() => {
+  const currentMonthCardsToShow = useMemo(() => {
+    return cards.filter(card => (currentMonthBills[card.id] || 0) > 0);
+  }, [cards, currentMonthBills]);
+
+  const futurePendingCards = useMemo(() => {
     return cards.filter(card => {
-      return !!openBills[card.id] && openBills[card.id].amount > 0;
+      const bill = openBills[card.id];
+      return !!bill && bill.amount > 0 && bill.billMonth === nextMonth && bill.billYear === nextYear;
     });
-  }, [cards, openBills]);
+  }, [cards, openBills, nextMonth, nextYear]);
+
+  const futureTotalBills = useMemo(() => {
+    return futurePendingCards.reduce((sum, card) => sum + (openBills[card.id]?.amount || 0), 0);
+  }, [futurePendingCards, openBills]);
+
+  const hasFutureBills = showFutureBills && futurePendingCards.length > 0;
+  const hasAnyBillsToShow = currentMonthCardsToShow.length > 0 || hasFutureBills;
+
+  const isLoadingFutureBills = showFutureBills && isLoadingBills;
+
+  const buildCurrentMonthBill = (card: CreditCard): CardBillViewModel => {
+    const pendingBill = openBills[card.id];
+    const isPendingCurrent =
+      !!pendingBill && pendingBill.billMonth === currentMonth && pendingBill.billYear === currentYear;
+
+    const amount = isPendingCurrent ? pendingBill.amount : (currentMonthBills[card.id] || 0);
+    return {
+      amount,
+      billMonth: currentMonth,
+      billYear: currentYear,
+      dueDate: isPendingCurrent ? pendingBill.dueDate : buildDueDate(currentYear, currentMonth, card.dueDay),
+      isPaid: isPendingCurrent ? false : !!currentMonthPaidBills[card.id],
+    };
+  };
 
   // Componente de item do cartão (layout igual à imagem)
-  const CardItem = ({ card, index }: { card: CreditCard; index: number }) => {
-    const bill = openBills[card.id];
-    const billAmount = bill?.amount || 0;
+  const CardItem = ({ card, bill }: { card: CreditCard; bill: CardBillViewModel }) => {
+    const billAmount = bill.amount || 0;
 
     // Usar cor personalizada ou fallback
     const cardColor = card.color || '#6366F1';
 
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const dueDateStart = bill ? new Date(bill.dueDate.getFullYear(), bill.dueDate.getMonth(), bill.dueDate.getDate()) : null;
+    const dueDateStart = new Date(bill.dueDate.getFullYear(), bill.dueDate.getMonth(), bill.dueDate.getDate());
 
-    const isOverdue = !!dueDateStart && dueDateStart.getTime() < todayStart.getTime();
-    const isDueToday = !!dueDateStart && isSameDay(dueDateStart, todayStart);
-    const isPending = !!dueDateStart && dueDateStart.getTime() > todayStart.getTime();
+    const isPaid = !!bill.isPaid;
+    const isOverdue = !isPaid && dueDateStart.getTime() < todayStart.getTime();
+    const isDueToday = !isPaid && isSameDay(dueDateStart, todayStart);
+    const isPending = !isPaid && dueDateStart.getTime() > todayStart.getTime();
     
     const getStatusText = () => {
+      if (isPaid) return 'Paga';
       if (isOverdue) return 'Vencida';
       if (isDueToday) return 'Vence hoje';
       if (isPending) return 'Pendente';
       return 'Pendente';
     };
+      const badgeBgColor = isPaid ? DS_COLORS.successLight : DS_COLORS.textMuted + '15';
+      const badgeTextColor = isPaid ? DS_COLORS.success : DS_COLORS.textMuted;
     
     const statusText = getStatusText();
 
@@ -258,8 +364,8 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
             <Text style={[styles.cardItemName, { color: DS_COLORS.textBody }]} numberOfLines={1}>
               {card.name}
             </Text>
-            <View style={[styles.statusBadgeNew, { backgroundColor: DS_COLORS.textMuted + '15' }]}>
-              <Text style={[styles.statusBadgeTextNew, { color: DS_COLORS.textMuted }]}>
+            <View style={[styles.statusBadgeNew, { backgroundColor: badgeBgColor }]}>
+              <Text style={[styles.statusBadgeTextNew, { color: badgeTextColor }]}>
                 {statusText}
               </Text>
             </View>
@@ -268,7 +374,7 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
           {/* Info: vencimento + valor */}
           <View style={styles.cardItemInfo}>
             <Text style={[styles.cardItemDueDate, { color: DS_COLORS.textMuted }]}>
-              Vencimento {bill ? `${bill.dueDate.getDate()} ${getMonthShortPtBr(bill.dueDate.getMonth() + 1)}` : `${card.dueDay}`}
+              Vencimento {`${bill.dueDate.getDate()} ${getMonthShortPtBr(bill.dueDate.getMonth() + 1)}`}
             </Text>
             <Text style={[styles.cardItemValue, { color: DS_COLORS.textBody }]}>
               {formatCurrencyBRL(billAmount)}
@@ -284,8 +390,8 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
       {/* Header */}
       <View style={styles.headerSection}>
         <View style={styles.titleRow}>
-          <Text style={[styles.mainTitle, { color: DS_COLORS.textTitle }]}>
-            Meus cartões
+          <Text style={[styles.cardLabel, { color: DS_COLORS.textMuted }]}>
+            {creditCardsLabel}
           </Text>
           {monthTotalUsed > 0 && (
             <Pressable 
@@ -298,24 +404,80 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
               <View style={[styles.infoIconCircle, { backgroundColor: usageStatus.color + '15' }]}>
                 <MaterialCommunityIcons 
                   name="information" 
-                  size={16} 
+                  size={20} 
                   color={usageStatus.color} 
                 />
               </View>
             </Pressable>
           )}
         </View>
+
+        <View style={styles.mainValueSection}>
+          <Text style={[styles.mainValue, { color: DS_COLORS.error }]}>
+            {formatCurrencyBRL(monthTotalUsed)}
+          </Text>
+          <Text style={[styles.billsMonthLabel, { color: DS_COLORS.textMuted }]}>
+            {currentMonthBillsLabel}
+          </Text>
+
+          {cards.length > 0 && (
+            <Pressable
+              onPress={() => {
+                if (isLoadingBills) return;
+                setShowFutureBills((prev) => !prev);
+              }}
+              style={({ pressed }) => [
+                styles.futureToggleRow,
+                pressed && !isLoadingBills && styles.futureTogglePressed,
+                isLoadingBills && styles.futureToggleDisabled,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={showFutureBills ? 'Ocultar faturas futuras' : 'Ver faturas futuras'}
+            >
+              <Text style={[styles.futureToggleText, { color: DS_COLORS.textMuted }]}>
+                {showFutureBills ? 'Ocultar faturas futuras' : 'Ver faturas futuras'}
+              </Text>
+              {isLoadingFutureBills ? (
+                <ActivityIndicator size={14} color={DS_COLORS.textMuted} />
+              ) : (
+                <MaterialCommunityIcons
+                  name={showFutureBills ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color={DS_COLORS.textMuted}
+                />
+              )}
+            </Pressable>
+          )}
+        </View>
       </View>
 
       {/* Lista de cartões */}
-      <View style={styles.cardsGrid}>
-        {cardsWithPendingBills.map((card, index) => (
-          <CardItem key={card.id} card={card} index={index} />
-        ))}
-      </View>
+      {currentMonthCardsToShow.length > 0 && (
+        <View style={styles.cardsGrid}>
+          {currentMonthCardsToShow.map((card) => (
+            <CardItem key={card.id} card={card} bill={buildCurrentMonthBill(card)} />
+          ))}
+        </View>
+      )}
+
+      {hasFutureBills && (
+        <View style={styles.futureSection}>
+          <View style={styles.futureHeaderRow}>
+            <Text style={[styles.futureTitle, { color: DS_COLORS.textMuted }]}>Faturas futuras</Text>
+            <Text style={[styles.futureValue, { color: DS_COLORS.textMuted }]}>
+              {formatCurrencyBRL(futureTotalBills)}
+            </Text>
+          </View>
+          <View style={styles.cardsGrid}>
+            {futurePendingCards.map((card) => (
+              <CardItem key={card.id} card={card} bill={{ ...openBills[card.id], isPaid: false }} />
+            ))}
+          </View>
+        </View>
+      )}
 
       {/* Mensagem vazia */}
-      {cardsWithPendingBills.length === 0 && (
+      {!hasAnyBillsToShow && (
         <View style={styles.emptyState}>
           <MaterialCommunityIcons name="credit-card-check" size={64} color={DS_COLORS.textMuted} />
           <Text style={[styles.emptyStateText, { color: DS_COLORS.textMuted }]}>
@@ -463,23 +625,73 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  mainTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    lineHeight: 24,
+  cardLabel: {
+    ...DS_TYPOGRAPHY.styles.label,
+  },
+  mainValueSection: {
+    marginTop: 8,
+    gap: 4,
+  },
+  mainValue: {
+    fontSize: DS_TYPOGRAPHY.size.valueMain,
+    fontWeight: DS_TYPOGRAPHY.weight.bold,
+    lineHeight: 32,
+  },
+  billsMonthLabel: {
+    ...DS_TYPOGRAPHY.styles.label,
   },
   statusIconButton: {
-    padding: 4,
+    padding: 6,
   },
   infoIconCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardsGrid: {
     gap: 12,
+  },
+  futureToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 4,
+    paddingTop: 2,
+  },
+  futureTogglePressed: {
+    opacity: 0.85,
+  },
+  futureToggleDisabled: {
+    opacity: 0.6,
+  },
+  futureToggleText: {
+    ...DS_TYPOGRAPHY.styles.label,
+  },
+  futureSection: {
+    marginTop: 12,
+  },
+  dottedDivider: {
+    borderBottomWidth: 1,
+    borderStyle: 'dotted',
+    borderColor: DS_COLORS.divider,
+    marginBottom: 10,
+  },
+  futureHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  futureTitle: {
+    ...DS_TYPOGRAPHY.styles.label,
+    padding: 16,
+  },
+  futureValue: {
+    fontSize: DS_TYPOGRAPHY.size.valueSecondary,
+    fontWeight: DS_TYPOGRAPHY.weight.semibold,
+    lineHeight: 20,
   },
   cardItemContainer: {
     borderRadius: 16,

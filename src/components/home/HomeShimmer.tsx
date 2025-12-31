@@ -118,10 +118,13 @@ export function CreditCardsCardShimmer() {
     <ShimmerCard>
       {/* Header */}
       <View style={styles.header}>
-        <ShimmerBlock width={120} height={20} />
-      </View>
-      <View style={{ marginTop: 8 }}>
         <ShimmerBlock width={140} height={14} />
+      </View>
+      <View style={{ marginTop: 10 }}>
+        <ShimmerBlock width={120} height={28} />
+      </View>
+      <View style={{ marginTop: 6 }}>
+        <ShimmerBlock width={120} height={12} />
       </View>
       {/* Card item */}
       <View style={[styles.cardItem, { marginTop: 16 }]}>
