@@ -1,7 +1,7 @@
-import { View, StyleSheet, Pressable, Modal } from 'react-native';
+import { View, StyleSheet, Pressable, Modal, Animated } from 'react-native';
 import { ActivityIndicator, Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useState, useMemo, memo, useEffect } from 'react';
+import { useState, useMemo, memo, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { formatCurrencyBRL } from '../../utils/format';
 import { CreditCard } from '../../types/firebase';
@@ -11,6 +11,59 @@ import { useTransactionRefresh } from '../../contexts/transactionRefreshContext'
 import { DS_COLORS, DS_TYPOGRAPHY, DS_ICONS, DS_CARD, DS_SPACING } from '../../theme/designSystem';
 
 const SHOW_FUTURE_BILLS_STORAGE_KEY = '@cofrin:home_show_future_bills';
+
+function ShimmerBlock({
+  width,
+  height,
+  borderRadius = 12,
+  style,
+}: {
+  width: number | string;
+  height: number;
+  borderRadius?: number;
+  style?: any;
+}) {
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmerAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shimmerAnim, {
+          toValue: 0,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [shimmerAnim]);
+
+  const opacity = shimmerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.35, 0.75],
+  });
+
+  return (
+    <Animated.View
+      style={[
+        {
+          width,
+          height,
+          borderRadius,
+          backgroundColor: DS_COLORS.grayLight,
+          opacity,
+        },
+        style,
+      ]}
+    />
+  );
+}
 
 interface Props {
   cards?: CreditCard[];
@@ -123,6 +176,7 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
   const [currentMonthPaidBills, setCurrentMonthPaidBills] = useState<Record<string, boolean>>({});
   const [showFutureBills, setShowFutureBills] = useState(false);
   const [isLoadingBills, setIsLoadingBills] = useState(false);
+  const [hasFutureBillsAvailable, setHasFutureBillsAvailable] = useState<boolean>(false);
 
   // Mês atual
   const currentDate = new Date();
@@ -173,55 +227,89 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
       setIsLoadingBills(true);
       
       const billsMap: Record<string, OpenBillSummary> = {};
-      
-      for (const card of cards) {
-        try {
-          // Regra antiga: tenta mês atual; se não houver fatura pendente, tenta mês seguinte.
-          const candidates: Array<{ month: number; year: number }> = showFutureBills
-            ? [
-                { month: currentMonth, year: currentYear },
-                { month: nextMonth, year: nextYear },
-              ]
-            : [{ month: currentMonth, year: currentYear }];
 
-          let chosen: OpenBillSummary | undefined;
-          for (const candidate of candidates) {
-            const transactions = await getCreditCardTransactionsByMonth(
-              user.uid,
-              card.id,
-              candidate.month,
-              candidate.year
-            );
+      try {
+        for (const card of cards) {
+          try {
+            // Regra antiga: tenta mês atual; se não houver fatura pendente, tenta mês seguinte.
+            const candidates: Array<{ month: number; year: number }> = showFutureBills
+              ? [
+                  { month: currentMonth, year: currentYear },
+                  { month: nextMonth, year: nextYear },
+                ]
+              : [{ month: currentMonth, year: currentYear }];
 
-            const totalAmount = calculateBillTotal(transactions);
-            if (totalAmount <= 0) continue;
+            let chosen: OpenBillSummary | undefined;
+            for (const candidate of candidates) {
+              const transactions = await getCreditCardTransactionsByMonth(
+                user.uid,
+                card.id,
+                candidate.month,
+                candidate.year
+              );
 
-            const paid = await isBillPaid(user.uid, card.id, candidate.month, candidate.year);
-            if (paid) continue;
+              const totalAmount = calculateBillTotal(transactions);
+              if (totalAmount <= 0) continue;
 
-            chosen = {
-              amount: totalAmount,
-              billMonth: candidate.month,
-              billYear: candidate.year,
-              dueDate: buildDueDate(candidate.year, candidate.month, card.dueDay),
-            };
-            break;
+              const paid = await isBillPaid(user.uid, card.id, candidate.month, candidate.year);
+              if (paid) continue;
+
+              chosen = {
+                amount: totalAmount,
+                billMonth: candidate.month,
+                billYear: candidate.year,
+                dueDate: buildDueDate(candidate.year, candidate.month, card.dueDay),
+              };
+              break;
+            }
+
+            if (chosen) {
+              billsMap[card.id] = chosen;
+            }
+          } catch (error) {
+            console.error(`Erro ao buscar fatura do cartão ${card.id}:`, error);
           }
-
-          if (chosen) {
-            billsMap[card.id] = chosen;
-          }
-        } catch (error) {
-          console.error(`Erro ao buscar fatura do cartão ${card.id}:`, error);
         }
+
+        setOpenBills(billsMap);
+      } finally {
+        setIsLoadingBills(false);
       }
-      
-      setOpenBills(billsMap);
-      setIsLoadingBills(false);
     };
     
     fetchOpenBills();
   }, [cards, user?.uid, currentMonth, currentYear, nextMonth, nextYear, refreshKey, showFutureBills]);
+
+  // Detectar se existem faturas futuras (para só então mostrar o toggle)
+  useEffect(() => {
+    const checkFutureBills = async () => {
+      if (!user?.uid || cards.length === 0) {
+        setHasFutureBillsAvailable(false);
+        return;
+      }
+
+      try {
+        for (const card of cards) {
+          const transactions = await getCreditCardTransactionsByMonth(user.uid, card.id, nextMonth, nextYear);
+          const totalAmount = calculateBillTotal(transactions);
+          if (totalAmount <= 0) continue;
+
+          const paid = await isBillPaid(user.uid, card.id, nextMonth, nextYear);
+          if (paid) continue;
+
+          setHasFutureBillsAvailable(true);
+          return;
+        }
+
+        setHasFutureBillsAvailable(false);
+      } catch {
+        setHasFutureBillsAvailable(false);
+      }
+    };
+
+    // Não precisa rodar quando o usuário já está vendo as futuras
+    if (!showFutureBills) checkFutureBills();
+  }, [cards, user?.uid, nextMonth, nextYear, refreshKey, showFutureBills]);
 
   // Buscar totais de gastos do mês atual (independente de fatura paga/pendente/vencida)
   useEffect(() => {
@@ -396,16 +484,17 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
           {monthTotalUsed > 0 && (
             <Pressable 
               onPress={() => setShowStatusModal(true)}
+              hitSlop={12}
               style={({ pressed }) => [
                 styles.statusIconButton,
                 { opacity: pressed ? 0.7 : 1 }
               ]}
             >
-              <View style={[styles.infoIconCircle, { backgroundColor: usageStatus.color + '15' }]}>
+              <View style={[styles.infoIconCircle, { backgroundColor: usageStatus.color }]}>
                 <MaterialCommunityIcons 
                   name="information" 
-                  size={20} 
-                  color={usageStatus.color} 
+                  size={27} 
+                  color={DS_COLORS.textInverse} 
                 />
               </View>
             </Pressable>
@@ -420,7 +509,7 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
             {currentMonthBillsLabel}
           </Text>
 
-          {cards.length > 0 && (
+          {(hasFutureBillsAvailable || showFutureBills) && (
             <Pressable
               onPress={() => {
                 if (isLoadingBills) return;
@@ -460,8 +549,38 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
         </View>
       )}
 
-      {hasFutureBills && (
+      {isLoadingFutureBills && (
         <View style={styles.futureSection}>
+          <View style={styles.dottedDivider} />
+          <View style={styles.futureHeaderRow}>
+            <Text style={[styles.futureTitle, { color: DS_COLORS.textMuted }]}>Faturas futuras</Text>
+            <ShimmerBlock width={90} height={16} borderRadius={8} />
+          </View>
+
+          <View style={styles.cardsGrid}>
+            {[1, 2].map((i) => (
+              <View key={i} style={[styles.skeletonCard, { borderColor: DS_COLORS.border }]}>
+                <View style={styles.skeletonRow}>
+                  <ShimmerBlock width={40} height={40} borderRadius={12} />
+                  <View style={styles.skeletonCol}>
+                    <ShimmerBlock width={140} height={14} borderRadius={8} />
+                    <ShimmerBlock width={110} height={12} borderRadius={8} />
+                  </View>
+                  <ShimmerBlock width={70} height={20} borderRadius={10} />
+                </View>
+                <View style={styles.skeletonBottom}>
+                  <ShimmerBlock width={90} height={12} borderRadius={8} />
+                  <ShimmerBlock width={120} height={18} borderRadius={8} />
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {!isLoadingFutureBills && hasFutureBills && (
+        <View style={styles.futureSection}>
+          <View style={styles.dottedDivider} />
           <View style={styles.futureHeaderRow}>
             <Text style={[styles.futureTitle, { color: DS_COLORS.textMuted }]}>Faturas futuras</Text>
             <Text style={[styles.futureValue, { color: DS_COLORS.textMuted }]}>
@@ -641,12 +760,12 @@ const styles = StyleSheet.create({
     ...DS_TYPOGRAPHY.styles.label,
   },
   statusIconButton: {
-    padding: 6,
+    padding: 0,
   },
   infoIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -686,7 +805,6 @@ const styles = StyleSheet.create({
   },
   futureTitle: {
     ...DS_TYPOGRAPHY.styles.label,
-    padding: 16,
   },
   futureValue: {
     fontSize: DS_TYPOGRAPHY.size.valueSecondary,
@@ -764,6 +882,26 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '400',
     textAlign: 'center',
+  },
+  skeletonCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+    padding: 16,
+    gap: 12,
+    backgroundColor: DS_COLORS.card,
+  },
+  skeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  skeletonCol: {
+    flex: 1,
+    gap: 8,
+  },
+  skeletonBottom: {
+    gap: 8,
   },
   // Estilos da modal
   modalOverlay: {

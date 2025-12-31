@@ -230,15 +230,6 @@ export default memo(function BalanceOverviewCard({
           </Text>
         </View>
 
-        {/* Seção "Distribuição por conta" - apenas se houver mais de 1 conta */}
-        {visibleAccounts.length > 1 && (
-          <View style={styles.distributionSection}>
-            <Text style={[styles.distributionTitle, { color: colors.textMuted }]}>
-              Distribuição por conta
-            </Text>
-          </View>
-        )}
-
         <View style={styles.accountsGrid}>
           {visibleAccounts.map((account) => (
             <AccountDistributionItem key={account.id} account={account} />
@@ -281,7 +272,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '400',
     marginBottom: 16,
   },
   mainValueSection: {
