@@ -351,6 +351,16 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
     return getCardUsageStatus(monthTotalUsed, totalIncome);
   }, [monthTotalUsed, totalIncome]);
 
+  const mainValueColor = useMemo(() => {
+    if (monthTotalUsed <= 0) return DS_COLORS.textMuted;
+
+    if (usageStatus.level === 'warning') return DS_COLORS.warning;
+    if (usageStatus.level === 'alert') return DS_COLORS.error;
+
+    // controlled / no-income: manter neutro (cinza) como os demais títulos
+    return DS_COLORS.textMuted;
+  }, [monthTotalUsed, usageStatus.level]);
+
   // Porcentagem de uso
   const usagePercentage = useMemo(() => {
     if (totalIncome === 0) return 0;
@@ -493,7 +503,7 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
               <View style={[styles.infoIconCircle, { backgroundColor: usageStatus.color }]}>
                 <MaterialCommunityIcons 
                   name="information" 
-                  size={27} 
+                  size={26} 
                   color={DS_COLORS.textInverse} 
                 />
               </View>
@@ -502,12 +512,14 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
         </View>
 
         <View style={styles.mainValueSection}>
-          <Text style={[styles.mainValue, { color: DS_COLORS.error }]}>
+          <Text style={[styles.mainValue, { color: mainValueColor }]}>
             {formatCurrencyBRL(monthTotalUsed)}
           </Text>
-          <Text style={[styles.billsMonthLabel, { color: DS_COLORS.textMuted }]}>
-            {currentMonthBillsLabel}
-          </Text>
+          {monthTotalUsed > 0 && (
+            <Text style={[styles.billsMonthLabel, { color: DS_COLORS.textMuted }]}>
+              {currentMonthBillsLabel}
+            </Text>
+          )}
 
           {(hasFutureBillsAvailable || showFutureBills) && (
             <Pressable
@@ -745,7 +757,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   cardLabel: {
-    ...DS_TYPOGRAPHY.styles.label,
+    ...DS_TYPOGRAPHY.styles.body,
   },
   mainValueSection: {
     marginTop: 8,
@@ -834,8 +846,8 @@ const styles = StyleSheet.create({
   },
   cardItemName: {
     flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '400',
     lineHeight: 20,
   },
   statusBadgeNew: {
@@ -856,8 +868,8 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   cardItemValue: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
     lineHeight: 24,
   },
   cardProgressSection: {

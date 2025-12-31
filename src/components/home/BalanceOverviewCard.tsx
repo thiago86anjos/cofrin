@@ -125,12 +125,6 @@ export default memo(function BalanceOverviewCard({
           {/* Barra de progresso e percentual - apenas se houver mais de 1 conta */}
           {visibleAccounts.length > 1 && (
             <View style={styles.accountProgressSection}>
-              <Text style={[
-                styles.accountPercentage, 
-                { color: isZero ? colors.textMuted : colors.textSecondary }
-              ]}>
-                {percentage.toFixed(0)}% do total
-              </Text>
               <View style={[styles.accountProgressBg, { backgroundColor: colors.grayLight }]}>
                 <View 
                   style={[
@@ -141,6 +135,24 @@ export default memo(function BalanceOverviewCard({
                     }
                   ]} 
                 />
+                <View pointerEvents="none" style={styles.accountProgressOverlay}>
+                  <Text
+                    style={[
+                      styles.accountProgressText,
+                      {
+                        color:
+                          !isZero && percentage >= 55
+                            ? colors.textInverse
+                            : isZero
+                              ? colors.textMuted
+                              : colors.textSecondary,
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {percentage.toFixed(0)}%
+                  </Text>
+                </View>
               </View>
             </View>
           )}
@@ -271,7 +283,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   cardTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '400',
     marginBottom: 16,
   },
@@ -341,31 +353,42 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   accountCardName: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '400',
     lineHeight: 20,
   },
   accountCardValue: {
-    fontSize: 14,
-    fontWeight: '400',
+    fontSize: 16,
+    fontWeight: '600',
     lineHeight: 18,
   },
   accountProgressSection: {
-    gap: 8,
-  },
-  accountPercentage: {
-    fontSize: 12,
-    fontWeight: '400',
-    textAlign: 'right',
+    gap: 6,
   },
   accountProgressBg: {
-    height: 8,
-    borderRadius: 8,
+    height: 14,
+    borderRadius: 14,
     overflow: 'hidden',
+    position: 'relative',
   },
   accountProgressFill: {
     height: '100%',
-    borderRadius: 8,
+    borderRadius: 14,
+  },
+  accountProgressOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  accountProgressText: {
+    fontSize: 10,
+    fontWeight: '600',
+    lineHeight: 12,
   },
   emptyState: {
     alignItems: 'center',
