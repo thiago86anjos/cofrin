@@ -9,6 +9,7 @@ import { useHomeData } from "../hooks/useHomeData";
 import { useMonthlyGoals } from "../hooks/useMonthlyGoals";
 import { useAllGoals } from "../hooks/useAllGoals";
 import React, { useCallback, useState, useEffect, useDeferredValue } from "react";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import MainLayout from "../components/MainLayout";
 import {
   UpcomingFlowsCardShimmer,
@@ -37,6 +38,20 @@ export default function Home() {
   
   // Estado do modal de notificações
   const [notificationModalVisible, setNotificationModalVisible] = useState(false);
+  const [emergencyFundDismissed, setEmergencyFundDismissed] = useState(false);
+
+  // Carregar estado de dismissed ao montar
+  useEffect(() => {
+    const loadDismissedState = async () => {
+      try {
+        const dismissed = await AsyncStorage.getItem('@emergency_fund_tip_dismissed');
+        setEmergencyFundDismissed(dismissed === 'true');
+      } catch (error) {
+        console.error('Error loading dismissed state:', error);
+      }
+    };
+    loadDismissedState();
+  }, []);
 
   // Combinar todas as metas para verificação de alertas
   const allGoals = React.useMemo(() => {
@@ -70,15 +85,16 @@ export default function Home() {
 
     // Prioridade 3: Dica de reserva de emergência (info) - apenas segundas (ou todos os dias para teste)
     const hasEmergencyFund = allGoals.some(g => g.name === 'Reserva de emergência');
-    if (!hasEmergencyFund) {
+    if (!hasEmergencyFund && !emergencyFundDismissed) {
       const today = new Date();
       const isMonday = today.getDay() === 1;
       const isTestUser = (user?.email ?? '').toLowerCase() === 'thiago.w3c@gmail.com';
+      
       if (isMonday || isTestUser) return 'info';
     }
 
     return null;
-  }, [monthlyGoals, allGoals]);
+  }, [monthlyGoals, allGoals, emergencyFundDismissed, user?.email]);
 
   // Determinar saudação baseada na hora
   const getGreeting = () => {
@@ -359,6 +375,7 @@ export default function Home() {
           });
         }}
         userEmail={user?.email || undefined}
+        onDismissEmergencyFund={() => setEmergencyFundDismissed(true)}
       />
     </MainLayout>
   </View>

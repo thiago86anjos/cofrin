@@ -15,11 +15,12 @@ type Props = {
   onRefreshGoals: () => void;
   onNavigateToCreateEmergencyFund?: () => void;
   userEmail?: string;
+  onDismissEmergencyFund?: () => void;
 };
 
 type AlertType = 'goal_exceeded' | 'goal_completed' | 'emergency_fund_tip' | 'none';
 
-export default function NotificationModal({ visible, onClose, allGoals, onRefreshGoals, onNavigateToCreateEmergencyFund, userEmail }: Props) {
+export default function NotificationModal({ visible, onClose, allGoals, onRefreshGoals, onNavigateToCreateEmergencyFund, userEmail, onDismissEmergencyFund }: Props) {
   const [alertType, setAlertType] = useState<AlertType>('none');
   const [exceededGoal, setExceededGoal] = useState<Goal | null>(null);
   const [completedGoal, setCompletedGoal] = useState<Goal | null>(null);
@@ -77,26 +78,29 @@ export default function NotificationModal({ visible, onClose, allGoals, onRefres
     const hasEmergencyFund = allGoals.some(g => g.name === 'Reserva de emergência');
     
     if (!hasEmergencyFund) {
-      const today = new Date();
-      const isMonday = today.getDay() === 1; // 0 = domingo, 1 = segunda
-      const isTestUser = (userEmail ?? '').toLowerCase() === 'thiago.w3c@gmail.com';
-      
-      // Para teste: mostrar todos os dias se for thiago.w3c@gmail.com
-      // Para outros: apenas segundas-feiras
-      if (isMonday || isTestUser) {
-        try {
-          const lastShownDate = await AsyncStorage.getItem('@emergency_fund_tip_last_shown');
-          const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
-          
-          // Se nunca mostrou ou se já passou uma semana (ou se for test user e outro dia)
-          if (!lastShownDate || lastShownDate !== todayStr) {
-            await AsyncStorage.setItem('@emergency_fund_tip_last_shown', todayStr);
-            setAlertType('emergency_fund_tip');
-            return;
-          }
-        } catch (error) {
-          console.error('Error checking emergency fund tip:', error);
+      try {
+        // Verificar se usuário já clicou em "Criar depois"
+        const dismissed = await AsyncStorage.getItem('@emergency_fund_tip_dismissed');
+        if (dismissed === 'true') {
+          // Não mostrar mais a notificação
+          setAlertType('none');
+          setExceededGoal(null);
+          setCompletedGoal(null);
+          return;
         }
+        
+        const today = new Date();
+        const isMonday = today.getDay() === 1; // 0 = domingo, 1 = segunda
+        const isTestUser = (userEmail ?? '').toLowerCase() === 'thiago.w3c@gmail.com';
+        
+        // Para teste: mostrar todos os dias se for thiago.w3c@gmail.com
+        // Para outros: apenas segundas-feiras
+        if (isMonday || isTestUser) {
+          setAlertType('emergency_fund_tip');
+          return;
+        }
+      } catch (error) {
+        console.error('Error checking emergency fund tip:', error);
       }
     }
 
@@ -119,6 +123,19 @@ export default function NotificationModal({ visible, onClose, allGoals, onRefres
       console.error('Error acknowledging alert:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDismissEmergencyFundTip = async () => {
+    try {
+      // Marcar como permanentemente dismissed
+      await AsyncStorage.setItem('@emergency_fund_tip_dismissed', 'true');
+      if (onDismissEmergencyFund) {
+        onDismissEmergencyFund();
+      }
+      onClose();
+    } catch (error) {
+      console.error('Error dismissing emergency fund tip:', error);
     }
   };
 
@@ -179,11 +196,11 @@ export default function NotificationModal({ visible, onClose, allGoals, onRefres
 
             <Button 
               mode="text" 
-              onPress={onClose} 
+              onPress={handleDismissEmergencyFundTip} 
               textColor={DS_COLORS.textMuted}
               style={styles.closeButton}
             >
-              Fechar
+              Criar depois
             </Button>
           </View>
         </View>
