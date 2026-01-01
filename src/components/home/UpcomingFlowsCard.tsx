@@ -28,28 +28,36 @@ export default memo(function UpcomingFlowsCard({
     return { month: now.getMonth() + 1, year: now.getFullYear() };
   }, []);
 
-  const isPendingInCurrentMonth = (tx: Transaction) => {
+  // Verificar se transação está pendente e vence nos próximos 3 dias
+  const isPendingInNext3Days = (tx: Transaction) => {
     if (tx.status !== 'pending') return false;
-    if (tx.month === currentPeriod.month && tx.year === currentPeriod.year) return true;
-
-    // Fallback defensivo caso algum dado antigo não tenha month/year consistente
-    const date = tx.date?.toDate?.();
-    if (!date) return false;
-    return date.getMonth() + 1 === currentPeriod.month && date.getFullYear() === currentPeriod.year;
+    
+    const txDate = tx.date?.toDate?.();
+    if (!txDate) return false;
+    
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const in3Days = new Date(today);
+    in3Days.setDate(in3Days.getDate() + 3);
+    
+    const txDateOnly = new Date(txDate.getFullYear(), txDate.getMonth(), txDate.getDate());
+    
+    // Transação deve estar entre hoje e daqui 3 dias (inclusive)
+    return txDateOnly >= today && txDateOnly <= in3Days;
   };
 
-  // Calcular totais
+  // Calcular totais (apenas próximos 3 dias)
   const totalIncome = useMemo(() => {
     return incomeTransactions
-      .filter(isPendingInCurrentMonth)
+      .filter(isPendingInNext3Days)
       .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
-  }, [incomeTransactions, currentPeriod.month, currentPeriod.year]);
+  }, [incomeTransactions]);
 
   const totalExpense = useMemo(() => {
     return expenseTransactions
-      .filter(isPendingInCurrentMonth)
+      .filter(isPendingInNext3Days)
       .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
-  }, [expenseTransactions, currentPeriod.month, currentPeriod.year]);
+  }, [expenseTransactions]);
 
   // Determinar quais slides mostrar
   const slides: Array<{ type: 'income' | 'expense'; total: number }> = [];
