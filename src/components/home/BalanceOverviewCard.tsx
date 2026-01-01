@@ -182,7 +182,7 @@ export default memo(function BalanceOverviewCard({
         )}
 
         <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardTitle, { color: colors.textSecondary }]}>
+          <Text style={[styles.cardTitle, { color: colors.textMuted }]}>
             Seu dinheiro
           </Text>
 
@@ -231,7 +231,7 @@ export default memo(function BalanceOverviewCard({
       {/* Card Principal */}
       <View style={[styles.card, { backgroundColor: colors.card }]}>
         {/* Header do card */}
-        <Text style={[styles.cardTitle, { color: colors.textSecondary }]}>
+        <Text style={[styles.cardTitle, { color: colors.textMuted }]}>
           Seu dinheiro
         </Text>
 

@@ -297,12 +297,9 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
           const transactions = await getCreditCardTransactionsByMonth(user.uid, card.id, nextMonth, nextYear);
           const totalAmount = calculateBillTotal(transactions);
           
-          console.log(`[DEBUG CreditCardsCard] Card: ${card.name}, nextMonth: ${nextMonth}/${nextYear}, transactions: ${transactions.length}, totalAmount: ${totalAmount}`);
-          
           if (totalAmount <= 0) continue;
 
           const paid = await isBillPaid(user.uid, card.id, nextMonth, nextYear);
-          console.log(`[DEBUG CreditCardsCard] Card: ${card.name}, paid: ${paid}`);
           
           if (paid) continue;
 
@@ -311,14 +308,13 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
         }
 
         setHasFutureBillsAvailable(foundFutureBills);
-        console.log(`[DEBUG CreditCardsCard] hasFutureBillsAvailable: ${foundFutureBills}`);
         
         // Se o usuário estava vendo futuras mas não há mais, resetar
         if (!foundFutureBills && showFutureBills) {
           setShowFutureBills(false);
         }
       } catch (error) {
-        console.error('[DEBUG CreditCardsCard] Error checking future bills:', error);
+        console.error('[CreditCardsCard] Error checking future bills:', error);
         setHasFutureBillsAvailable(false);
         if (showFutureBills) setShowFutureBills(false);
       }
@@ -373,8 +369,8 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
     if (usageStatus.level === 'warning') return DS_COLORS.warning;
     if (usageStatus.level === 'alert') return DS_COLORS.error;
 
-    // controlled / no-income: manter neutro (cinza) como os demais títulos
-    return DS_COLORS.textMuted;
+    // controlled / no-income: usar cor padrão de valor (textTitle)
+    return DS_COLORS.textTitle;
   }, [monthTotalUsed, usageStatus.level]);
 
   // Porcentagem de uso
