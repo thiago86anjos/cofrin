@@ -297,23 +297,10 @@ export default function Launches() {
     // - Também não faz sentido quando filtroType=income
     const shouldIncludeBills = !categorySet && (!filterType || filterType === 'expense');
     const billItems = shouldIncludeBills ? creditCardBills.map((bill) => {
-      // Calcular a data de vencimento correta
-      // Se dueDay < closingDay, vencimento é no próximo mês
-      // Caso contrário, é no mesmo mês da fatura
-      let dueMonth = bill.month;
-      let dueYear = bill.year;
-      
-      if (bill.creditCard) {
-        const { closingDay, dueDay } = bill.creditCard;
-        if (dueDay < closingDay) {
-          // Vencimento é no mês seguinte
-          dueMonth += 1;
-          if (dueMonth > 12) {
-            dueMonth = 1;
-            dueYear += 1;
-          }
-        }
-      }
+      // Data de vencimento: mês da fatura + dia de vencimento do cartão
+      // Exemplo: Fatura Janeiro 2026 com vencimento dia 2 = 02/01/2026
+      const dueMonth = bill.month;
+      const dueYear = bill.year;
       
       // Obter o dia de vencimento do cartão ou da fatura
       const dueDay = bill.creditCard?.dueDay || bill.dueDate?.toDate().getDate() || 1;
