@@ -285,31 +285,47 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
     const checkFutureBills = async () => {
       if (!user?.uid || cards.length === 0) {
         setHasFutureBillsAvailable(false);
+        // Se não há cartões/usuário, resetar showFutureBills
+        if (showFutureBills) setShowFutureBills(false);
         return;
       }
 
       try {
+        let foundFutureBills = false;
+        
         for (const card of cards) {
           const transactions = await getCreditCardTransactionsByMonth(user.uid, card.id, nextMonth, nextYear);
           const totalAmount = calculateBillTotal(transactions);
+          
+          console.log(`[DEBUG CreditCardsCard] Card: ${card.name}, nextMonth: ${nextMonth}/${nextYear}, transactions: ${transactions.length}, totalAmount: ${totalAmount}`);
+          
           if (totalAmount <= 0) continue;
 
           const paid = await isBillPaid(user.uid, card.id, nextMonth, nextYear);
+          console.log(`[DEBUG CreditCardsCard] Card: ${card.name}, paid: ${paid}`);
+          
           if (paid) continue;
 
-          setHasFutureBillsAvailable(true);
-          return;
+          foundFutureBills = true;
+          break;
         }
 
+        setHasFutureBillsAvailable(foundFutureBills);
+        console.log(`[DEBUG CreditCardsCard] hasFutureBillsAvailable: ${foundFutureBills}`);
+        
+        // Se o usuário estava vendo futuras mas não há mais, resetar
+        if (!foundFutureBills && showFutureBills) {
+          setShowFutureBills(false);
+        }
+      } catch (error) {
+        console.error('[DEBUG CreditCardsCard] Error checking future bills:', error);
         setHasFutureBillsAvailable(false);
-      } catch {
-        setHasFutureBillsAvailable(false);
+        if (showFutureBills) setShowFutureBills(false);
       }
     };
 
-    // Não precisa rodar quando o usuário já está vendo as futuras
-    if (!showFutureBills) checkFutureBills();
-  }, [cards, user?.uid, nextMonth, nextYear, refreshKey, showFutureBills]);
+    checkFutureBills();
+  }, [cards, user?.uid, nextMonth, nextYear, refreshKey]);
 
   // Buscar totais de gastos do mês atual (independente de fatura paga/pendente/vencida)
   useEffect(() => {
@@ -370,6 +386,36 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
   const currentMonthCardsToShow = useMemo(() => {
     return cards.filter(card => (currentMonthBills[card.id] || 0) > 0);
   }, [cards, currentMonthBills]);
+
+  // Verificar se todas as faturas do mês atual estão resolvidas (pagas ou atrasadas)
+  // Só mostrar botão de faturas futuras se o usuário não tiver pendências abertas do mês atual
+  const allCurrentBillsResolved = useMemo(() => {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    for (const card of currentMonthCardsToShow) {
+      const billAmount = currentMonthBills[card.id] || 0;
+      if (billAmount <= 0) continue;
+      
+      const isPaid = !!currentMonthPaidBills[card.id];
+      if (isPaid) continue;
+      
+      // Verificar se está atrasada (vencimento < hoje)
+      const dueDate = buildDueDate(currentYear, currentMonth, card.dueDay);
+      const dueDateStart = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+      const isOverdue = dueDateStart.getTime() < todayStart.getTime();
+      
+      // Se não está paga E não está atrasada, ainda é pendente do mês atual
+      if (!isOverdue) {
+        return false;
+      }
+    }
+    
+    return true;
+  }, [currentMonthCardsToShow, currentMonthBills, currentMonthPaidBills, currentMonth, currentYear]);
+
+  // Só mostrar toggle de faturas futuras se houver faturas futuras E as do mês atual estiverem resolvidas
+  const canShowFutureBillsToggle = hasFutureBillsAvailable && allCurrentBillsResolved;
 
   const futurePendingCards = useMemo(() => {
     return cards.filter(card => {
@@ -531,7 +577,7 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
             </Text>
           )}
 
-          {(hasFutureBillsAvailable || showFutureBills) && (
+          {canShowFutureBillsToggle && (
             <Pressable
               onPress={() => {
                 if (isLoadingBills) return;
