@@ -81,7 +81,6 @@ interface Props {
 const RECURRENCE_OPTIONS: { label: string; value: RecurrenceType }[] = [
   { label: 'Não repetir', value: 'none' },
   { label: 'Semanal', value: 'weekly' },
-  { label: 'Quinzenal', value: 'biweekly' },
   { label: 'Mensal', value: 'monthly' },
   { label: 'Anual', value: 'yearly' },
 ];
@@ -2521,7 +2520,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: spacing.sm,
     letterSpacing: -0.5,
-  },
+    outlineStyle: 'none',
+  } as any,
   fieldRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2541,7 +2541,8 @@ const styles = StyleSheet.create({
   textInput: {
     fontSize: 15,
     paddingVertical: 2,
-  },
+    outlineStyle: 'none',
+  } as any,
   selectField: {
     flexDirection: 'row',
     alignItems: 'center',

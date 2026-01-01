@@ -3,7 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { useNavigation, NavigationProp, ParamListBase } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppFooter, { FOOTER_HEIGHT } from './AppFooter';
-import AddTransactionModal from './transactions/AddTransactionModal';
+import { AddTransactionModalV2 } from './transactions';
 import { useTransactionRefresh } from '../contexts/transactionRefreshContext';
 import { useAppTheme } from '../contexts/themeContext';
 import { spacing } from '../theme';
@@ -50,7 +50,7 @@ export default function MainLayout({ children }: Props) {
         onSettings={() => navigation.navigate('Configurações' as any)}
       />
 
-      <AddTransactionModal
+      <AddTransactionModalV2
         visible={modalVisible}
         initialType={modalType}
         onClose={() => setModalVisible(false)}

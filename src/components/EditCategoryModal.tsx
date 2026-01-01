@@ -226,7 +226,8 @@ const styles = StyleSheet.create({
   input: {
     paddingVertical: spacing.md,
     fontSize: 15,
-  },
+    outlineStyle: 'none',
+  } as any,
   iconGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

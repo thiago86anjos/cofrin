@@ -501,7 +501,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     padding: spacing.md,
     fontSize: 16,
-  },
+    outlineStyle: 'none',
+  } as any,
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -518,7 +519,8 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     paddingVertical: spacing.md,
-  },
+    outlineStyle: 'none',
+  } as any,
   helperText: {
     fontSize: 13,
     marginTop: spacing.xs,

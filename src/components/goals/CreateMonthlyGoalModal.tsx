@@ -507,7 +507,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     paddingVertical: spacing.md,
-  },
+    outlineStyle: 'none',
+  } as any,
   helperText: {
     fontSize: 13,
     marginTop: spacing.xs,

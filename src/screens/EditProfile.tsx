@@ -162,7 +162,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     marginLeft: spacing.sm,
     fontSize: 16,
-  },
+    outlineStyle: 'none',
+  } as any,
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',

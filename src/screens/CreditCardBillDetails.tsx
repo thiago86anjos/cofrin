@@ -12,7 +12,7 @@ import { useAppTheme } from '../contexts/themeContext';
 import { useAuth } from '../contexts/authContext';
 import { useTransactionRefresh } from '../contexts/transactionRefreshContext';
 import { useAccounts } from '../hooks/useAccounts';
-import AddTransactionModal, { EditableTransaction } from '../components/transactions/AddTransactionModal';
+import AddTransactionModalV2, { EditableTransaction } from '../components/transactions/AddTransactionModalV2';
 import TransactionItem from '../components/transactions/TransactionItem';
 import SimpleHeader from '../components/SimpleHeader';
 import MainLayout from '../components/MainLayout';
@@ -620,7 +620,7 @@ export default function CreditCardBillDetails() {
       />
       
       {/* Modal de edição de transação */}
-      <AddTransactionModal
+      <AddTransactionModalV2
         visible={editModalVisible}
         onClose={() => {
           setEditModalVisible(false);

@@ -419,7 +419,8 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '600',
     paddingVertical: spacing.md,
-  },
+    outlineStyle: 'none',
+  } as any,
   suggestions: {
     flexDirection: 'row',
     flexWrap: 'wrap',

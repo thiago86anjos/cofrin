@@ -1803,7 +1803,8 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     fontSize: 16,
-  },
+    outlineStyle: 'none',
+  } as any,
   iconGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

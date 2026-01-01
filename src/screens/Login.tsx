@@ -445,13 +445,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 16,
     color: '#322438',
-    ...Platform.select({
-      web: {
-        // web-specific outline removal removed to satisfy TypeScript TextStyle
-        // use CSS in web/styles.css if you need to adjust focus outlines
-      },
-    }),
-  },
+    outlineStyle: 'none',
+  } as any,
   eyeButton: {
     padding: 4,
     marginLeft: 0,

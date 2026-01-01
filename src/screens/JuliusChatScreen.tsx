@@ -1,16 +1,16 @@
 import React, { useState, useRef, useCallback } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  FlatList,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-  Keyboard,
-  Image,
+    View,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    FlatList,
+    StyleSheet,
+    KeyboardAvoidingView,
+    Platform,
+    ActivityIndicator,
+    Keyboard,
+    Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -447,7 +447,8 @@ const styles = StyleSheet.create({
     color: palette.text,
     maxHeight: 100,
     minHeight: 44,
-  },
+    outlineStyle: 'none',
+  } as any,
   sendButton: {
     width: 44,
     height: 44,

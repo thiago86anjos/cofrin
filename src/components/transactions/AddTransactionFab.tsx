@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Pressable, Text, View, StyleSheet } from 'react-native';
-import AddTransactionModal from './AddTransactionModal';
 import { palette } from '../../theme';
 import { useTransactionsState } from '../../state/useTransactions';
 import type { Transaction } from '../../state/transactionsState';
+import AddTransactionModalV2 from './AddTransactionModalV2';
 
 interface Props {
   style?: any;
@@ -55,7 +55,7 @@ export default function AddTransactionFab({ style, initialType = 'despesa' }: Pr
         <Text style={styles.plus}>+</Text>
       </Pressable>
 
-      <AddTransactionModal
+      <AddTransactionModalV2
         visible={visible}
         onClose={() => setVisible(false)}
         onSave={() => setVisible(false)}

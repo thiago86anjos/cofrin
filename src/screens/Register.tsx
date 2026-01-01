@@ -293,12 +293,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 16,
     color: '#322438',
-    ...Platform.select({
-      web: {
-        // Removed outlineStyle to fix TypeScript issue
-      },
-    }),
-  },
+    outlineStyle: 'none',
+  } as any,
   eyeButton: {
     padding: 4,
     marginLeft: 0,

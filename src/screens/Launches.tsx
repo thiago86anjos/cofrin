@@ -8,7 +8,7 @@ import { useSnackbar } from "../hooks/useSnackbar";
 import CustomAlert from "../components/CustomAlert";
 import Snackbar from "../components/Snackbar";
 import TransactionsList, { TransactionListItem } from '../components/transactions/TransactionsList';
-import AddTransactionModal, { EditableTransaction } from '../components/transactions/AddTransactionModal';
+import AddTransactionModalV2, { EditableTransaction } from '../components/transactions/AddTransactionModalV2';
 import { useTransactions } from '../hooks/useFirebaseTransactions';
 import { useCreditCards } from '../hooks/useCreditCards';
 import { useAppTheme } from '../contexts/themeContext';
@@ -21,8 +21,8 @@ import { FOOTER_HEIGHT } from '../components/AppFooter';
 import { spacing, borderRadius, getShadow } from '../theme';
 import type { Transaction, TransactionStatus } from '../types/firebase';
 import {
-  generateBillsForMonth,
-  CreditCardBillWithTransactions
+    generateBillsForMonth,
+    CreditCardBillWithTransactions
 } from '../services/creditCardBillService';
 
 // Tipos dos parâmetros de navegação
@@ -891,7 +891,7 @@ export default function Launches() {
 
       {/* Mini Modal de Status */}
       {/* Modal de edição */}
-      <AddTransactionModal
+      <AddTransactionModalV2
         visible={editModalVisible}
         onClose={() => {
           setEditModalVisible(false);

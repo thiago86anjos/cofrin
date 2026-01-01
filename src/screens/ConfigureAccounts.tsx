@@ -1291,7 +1291,8 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     fontSize: 16,
-  },
+    outlineStyle: 'none',
+  } as any,
   currency: {
     fontSize: 16,
     marginRight: spacing.sm,

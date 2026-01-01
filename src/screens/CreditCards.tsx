@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Modal, Platform } from "react-native";
+import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Modal } from "react-native";
 import { useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -952,13 +952,8 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     fontSize: 16,
-    ...Platform.select({
-      web: {
-        outlineWidth: 0,
-        outlineColor: 'transparent',
-      },
-    }),
-  },
+    outlineStyle: 'none',
+  } as any,
   currency: {
     fontSize: 16,
     marginRight: spacing.sm,
