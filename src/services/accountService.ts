@@ -20,6 +20,7 @@ import {
     CreateAccountInput,
     UpdateAccountInput,
 } from '../types/firebase';
+import { clearCarryOverCache } from './cacheService';
 
 const accountsRef = collection(db, COLLECTIONS.ACCOUNTS);
 
@@ -105,6 +106,11 @@ export async function updateAccount(
     ...data,
     updatedAt: Timestamp.now(),
   });
+  
+  // Limpar cache de saldos quando visibilidade (includeInTotal) ou saldo mudar
+  if ('includeInTotal' in data || 'initialBalance' in data || 'balance' in data) {
+    clearCarryOverCache();
+  }
 }
 
 // Atualizar saldo da conta

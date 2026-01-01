@@ -3,22 +3,22 @@
 // ==========================================
 
 import {
-    collection,
-    doc,
-    addDoc,
-    updateDoc,
-    deleteDoc,
-    getDocs,
-    getDoc,
-    query,
-    where, Timestamp
+  collection,
+  doc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  getDocs,
+  getDoc,
+  query,
+  where, Timestamp
 } from 'firebase/firestore';
 import { db, COLLECTIONS } from './firebase';
 import {
-    Transaction,
-    CreateTransactionInput,
-    UpdateTransactionInput,
-    TransactionType,
+  Transaction,
+  CreateTransactionInput,
+  UpdateTransactionInput,
+  TransactionType,
 } from '../types/firebase';
 import { updateAccountBalance, getAccounts } from './accountService';
 import { getCategoryById } from './categoryService';
@@ -26,36 +26,14 @@ import { getAccountById } from './accountService';
 import { getCreditCardById, updateCreditCardUsage, recalculateCreditCardUsage } from './creditCardService';
 import { addToGoalProgress, removeFromGoalProgress } from './goalService';
 import { getPendingBillsMap, getCorrectBillForTransaction } from './creditCardBillService';
+import {
+  carryOverCache,
+  accountCarryOverCache,
+  CACHE_TTL,
+  invalidateCachePartial,
+} from './cacheService';
 
 const transactionsRef = collection(db, COLLECTIONS.TRANSACTIONS);
-
-// ==========================================
-// FUNÇÕES DE CACHE - Invalidar quando transações mudam
-// ==========================================
-
-// Função para limpar o cache de saldos acumulados
-// Deve ser chamada após criar/atualizar/deletar transações
-function clearCarryOverCache(userId?: string, accountId?: string) {
-  if (accountId) {
-    // Limpar apenas cache desta conta
-    for (const key of accountCarryOverCache.keys()) {
-      if (key.startsWith(accountId)) {
-        accountCarryOverCache.delete(key);
-      }
-    }
-  } else if (userId) {
-    // Limpar cache geral deste usuário
-    for (const key of carryOverCache.keys()) {
-      if (key.startsWith(userId)) {
-        carryOverCache.delete(key);
-      }
-    }
-  } else {
-    // Limpar tudo
-    carryOverCache.clear();
-    accountCarryOverCache.clear();
-  }
-}
 
 // ==========================================
 // CRIAR TRANSAÇÃO
@@ -184,7 +162,7 @@ export async function createTransaction(
   }
 
   // Limpar cache de saldos
-  clearCarryOverCache(userId, data.accountId);
+  invalidateCachePartial(userId, data.accountId);
 
   // Retornar transação criada (com os mesmos dados salvos)
   return {
@@ -728,7 +706,7 @@ export async function updateTransaction(
     }
 
     // Limpar cache de saldos
-    clearCarryOverCache(oldTransaction.userId, oldTransaction.accountId);
+    invalidateCachePartial(oldTransaction.userId, oldTransaction.accountId);
   } catch (error) {
     console.error('❌ ERRO EM updateTransaction:', error);
     console.error('📝 Data recebida:', JSON.stringify(data, null, 2));
@@ -790,7 +768,7 @@ export async function deleteTransaction(transaction: Transaction): Promise<void>
   }
 
   // Limpar cache de saldos
-  clearCarryOverCache(transaction.userId, transaction.accountId);
+  invalidateCachePartial(transaction.userId, transaction.accountId);
 }
 
 // Buscar transações por seriesId
@@ -1557,8 +1535,6 @@ export async function getCategoryDataOverTime(
 // - Transações de cartão com fatura pendente não entram
 // - Transferências são ignoradas (não afetam saldo total)
 // OTIMIZADO: usa cache em memória e queries com filtros de data
-const carryOverCache = new Map<string, { balance: number; timestamp: number }>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 
 export async function getCarryOverBalance(
   userId: string,
@@ -1569,7 +1545,7 @@ export async function getCarryOverBalance(
   const cacheKey = `${userId}-${beforeMonth}-${beforeYear}`;
   const cached = carryOverCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached.balance;
+    return cached.value;
   }
 
   // Buscar todas as contas para obter a soma dos saldos iniciais
@@ -1615,7 +1591,7 @@ export async function getCarryOverBalance(
   }
 
   // Cachear resultado
-  carryOverCache.set(cacheKey, { balance: carryOver, timestamp: Date.now() });
+  carryOverCache.set(cacheKey, { value: carryOver, timestamp: Date.now() });
 
   return carryOver;
 }
@@ -1627,7 +1603,6 @@ export async function getCarryOverBalance(
 // 3. Transferências PARA esta conta são positivas
 // 4. Transferências DESTA conta são negativas
 // OTIMIZADO: usa cache e queries com filtros de data
-const accountCarryOverCache = new Map<string, { balance: number; timestamp: number }>();
 
 export async function getAccountCarryOverBalance(
   userId: string,
@@ -1636,10 +1611,10 @@ export async function getAccountCarryOverBalance(
   beforeYear: number
 ): Promise<number> {
   // Verificar cache
-  const cacheKey = `${accountId}-${beforeMonth}-${beforeYear}`;
+  const cacheKey = `${userId}-${accountId}-${beforeMonth}-${beforeYear}`;
   const cached = accountCarryOverCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached.balance;
+    return cached.value;
   }
 
   // Buscar a conta para obter o saldo inicial
@@ -1709,7 +1684,7 @@ export async function getAccountCarryOverBalance(
   }
 
   // Cachear resultado
-  accountCarryOverCache.set(cacheKey, { balance: carryOver, timestamp: Date.now() });
+  accountCarryOverCache.set(cacheKey, { value: carryOver, timestamp: Date.now() });
 
   return carryOver;
 }
