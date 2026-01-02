@@ -20,6 +20,8 @@ interface UseTransactionsOptions {
   accountId?: string;
   creditCardId?: string;
   limit?: number;
+  /** Quando true, filtra transações apenas de contas com includeInTotal=true */
+  onlyVisibleAccounts?: boolean;
 }
 
 export function useTransactions(options: UseTransactionsOptions = {}) {
@@ -29,7 +31,7 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { month, year, type, accountId, creditCardId, limit } = options;
+  const { month, year, type, accountId, creditCardId, limit, onlyVisibleAccounts } = options;
 
   // Carregar transações
   const loadTransactions = useCallback(async () => {
@@ -80,6 +82,19 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
         );
       }
 
+      // Filtrar transações de contas ocultas (se onlyVisibleAccounts ativado)
+      if (onlyVisibleAccounts && !accountId) {
+        const accounts = await getAccounts(user.uid);
+        const visibleAccountIds = new Set(
+          accounts.filter(acc => acc.includeInTotal).map(acc => acc.id)
+        );
+        data = data.filter(t => {
+          // Transações sem conta específica (ex: cartão) são incluídas
+          if (!t.accountId) return true;
+          return visibleAccountIds.has(t.accountId);
+        });
+      }
+
       setTransactions(data);
 
       // Carregar saldo acumulado dos meses anteriores (apenas se tiver mês/ano definido)
@@ -112,7 +127,7 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
     } finally {
       setLoading(false);
     }
-  }, [user?.uid, month, year, type, accountId, creditCardId, limit]);
+  }, [user?.uid, month, year, type, accountId, creditCardId, limit, onlyVisibleAccounts]);
 
   // Carregar ao montar
   useEffect(() => {

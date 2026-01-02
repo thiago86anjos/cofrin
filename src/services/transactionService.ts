@@ -1550,8 +1550,12 @@ export async function getCarryOverBalance(
 
   // Buscar todas as contas para obter a soma dos saldos iniciais
   const accounts = await getAccounts(userId);
-  const totalInitialBalance = accounts
-    .filter(acc => acc.includeInTotal)
+  
+  // Filtrar apenas contas visíveis (includeInTotal)
+  const visibleAccounts = accounts.filter(acc => acc.includeInTotal);
+  const visibleAccountIds = new Set(visibleAccounts.map(acc => acc.id));
+  
+  const totalInitialBalance = visibleAccounts
     .reduce((sum, acc) => sum + (acc.initialBalance || 0), 0);
 
   // Calcular data limite (último dia do mês anterior)
@@ -1572,13 +1576,18 @@ export async function getCarryOverBalance(
     ...doc.data(),
   })) as Transaction[];
 
-  // Começar com a soma dos saldos iniciais de todas as contas
+  // Começar com a soma dos saldos iniciais de todas as contas visíveis
   let carryOver = totalInitialBalance;
 
   for (const t of transactions) {
     // Ignorar transações de cartão de crédito (compras)
     // O impacto no saldo bancário é dado pelo PAGAMENTO DA FATURA (creditCardBillId)
     if (t.creditCardId) {
+      continue;
+    }
+    
+    // Ignorar transações de contas ocultas (não incluídas no total)
+    if (t.accountId && !visibleAccountIds.has(t.accountId)) {
       continue;
     }
     

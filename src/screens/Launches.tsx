@@ -107,10 +107,13 @@ export default function Launches() {
   const { activeCards, refresh: refreshCreditCards } = useCreditCards();
 
   // Hook do Firebase - sempre passar mês/ano; incluir filterAccountId quando houver
+  // Quando NÃO há filtro por conta, usar onlyVisibleAccounts para ignorar contas ocultas
   const transactionsOptions = {
     month: selectedMonth,
     year: selectedYear,
-    ...(filterAccountId ? { accountId: filterAccountId } : {}),
+    ...(filterAccountId 
+      ? { accountId: filterAccountId } 
+      : { onlyVisibleAccounts: true }),
   };
     
   const { 
