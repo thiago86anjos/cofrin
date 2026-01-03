@@ -44,6 +44,7 @@ interface TransactionFormV2Props {
   categoryName: string;
   categories: Category[];
   onSelectCategory: (categoryId: string, categoryName: string) => void;
+  disableCategoryChange?: boolean;
   showCategory?: boolean;
   
   // Account
@@ -136,6 +137,7 @@ export default function TransactionFormV2({
   categoryName,
   categories,
   onSelectCategory,
+  disableCategoryChange = false,
   showCategory = true,
   accountId,
   accountName,
@@ -225,7 +227,11 @@ export default function TransactionFormV2({
         {/* Categoria */}
         {type !== 'transfer' && showCategory && (
           <Pressable
-            onPress={() => onOpenPicker('category')}
+            onPress={() => {
+              if (disableCategoryChange) return;
+              onOpenPicker('category');
+            }}
+            disabled={disableCategoryChange}
             style={[
               styles.fieldRow,
               { 
@@ -248,9 +254,9 @@ export default function TransactionFormV2({
               {categoryName || 'Categoria'}
             </Text>
             <MaterialCommunityIcons 
-              name="chevron-down" 
+              name={disableCategoryChange ? 'lock-outline' : 'chevron-down'}
               size={20} 
-              color={categoryId ? typeColor : colors.gray} 
+              color={disableCategoryChange ? colors.textMuted : (categoryId ? typeColor : colors.gray)}
             />
           </Pressable>
         )}

@@ -367,20 +367,19 @@ export default function CategoryDetails() {
   }, [categoriesOfType]);
 
   const handleOpenLaunchesFiltered = useCallback((category: any) => {
-    const now = new Date();
-    const month = now.getMonth() + 1;
-    const year = now.getFullYear();
-
     const filterCategoryIds = buildCategoryIdsForFilter(category.categoryId);
 
     navigation.navigate('Lançamentos', {
-      month,
-      year,
+      context: 'category',
+      month: selectedMonth,
+      year: selectedYear,
       filterType: transactionType,
+      filterStatus: 'completed',
       filterCategoryIds,
       filterCategoryName: category.categoryName,
+      filterCategoryTotal: category.total,
     });
-  }, [navigation, transactionType, buildCategoryIdsForFilter]);
+  }, [navigation, transactionType, buildCategoryIdsForFilter, selectedMonth, selectedYear]);
 
   const renderCategoryCard = (category: any, index: number) => {
     if (!currentPeriodData) return null;

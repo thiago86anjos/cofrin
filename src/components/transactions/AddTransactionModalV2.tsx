@@ -87,6 +87,8 @@ interface Props {
   /** ID da conta pré-selecionada (usado quando FAB é clicado dentro de uma conta) */
   initialAccountId?: string;
   editTransaction?: EditableTransaction | null;
+  /** Quando true, impede alterar a categoria (somente leitura) */
+  disableCategoryChange?: boolean;
 }
 
 export default function AddTransactionModalV2({
@@ -98,6 +100,7 @@ export default function AddTransactionModalV2({
   initialType = 'despesa',
   initialAccountId,
   editTransaction,
+  disableCategoryChange,
 }: Props) {
   const { colors } = useAppTheme();
   const { refreshKey } = useTransactionRefresh();
@@ -865,6 +868,7 @@ export default function AddTransactionModalV2({
                     categoryName={categoryName}
                     categories={filteredCategories}
                     onSelectCategory={(id, name) => { setCategoryId(id); setCategoryName(name); }}
+                    disableCategoryChange={disableCategoryChange}
                     showCategory={type !== 'transfer' && !isGoalTransaction && !isMetaCategoryTransaction}
                     accountId={accountId}
                     accountName={accountName}
@@ -887,7 +891,10 @@ export default function AddTransactionModalV2({
                     isFutureInstallment={isFutureInstallment}
                     isFirstInstallmentOfSeries={isEditMode && !!editTransaction?.seriesId && editTransaction?.installmentCurrent === 1 && (editTransaction?.installmentTotal || 0) > 1}
                     installmentInfo={editTransaction?.installmentTotal ? { current: editTransaction.installmentCurrent || 1, total: editTransaction.installmentTotal } : null}
-                    onOpenPicker={(picker) => setActivePicker(picker as PickerType)}
+                    onOpenPicker={(picker) => {
+                      if (disableCategoryChange && picker === 'category') return;
+                      setActivePicker(picker as PickerType);
+                    }}
                     onAnticipate={handleAnticipate}
                     onMoveSeries={handleMoveSeries}
                     onRecurrenceToggled={(enabled) => {

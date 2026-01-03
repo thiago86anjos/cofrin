@@ -23,7 +23,8 @@ import { spacing, borderRadius, getShadow } from '../theme';
 import type { Transaction, TransactionStatus } from '../types/firebase';
 import {
     generateBillsForMonth,
-    CreditCardBillWithTransactions
+    CreditCardBillWithTransactions,
+    getPendingBillsMap
 } from '../services/creditCardBillService';
 
 // Tipos dos parâmetros de navegação
@@ -32,10 +33,12 @@ interface RouteParams {
   accountName?: string;
   month?: number;
   year?: number;
+  context?: 'cashflow' | 'category';
   filterType?: 'expense' | 'income';
   filterStatus?: TransactionStatus;
   filterCategoryIds?: string[];
   filterCategoryName?: string;
+  filterCategoryTotal?: number;
 }
 
 // Nomes dos meses em português
@@ -66,8 +69,11 @@ export default function Launches() {
   const [filterAccountId, setFilterAccountId] = useState<string | undefined>(params.accountId);
   const [filterAccountName, setFilterAccountName] = useState<string | undefined>(params.accountName);
 
+  const [screenContext, setScreenContext] = useState<RouteParams['context']>(params.context);
+
   const [filterCategoryIds, setFilterCategoryIds] = useState<string[] | undefined>(params.filterCategoryIds);
   const [filterCategoryName, setFilterCategoryName] = useState<string | undefined>(params.filterCategoryName);
+  const [filterCategoryTotal, setFilterCategoryTotal] = useState<number | undefined>(params.filterCategoryTotal);
   const [filterType, setFilterType] = useState<RouteParams['filterType']>(params.filterType);
   const [filterStatus, setFilterStatus] = useState<RouteParams['filterStatus']>(params.filterStatus);
   
@@ -77,8 +83,11 @@ export default function Launches() {
     setFilterAccountId(newParams.accountId);
     setFilterAccountName(newParams.accountName);
 
+    setScreenContext(newParams.context);
+
     setFilterCategoryIds(newParams.filterCategoryIds);
     setFilterCategoryName(newParams.filterCategoryName);
+    setFilterCategoryTotal(newParams.filterCategoryTotal);
     setFilterType(newParams.filterType);
     setFilterStatus(newParams.filterStatus);
 
@@ -114,9 +123,15 @@ export default function Launches() {
   // Estado para faturas de cartão de crédito
   const [creditCardBills, setCreditCardBills] = useState<CreditCardBillWithTransactions[]>([]);
   const [billsLoading, setBillsLoading] = useState(false);
+
+  // No modo categoria, precisamos respeitar a mesma regra da tela de categorias:
+  // ignorar transações de cartão quando a fatura correspondente estiver pendente.
+  const [pendingBillsMap, setPendingBillsMap] = useState<Map<string, boolean> | null>(null);
   
   // Hook de cartões de crédito
   const { activeCards, refresh: refreshCreditCards } = useCreditCards();
+
+  const isCategoryContext = screenContext === 'category';
 
   // Hook do Firebase - sempre passar mês/ano; incluir filterAccountId quando houver
   // Quando NÃO há filtro por conta, usar onlyVisibleAccounts para ignorar contas ocultas
@@ -189,6 +204,30 @@ export default function Launches() {
       loadCreditCardBills();
     }
   }, [refreshKey]);
+
+  // Carregar mapa de faturas pendentes (consistência no modo categoria)
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPendingBills = async () => {
+      if (!user || !isCategoryContext) {
+        setPendingBillsMap(null);
+        return;
+      }
+      try {
+        const map = await getPendingBillsMap(user.uid);
+        if (!cancelled) setPendingBillsMap(map);
+      } catch (error) {
+        console.error('Erro ao carregar faturas pendentes:', error);
+        if (!cancelled) setPendingBillsMap(null);
+      }
+    };
+
+    loadPendingBills();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, isCategoryContext, refreshKey]);
   
   // Limpar filtro de conta
   const clearAccountFilter = () => {
@@ -201,11 +240,15 @@ export default function Launches() {
   const clearCategoryFilter = () => {
     setFilterCategoryIds(undefined);
     setFilterCategoryName(undefined);
+    setFilterCategoryTotal(undefined);
     setFilterType(undefined);
     setFilterStatus(undefined);
+    setScreenContext(undefined);
     navigation.setParams({
+      context: undefined,
       filterCategoryIds: undefined,
       filterCategoryName: undefined,
+      filterCategoryTotal: undefined,
       filterType: undefined,
       filterStatus: undefined,
     } as any);
@@ -268,6 +311,20 @@ export default function Launches() {
         return true;
       })
       .filter((t: Transaction) => {
+        // Consistência com a tela de categorias:
+        // para despesas no cartão, só considerar quando a fatura do mês estiver paga.
+        if (
+          isCategoryContext &&
+          filterStatus === 'completed' &&
+          filterType === 'expense' &&
+          t.creditCardId &&
+          t.month &&
+          t.year &&
+          pendingBillsMap?.has(`${t.creditCardId}-${t.month}-${t.year}`)
+        ) {
+          return false;
+        }
+
         if (filterType && t.type !== filterType) return false;
         if (filterStatus && t.status !== filterStatus) return false;
         if (categorySet) {
@@ -343,7 +400,7 @@ export default function Launches() {
     return [...transactionItems, ...billItems].sort((a, b) => {
       return new Date(a.date).getTime() - new Date(b.date).getTime();
     });
-  }, [transactions, creditCardBills, filterCategoryIds, filterType, filterStatus]) as Array<{
+  }, [transactions, creditCardBills, filterCategoryIds, filterType, filterStatus, isCategoryContext, pendingBillsMap]) as Array<{
     id: string;
     date: string;
     title: string;
@@ -662,6 +719,13 @@ export default function Launches() {
   const expenseColor = colors.expense;
   const balanceColor = colors.primary;
 
+  const categoryTotalPaid = useMemo(() => {
+    if (!isCategoryContext) return 0;
+    return listItems
+      .filter((i) => i.itemType === 'transaction')
+      .reduce((sum, i) => sum + Math.abs(i.amount || 0), 0);
+  }, [isCategoryContext, listItems]);
+
   return (
     <MainLayout>
       <SimpleHeader title="Fluxo de Caixa" />
@@ -729,13 +793,15 @@ export default function Launches() {
                     <View style={[styles.filterChip, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, marginTop: filterAccountName ? spacing.xs : 0 }]}>
                       <MaterialCommunityIcons name="tag" size={16} color={colors.textMuted} />
                       <Text style={[styles.filterChipText, { color: colors.text }]}> {filterCategoryName} </Text>
-                      <Pressable
-                        onPress={clearCategoryFilter}
-                        hitSlop={8}
-                        style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}
-                      >
-                        <MaterialCommunityIcons name="close-circle" size={18} color={colors.textMuted} />
-                      </Pressable>
+                      {!isCategoryContext && (
+                        <Pressable
+                          onPress={clearCategoryFilter}
+                          hitSlop={8}
+                          style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}
+                        >
+                          <MaterialCommunityIcons name="close-circle" size={18} color={colors.textMuted} />
+                        </Pressable>
+                      )}
                     </View>
                   )}
                 </View>
@@ -856,30 +922,48 @@ export default function Launches() {
       <View style={[styles.summaryContainer, { bottom: summaryBottom }]}>
         <View style={[styles.summaryBar, { backgroundColor: colors.card, borderTopColor: colors.border, borderBottomColor: colors.border, 
           paddingBottom: spacing.lg }, getShadow(colors)]}>
-          {/* Linha principal - Saldo + Botão */}
           <View style={styles.summaryMainRow}>
-            {/* Saldo Atual */}
-            <View style={styles.summaryPrimary}>
-              <Text style={[styles.summaryLabelMain, { color: colors.textMuted }]}>saldo atual</Text>
-              <Text style={[styles.summaryAmountMain, { color: balance >= 0 ? colors.primary : expenseColor }]}>
-                {formatCurrencyBRL(balance)}
-              </Text>
-            </View>
+            {isCategoryContext && filterCategoryName ? (
+              <View style={styles.summaryPrimary}>
+                <Text style={[styles.categoryFooterLabel, { color: colors.textMuted }]}>
+                  {filterType === 'income' ? 'Você recebeu um total de' : 'Você gastou um total de'}
+                </Text>
+                <Text
+                  style={[
+                    styles.categoryFooterAmount,
+                    { color: filterType === 'income' ? colors.income : expenseColor }
+                  ]}
+                >
+                  {formatCurrencyBRL(categoryTotalPaid)}
+                </Text>
+                <Text style={[styles.categoryFooterHint, { color: colors.textMuted }]}>
+                  Total pago no período
+                </Text>
+              </View>
+            ) : (
+              <>
+                <View style={styles.summaryPrimary}>
+                  <Text style={[styles.summaryLabelMain, { color: colors.textMuted }]}>saldo atual</Text>
+                  <Text style={[styles.summaryAmountMain, { color: balance >= 0 ? colors.primary : expenseColor }]}>
+                    {formatCurrencyBRL(balance)}
+                  </Text>
+                </View>
 
-            {/* Botão Entenda seu Saldo */}
-            <Pressable
-              onPress={() => setShowForecastTooltip(true)}
-              style={({ pressed }) => [
-                styles.understandButton,
-                { backgroundColor: colors.primaryBg, borderColor: colors.primary },
-                pressed && { opacity: 0.7 }
-              ]}
-            >
-              <MaterialCommunityIcons name="chart-line" size={16} color={colors.primary} />
-              <Text style={[styles.understandButtonText, { color: colors.primary }]}>
-                Entenda seu saldo
-              </Text>
-            </Pressable>
+                <Pressable
+                  onPress={() => setShowForecastTooltip(true)}
+                  style={({ pressed }) => [
+                    styles.understandButton,
+                    { backgroundColor: colors.primaryBg, borderColor: colors.primary },
+                    pressed && { opacity: 0.7 }
+                  ]}
+                >
+                  <MaterialCommunityIcons name="chart-line" size={16} color={colors.primary} />
+                  <Text style={[styles.understandButtonText, { color: colors.primary }]}>
+                    Entenda seu saldo
+                  </Text>
+                </Pressable>
+              </>
+            )}
           </View>
         </View>
       </View>
@@ -896,6 +980,7 @@ export default function Launches() {
         onDelete={handleDeleteTransaction}
         onDeleteSeries={handleDeleteSeries}
         editTransaction={editingTransaction}
+        disableCategoryChange={isCategoryContext}
       />
       <CustomAlert
         visible={alertState.visible}
@@ -1055,6 +1140,20 @@ const styles = StyleSheet.create({
   summaryAmountMain: {
     fontSize: 20,
     fontWeight: '700',
+  },
+  categoryFooterLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  categoryFooterAmount: {
+    fontSize: 28,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  categoryFooterHint: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 2,
   },
   understandButton: {
     flexDirection: 'row',
