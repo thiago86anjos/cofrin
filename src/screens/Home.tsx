@@ -56,16 +56,6 @@ export default function Home() {
     return [...monthlyGoals, ...longTermGoals];
   }, [monthlyGoals, longTermGoals]);
 
-  // IDs das contas visíveis (para filtrar transações pendentes)
-  const visibleAccountIds = React.useMemo(() => {
-    if (!accounts) return new Set<string>();
-    return new Set(
-      accounts
-        .filter(acc => acc.includeInTotal !== false)
-        .map(acc => acc.id)
-    );
-  }, [accounts]);
-
   // Verificar tipo de alerta
   const alertType = React.useMemo(() => {
     // Prioridade 1: Meta de receita completa (sucesso)
@@ -154,6 +144,16 @@ export default function Home() {
     refreshAccounts,
     refreshCards: refreshCreditCards,
   } = useHomeData(currentMonth, currentYear);
+
+  // IDs das contas visíveis (para filtrar transações pendentes)
+  const visibleAccountIds = React.useMemo(() => {
+    if (!accounts) return new Set<string>();
+    return new Set(
+      accounts
+        .filter(acc => acc.includeInTotal !== false)
+        .map(acc => acc.id)
+    );
+  }, [accounts]);
 
   // Retry automático para novos usuários (dados iniciais podem estar sendo criados)
   const [retryCount, setRetryCount] = useState(0);
