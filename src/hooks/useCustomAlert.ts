@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
 interface AlertButton {
   text: string;
@@ -21,18 +21,18 @@ export function useCustomAlert() {
     buttons: [],
   });
 
-  const showAlert = (title: string, message?: string, buttons?: AlertButton[]) => {
+  const showAlert = useCallback((title: string, message?: string, buttons?: AlertButton[]) => {
     setAlertState({
       visible: true,
       title,
       message,
       buttons: buttons || [{ text: 'OK', style: 'default' }],
     });
-  };
+  }, []);
 
-  const hideAlert = () => {
+  const hideAlert = useCallback(() => {
     setAlertState(prev => ({ ...prev, visible: false }));
-  };
+  }, []);
 
   return {
     alertState,

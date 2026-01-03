@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Modal } from "react-native";
-import { useRoute } from '@react-navigation/native';
+import { useRoute, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppTheme } from "../contexts/themeContext";
+import { useFab } from "../contexts/fabContext";
 import { useCustomAlert } from "../hooks/useCustomAlert";
 import { useSnackbar } from "../hooks/useSnackbar";
 import CustomAlert from "../components/CustomAlert";
@@ -12,6 +13,7 @@ import LoadingOverlay from "../components/LoadingOverlay";
 import MainLayout from "../components/MainLayout";
 import SimpleHeader from "../components/SimpleHeader";
 import DayPicker from "../components/DayPicker";
+import CreateCreditCardModal from "../components/CreateCreditCardModal";
 import { useAuth } from "../contexts/authContext";
 import { spacing, borderRadius, getShadow } from "../theme";
 import { useCreditCards } from "../hooks/useCreditCards";
@@ -26,6 +28,7 @@ export default function CreditCards({ navigation }: any) {
   const route = useRoute<any>();
   const { colors } = useAppTheme();
   const { user } = useAuth();
+  const { setFabAction, clearFabAction } = useFab();
   const { alertState, showAlert, hideAlert } = useCustomAlert();
   const { snackbarState, showSnackbar, hideSnackbar } = useSnackbar();
   const { triggerRefresh } = useTransactionRefresh();
@@ -40,7 +43,11 @@ export default function CreditCards({ navigation }: any) {
     progress: null as { current: number; total: number } | null,
   });
 
-  // Estado para modal unificada (criar/editar)
+  // Modal rápida de criar/editar cartão (padrão visual da modal de transação)
+  const [quickCreateVisible, setQuickCreateVisible] = useState(false);
+  const [quickEditCard, setQuickEditCard] = useState<CreditCard | null>(null);
+
+  // Estado para modal unificada (criar/editar) - antiga, para operações complexas
   const [modalVisible, setModalVisible] = useState(false);
   const [isCreateMode, setIsCreateMode] = useState(false);
   const [editingCard, setEditingCard] = useState<CreditCard | null>(null);
@@ -65,6 +72,31 @@ export default function CreditCards({ navigation }: any) {
   } = useCreditCards();
   
   const { activeAccounts } = useAccounts();
+
+  // Registrar ação do FAB quando a tela estiver em foco
+  useFocusEffect(
+    useCallback(() => {
+      setFabAction(() => {
+        // Verificar se há contas antes de abrir
+        if (activeAccounts.length === 0) {
+          showAlert(
+            'Conta necessária',
+            'Para cadastrar um cartão de crédito, você precisa ter pelo menos uma conta cadastrada para pagamento da fatura.',
+            [
+              { text: 'Cancelar', style: 'cancel' },
+              { 
+                text: 'Criar conta', 
+                onPress: () => navigation.navigate('ConfigureAccounts'),
+              },
+            ]
+          );
+          return;
+        }
+        setQuickCreateVisible(true);
+      });
+      return () => clearFabAction();
+    }, [setFabAction, clearFabAction, activeAccounts.length, showAlert, navigation])
+  );
 
   // Abrir modal de criação automaticamente se vier da Home com openCreate=true
   useEffect(() => {
@@ -238,20 +270,45 @@ export default function CreditCards({ navigation }: any) {
 
   // Arquivar cartão foi removido do fluxo.
 
-  // Abrir modal de edição
+  // Abrir modal de edição (usa a nova modal compacta)
   function openEditModal(card: CreditCard) {
-    const account = activeAccounts.find(a => a.id === card.paymentAccountId);
-    setEditingCard(card);
-    setIsCreateMode(false);
-    setCardName(card.name);
-    // Formatar limite para exibição (1234.56 → "1.234,56")
-    setCardLimit(card.limit.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-    setCardClosingDay(card.closingDay.toString());
-    setCardDueDay(card.dueDay.toString());
-    setCardAccountId(card.paymentAccountId || '');
-    setCardAccountName(account?.name || '');
-    setCardColor(card.color || '#6366F1');
-    setModalVisible(true);
+    setQuickEditCard(card);
+    setQuickCreateVisible(true);
+  }
+
+  // Excluir cartão pela modal rápida (com confirmação)
+  function handleQuickDelete(cardId: string) {
+    const card = activeCards.find(c => c.id === cardId);
+    const deleteCardName = card?.name || 'este cartão';
+    
+    // Limpar estado da modal antes de mostrar alerta
+    setQuickCreateVisible(false);
+    setQuickEditCard(null);
+    
+    showAlert(
+      'Excluir cartão',
+      `Deseja realmente excluir "${deleteCardName}"? Os lançamentos do cartão serão mantidos.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Excluir', 
+          style: 'destructive', 
+          onPress: async () => {
+            try {
+              const success = await deleteCreditCard(cardId);
+              if (success) {
+                showSnackbar('Cartão excluído com sucesso');
+                triggerRefresh();
+              } else {
+                showSnackbar('Erro ao excluir cartão', 'error');
+              }
+            } catch (error) {
+              showSnackbar('Erro ao excluir cartão', 'error');
+            }
+          }
+        },
+      ]
+    );
   }
 
   // Salvar edição
@@ -501,26 +558,12 @@ export default function CreditCards({ navigation }: any) {
               <Text style={[styles.emptyText, { color: colors.textMuted }]}>
                 Nenhum cartão cadastrado
               </Text>
+              <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
+                Toque no + para cadastrar
+              </Text>
             </View>
           </View>
         )}
-
-        {/* Botão para cadastrar novo cartão */}
-        <Pressable
-          onPress={openCreateModal}
-          style={({ pressed }) => [
-            styles.actionRow,
-            { backgroundColor: colors.card },
-            getShadow(colors),
-            pressed && { opacity: 0.9 },
-          ]}
-        >
-          <View style={[styles.actionIconCircle, { backgroundColor: colors.primaryBg }]}>
-            <MaterialCommunityIcons name="plus" size={22} color={colors.primary} />
-          </View>
-          <Text style={[styles.actionText, { color: colors.primary }]}>Cadastrar novo cartão</Text>
-          <MaterialCommunityIcons name="chevron-right" size={22} color={colors.textMuted} />
-        </Pressable>
           </View>
         </View>
       </ScrollView>
@@ -832,6 +875,18 @@ export default function CreditCards({ navigation }: any) {
         message={loadingOverlay.message}
         progress={loadingOverlay.progress}
       />
+      
+      {/* Modal rápida de criação/edição */}
+      <CreateCreditCardModal
+        visible={quickCreateVisible}
+        onClose={() => {
+          setQuickCreateVisible(false);
+          setQuickEditCard(null);
+        }}
+        onSave={triggerRefresh}
+        onDelete={handleQuickDelete}
+        editCard={quickEditCard}
+      />
       </View>
     </MainLayout>
   );
@@ -845,7 +900,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 120,
+    paddingBottom: 12,
   },
   centeredContainer: {
     maxWidth: 1200,
@@ -871,6 +926,11 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 14,
     marginTop: spacing.sm,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 12,
+    marginTop: spacing.xs,
     textAlign: 'center',
   },
   section: {
