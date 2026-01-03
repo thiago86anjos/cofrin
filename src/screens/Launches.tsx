@@ -707,16 +707,9 @@ export default function Launches() {
               <View style={styles.controlsRow}>
                 <View style={{ flex: 1 }}>
                   {filterAccountName && (
-                    <View style={[styles.filterChip, { backgroundColor: colors.primaryBg, marginTop: 0 }]}>
-                      <MaterialCommunityIcons name="filter-variant" size={16} color={colors.primary} />
-                      <Text style={[styles.filterChipText, { color: colors.primary }]}> {filterAccountName} </Text>
-                      <Pressable
-                        onPress={clearAccountFilter}
-                        hitSlop={8}
-                        style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}
-                      >
-                        <MaterialCommunityIcons name="close-circle" size={18} color={colors.primary} />
-                      </Pressable>
+                    <View style={[styles.filterChipSmall, { backgroundColor: colors.primaryBg }]}>
+                      <MaterialCommunityIcons name="bank" size={12} color={colors.primary} />
+                      <Text style={[styles.filterChipTextSmall, { color: colors.primary }]}>{filterAccountName}</Text>
                     </View>
                   )}
 
@@ -1206,5 +1199,18 @@ const styles = StyleSheet.create({
   filterChipText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  filterChipSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.full,
+    gap: 4,
+  },
+  filterChipTextSmall: {
+    fontSize: 12,
+    fontWeight: '500',
   },
 });
