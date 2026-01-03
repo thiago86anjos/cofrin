@@ -4,7 +4,7 @@
  * Arquitetura modular com componentes extraídos
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
     View,
     StyleSheet,
@@ -84,6 +84,8 @@ interface Props {
   onDelete?: (id: string) => void;
   onDeleteSeries?: (seriesId: string, fromInstallment?: number) => void;
   initialType?: LocalTransactionType;
+  /** ID da conta pré-selecionada (usado quando FAB é clicado dentro de uma conta) */
+  initialAccountId?: string;
   editTransaction?: EditableTransaction | null;
 }
 
@@ -94,6 +96,7 @@ export default function AddTransactionModalV2({
   onDelete,
   onDeleteSeries,
   initialType = 'despesa',
+  initialAccountId,
   editTransaction,
 }: Props) {
   const { colors } = useAppTheme();
@@ -107,6 +110,12 @@ export default function AddTransactionModalV2({
   const { activeAccounts, refresh: refreshAccounts } = useAccounts();
   const { activeCards, refresh: refreshCreditCards } = useCreditCards();
   const { createTransaction, updateTransaction } = useTransactions();
+
+  // Filtrar contas ocultas (includeInTotal !== false)
+  const visibleAccounts = useMemo(() => 
+    activeAccounts.filter(acc => acc.includeInTotal !== false),
+    [activeAccounts]
+  );
 
   // Mode
   const isEditMode = !!editTransaction;
@@ -163,10 +172,10 @@ export default function AddTransactionModalV2({
 
   const sourceAccount = React.useMemo(() => {
     if (type === 'transfer' || (type === 'despesa' && !useCreditCard)) {
-      return activeAccounts.find(acc => acc.id === accountId);
+      return visibleAccounts.find(acc => acc.id === accountId);
     }
     return null;
-  }, [type, accountId, useCreditCard, activeAccounts]);
+  }, [type, accountId, useCreditCard, visibleAccounts]);
 
   const canConfirm = React.useMemo(() => {
     if (!hasAmount || !description.trim()) return false;
@@ -269,21 +278,50 @@ export default function AddTransactionModalV2({
         setCreditCardName('');
         setCategoryId('');
         setCategoryName('');
-        
-        if (activeAccounts.length > 0) {
-          setAccountId(activeAccounts[0].id);
-          setAccountName(activeAccounts[0].name);
-          if (activeAccounts.length > 1) {
-            setToAccountId(activeAccounts[1].id);
-            setToAccountName(activeAccounts[1].name);
-          }
-        }
+        setAccountId('');
+        setAccountName('');
+        setToAccountId('');
+        setToAccountName('');
       }
       
       // Focus amount after delay
       setTimeout(() => amountInputRef.current?.focus(), 350);
     }
   }, [visible, initialType, refreshCategories, refreshAccounts, refreshCreditCards, refreshKey]);
+
+  // Definir conta inicial após carregar contas (separado para evitar loop)
+  useEffect(() => {
+    if (!visible || editTransaction) return;
+    if (visibleAccounts.length === 0) return;
+    
+    // Só definir se ainda não tem conta selecionada
+    if (accountId) return;
+    
+    // Aplicar conta pré-selecionada (initialAccountId) ou primeira conta visível
+    if (initialAccountId) {
+      const preselectedAccount = visibleAccounts.find(acc => acc.id === initialAccountId);
+      if (preselectedAccount) {
+        setAccountId(preselectedAccount.id);
+        setAccountName(preselectedAccount.name);
+      } else if (visibleAccounts.length > 0) {
+        setAccountId(visibleAccounts[0].id);
+        setAccountName(visibleAccounts[0].name);
+      }
+    } else {
+      setAccountId(visibleAccounts[0].id);
+      setAccountName(visibleAccounts[0].name);
+    }
+    
+    // Para transferência, definir conta destino
+    if (visibleAccounts.length > 1 && !toAccountId) {
+      const sourceId = initialAccountId || visibleAccounts[0]?.id;
+      const destAccount = visibleAccounts.find(acc => acc.id !== sourceId);
+      if (destAccount) {
+        setToAccountId(destAccount.id);
+        setToAccountName(destAccount.name);
+      }
+    }
+  }, [visible, editTransaction, visibleAccounts, initialAccountId, accountId, toAccountId]);
 
   // Sync tempDate when opening date picker
   useEffect(() => {
@@ -668,7 +706,7 @@ export default function AddTransactionModalV2({
 
     if (activePicker === 'account' || activePicker === 'toAccount') {
       const isToAccount = activePicker === 'toAccount';
-      const accountsList = isToAccount ? activeAccounts.filter(a => a.id !== accountId) : activeAccounts;
+      const accountsList = isToAccount ? visibleAccounts.filter(a => a.id !== accountId) : visibleAccounts;
       
       return (
         <AccountPicker
@@ -750,7 +788,7 @@ export default function AddTransactionModalV2({
   };
 
   // No accounts message
-  if (visible && activeAccounts.length === 0) {
+  if (visible && visibleAccounts.length === 0) {
     return (
       <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
         <Pressable style={styles.overlay} onPress={onClose}>
@@ -793,7 +831,7 @@ export default function AddTransactionModalV2({
                 amount={amount}
                 onAmountChange={handleAmountChange}
                 amountInputRef={amountInputRef}
-                disabled={activeAccounts.length === 0 || !!isGoalTransaction}
+                disabled={visibleAccounts.length === 0 || !!isGoalTransaction}
                 hideTypeSelector={!!isGoalTransaction || !!isMetaCategoryTransaction || isAnticipationDiscount}
                 colors={{
                   text: colors.text,

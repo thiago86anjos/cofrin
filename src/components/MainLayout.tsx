@@ -17,7 +17,7 @@ export default function MainLayout({ children }: Props) {
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const insets = useSafeAreaInsets();
   const { triggerRefresh } = useTransactionRefresh();
-  const { fabAction } = useFab();
+  const { fabAction, fabData } = useFab();
   const { colors } = useAppTheme();
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -64,6 +64,7 @@ export default function MainLayout({ children }: Props) {
       <AddTransactionModalV2
         visible={modalVisible}
         initialType={modalType}
+        initialAccountId={fabData.initialAccountId}
         onClose={() => setModalVisible(false)}
         onSave={handleSave}
       />

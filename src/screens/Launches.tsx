@@ -5,6 +5,7 @@ import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCustomAlert } from "../hooks/useCustomAlert";
 import { useSnackbar } from "../hooks/useSnackbar";
+import { useFab } from "../contexts/fabContext";
 import CustomAlert from "../components/CustomAlert";
 import Snackbar from "../components/Snackbar";
 import TransactionsList, { TransactionListItem } from '../components/transactions/TransactionsList';
@@ -48,6 +49,7 @@ export default function Launches() {
   const { snackbarState, showSnackbar, hideSnackbar } = useSnackbar();
   const { colors } = useAppTheme();
   const { refreshKey, triggerRefresh } = useTransactionRefresh();
+  const { setFabData, clearFabData } = useFab();
   const { user } = useAuth();
   const route = useRoute();
   const navigation = useNavigation<any>();
@@ -86,6 +88,16 @@ export default function Launches() {
       setSelectedYear(newParams.year);
     }
   }, [route.params]);
+
+  // Registrar conta atual no FAB quando a tela estiver em foco
+  useFocusEffect(
+    useCallback(() => {
+      if (filterAccountId) {
+        setFabData({ initialAccountId: filterAccountId });
+      }
+      return () => clearFabData();
+    }, [filterAccountId, setFabData, clearFabData])
+  );
   
   // Estado do mês/ano selecionado
   const today = new Date();
