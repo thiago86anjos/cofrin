@@ -160,9 +160,7 @@ export function useHomeData(month: number, year: number): HomeData {
   // Carregar cartões
   const loadCards = useCallback(async () => {
     if (!user?.uid) {
-      setCreditCards([]);
-      setLoadingCards(false);
-      return;
+      return; // Mantém loading=true até user estar disponível
     }
 
     try {

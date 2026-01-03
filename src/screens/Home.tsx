@@ -298,7 +298,7 @@ export default function Home() {
             <View style={{ height: 24 }} />
 
             {/* 2. Meus cartões de crédito - carrega independente */}
-            {loadingCards ? (
+            {loadingCards && activeCards.length === 0 ? (
               <CreditCardsCardShimmer />
             ) : (
               <CreditCardsCard 
