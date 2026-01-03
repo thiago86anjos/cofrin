@@ -178,7 +178,9 @@ export default function AddTransactionModalV2({
   }, [type, accountId, useCreditCard, visibleAccounts]);
 
   const canConfirm = React.useMemo(() => {
-    if (!hasAmount || !description.trim()) return false;
+    if (!hasAmount) return false;
+    // Descrição obrigatória apenas para despesa/receita, não para transferência
+    if (type !== 'transfer' && !description.trim()) return false;
     if (type === 'transfer' && accountId && toAccountId && accountId === toAccountId) return false;
     if (type !== 'transfer' && !categoryId) return false;
     return true;
