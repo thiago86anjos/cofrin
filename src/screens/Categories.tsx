@@ -14,6 +14,7 @@ import CustomAlert from "../components/CustomAlert";
 import Snackbar from "../components/Snackbar";
 import MainLayout from "../components/MainLayout";
 import SimpleHeader from "../components/SimpleHeader";
+import CreateCategoryModal from "../components/CreateCategoryModal";
 
 export default function Categories({ navigation }: any) {
   const { colors } = useAppTheme();
@@ -26,10 +27,14 @@ export default function Categories({ navigation }: any) {
   const [categoryType, setCategoryType] = useState<CategoryType>('expense');
   const [saving, setSaving] = useState(false);
   
-  // Modal unificado para criar/editar
+  // Modal unificado para criar/editar (antiga, para casos complexos com subcategorias)
   const [modalVisible, setModalVisible] = useState(false);
   const [isCreateMode, setIsCreateMode] = useState(true);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  
+  // Modal rápida de criar/editar categoria (padrão visual da modal de transação)
+  const [quickCreateVisible, setQuickCreateVisible] = useState(false);
+  const [quickEditCategory, setQuickEditCategory] = useState<Category | null>(null);
 
   const [iconsModalVisible, setIconsModalVisible] = useState(false);
   
@@ -119,37 +124,52 @@ export default function Categories({ navigation }: any) {
   // Registrar ação do FAB quando a tela estiver em foco
   useFocusEffect(
     useCallback(() => {
-      setFabAction(() => openCreateModal());
+      setFabAction(() => setQuickCreateVisible(true));
       return () => clearFabAction();
     }, [setFabAction, clearFabAction])
   );
 
-  // Abrir modal para editar categoria
+  // Abrir modal para editar categoria (usa a nova modal compacta)
   async function openEditModal(category: Category) {
-    setEditingCategory(category);
-    setCategoryName(category.name);
-    setCategoryIcon(category.icon);
-    setCategoryColor(category.color || '');
-    setCategoryParentId(category.parentId || '');
-    setIsCreateMode(false);
-    setModalVisible(true);
-    setShowAddSubcategory(false);
-    setParentSelectOpen(false);
-    setNewSubcategoryName('');
-    setPendingSubcategoryNames([]);
+    setQuickEditCategory(category);
+    setQuickCreateVisible(true);
+  }
+
+  // Excluir categoria pela modal rápida (com confirmação)
+  function handleQuickDelete(categoryId: string) {
+    // Buscar categoria nas listas para obter o nome
+    const allCategories = [...expenseCategories, ...incomeCategories];
+    const category = allCategories.find(c => c.id === categoryId);
+    const deleteCategoryName = category?.name || 'esta categoria';
     
-    // Carregar subcategorias desta categoria
-    if (user?.uid && !category.parentId) {
-      setLoadingSubcategories(true);
-      try {
-        const subs = await getSubcategories(category.id);
-        setSubcategories(subs);
-      } catch (error) {
-        console.error('Erro ao carregar subcategorias:', error);
-      } finally {
-        setLoadingSubcategories(false);
-      }
-    }
+    // Limpar estado da modal antes de mostrar alerta
+    setQuickCreateVisible(false);
+    setQuickEditCategory(null);
+    
+    showAlert(
+      'Excluir categoria',
+      `Deseja realmente excluir "${deleteCategoryName}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Excluir', 
+          style: 'destructive', 
+          onPress: async () => {
+            try {
+              const success = await deleteCategory(categoryId);
+              if (success) {
+                showSnackbar('Categoria excluída com sucesso', 'success');
+                refresh();
+              } else {
+                showSnackbar('Erro ao excluir categoria', 'error');
+              }
+            } catch (error) {
+              showSnackbar('Erro ao excluir categoria', 'error');
+            }
+          }
+        },
+      ]
+    );
   }
 
   // Verificar se houve alterações nos dados da categoria
@@ -1619,6 +1639,19 @@ export default function Categories({ navigation }: any) {
         duration={snackbarState.duration}
         onDismiss={hideSnackbar}
       />
+      
+      {/* Modal rápida de criação/edição */}
+      <CreateCategoryModal
+        visible={quickCreateVisible}
+        onClose={() => {
+          setQuickCreateVisible(false);
+          setQuickEditCategory(null);
+        }}
+        onSave={refresh}
+        onDelete={handleQuickDelete}
+        initialType={categoryType}
+        editCategory={quickEditCategory}
+      />
       </View>
     </MainLayout>
   );
@@ -1632,7 +1665,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 120,
+    paddingBottom: 12,
   },
   centeredContainer: {
     maxWidth: 1200,
