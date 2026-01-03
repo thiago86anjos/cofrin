@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppFooter, { FOOTER_HEIGHT } from './AppFooter';
 import { AddTransactionModalV2 } from './transactions';
 import { useTransactionRefresh } from '../contexts/transactionRefreshContext';
+import { useFab } from '../contexts/fabContext';
 import { useAppTheme } from '../contexts/themeContext';
 import { spacing } from '../theme';
 
@@ -16,6 +17,7 @@ export default function MainLayout({ children }: Props) {
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const insets = useSafeAreaInsets();
   const { triggerRefresh } = useTransactionRefresh();
+  const { fabAction } = useFab();
   const { colors } = useAppTheme();
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -27,9 +29,18 @@ export default function MainLayout({ children }: Props) {
     return FOOTER_HEIGHT + footerPaddingTop + footerPaddingBottom;
   }, [insets.bottom]);
 
-  function openAdd() {
+  function openDefaultAdd() {
     setModalType('despesa');
     setModalVisible(true);
+  }
+
+  // Usa ação customizada do contexto se existir, senão usa a padrão (modal de transação)
+  function handleFabPress() {
+    if (fabAction) {
+      fabAction();
+    } else {
+      openDefaultAdd();
+    }
   }
 
   function handleSave() {
@@ -44,7 +55,7 @@ export default function MainLayout({ children }: Props) {
 
       <AppFooter
         onHome={() => navigation.navigate('Bem-vindo' as any)}
-        onAdd={openAdd}
+        onAdd={handleFabPress}
         onLaunches={() => navigation.navigate('Metas do ano' as any)}
         onCategories={() => navigation.navigate('CategoryDetails' as any)}
         onSettings={() => navigation.navigate('Configurações' as any)}

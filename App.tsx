@@ -1,6 +1,7 @@
 import RootNavigation from "./src/navigation";
 import { AuthProvider } from "./src/contexts/authContext";
 import { ThemeProvider } from "./src/contexts/themeContext";
+import { FabProvider } from "./src/contexts/fabContext";
 import { SystemNavigationBar } from "./src/components/SystemNavigationBar";
 import { TransactionsProvider } from './src/state/transactionsContext';
 import { TransactionRefreshProvider } from './src/contexts/transactionRefreshContext';
@@ -77,9 +78,11 @@ export default function App() {
           <PaperProvider theme={paperTheme}>
             <TransactionsProvider>
               <TransactionRefreshProvider>
-                <AuthProvider>
-                  <RootNavigation />
-                </AuthProvider>
+                <FabProvider>
+                  <AuthProvider>
+                    <RootNavigation />
+                  </AuthProvider>
+                </FabProvider>
               </TransactionRefreshProvider>
             </TransactionsProvider>
           </PaperProvider>

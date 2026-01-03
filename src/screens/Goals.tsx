@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button } from 'react-native-paper';
-import { useRoute, RouteProp } from '@react-navigation/native';
+import { useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { Timestamp } from 'firebase/firestore';
 import MainLayout from '../components/MainLayout';
 import SimpleHeader from '../components/SimpleHeader';
@@ -13,6 +12,7 @@ import AddToGoalModal from '../components/AddToGoalModal';
 import { useAppTheme } from '../contexts/themeContext';
 import { useAuth } from '../contexts/authContext';
 import { useTransactionRefresh } from '../contexts/transactionRefreshContext';
+import { useFab } from '../contexts/fabContext';
 import { useCategories } from '../hooks/useCategories';
 import { useMonthlyGoals } from '../hooks/useMonthlyGoals';
 import { useAllGoals } from '../hooks/useAllGoals';
@@ -38,6 +38,7 @@ export default function Goals() {
   const { user } = useAuth();
   const { categories } = useCategories();
   const { refreshKey } = useTransactionRefresh();
+  const { setFabAction, clearFabAction } = useFab();
   const { goals: monthlyGoals, loading, create, update, remove, refresh } = useMonthlyGoals();
   
 
@@ -56,6 +57,14 @@ export default function Goals() {
   const [selectedMonthlyGoal, setSelectedMonthlyGoal] = useState<any>(null);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [isCreatingEmergencyFund, setIsCreatingEmergencyFund] = useState(false);
+
+  // Registrar ação do FAB quando a tela estiver em foco
+  useFocusEffect(
+    useCallback(() => {
+      setFabAction(() => setShowChooseTypeModal(true));
+      return () => clearFabAction();
+    }, [setFabAction, clearFabAction])
+  );
 
   // Se receber activeTab via navegação, aplicar
   useEffect(() => {
@@ -332,22 +341,6 @@ export default function Goals() {
             />
           )}
         </ScrollView>
-
-        {/* Botão Criar Meta */}
-        <View style={styles.createButtonContainer}>
-          <Button
-            mode="contained"
-            onPress={handleCreateGoal}
-            buttonColor={DS_COLORS.primary}
-            textColor="#FFFFFF"
-            style={styles.createButton}
-            contentStyle={styles.createButtonContent}
-            labelStyle={styles.createButtonLabel}
-            icon="plus-circle"
-          >
-            Criar Meta
-          </Button>
-        </View>
       </View>
 
       <ChooseGoalTypeModal
@@ -793,23 +786,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: spacing.md,
-  },
-  createButtonContainer: {
-    padding: spacing.md,
-    paddingTop: spacing.sm,
-    backgroundColor: 'transparent',
-  },
-  createButton: {
-    borderRadius: borderRadius.md,
-    elevation: 0,
-  },
-  createButtonContent: {
-    height: 48,
-  },
-  createButtonLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.5,
   },
   emptyContainer: {
     flex: 1,
