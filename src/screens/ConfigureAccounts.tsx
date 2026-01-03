@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Modal, Platform } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useFocusEffect } from '@react-navigation/native';
 import { useAppTheme } from "../contexts/themeContext";
 import { useAuth } from "../contexts/authContext";
 import { spacing, borderRadius, getShadow } from "../theme";
 import { useAccounts } from "../hooks/useAccounts";
 import { useCustomAlert } from "../hooks/useCustomAlert";
 import { useSnackbar } from "../hooks/useSnackbar";
+import { useFab } from "../contexts/fabContext";
 import CustomAlert from "../components/CustomAlert";
 import Snackbar from "../components/Snackbar";
 import LoadingOverlay from "../components/LoadingOverlay";
@@ -39,6 +41,7 @@ export default function ConfigureAccounts({ navigation }: any) {
   const { alertState, showAlert, hideAlert } = useCustomAlert();
   const { snackbarState, showSnackbar, hideSnackbar } = useSnackbar();
   const { triggerRefresh } = useTransactionRefresh();
+  const { setFabAction, clearFabAction } = useFab();
   const insets = useSafeAreaInsets();
   
   const [saving, setSaving] = useState(false);
@@ -145,7 +148,7 @@ export default function ConfigureAccounts({ navigation }: any) {
   }
 
   // Resetar estados do modal
-  function resetModalState() {
+  const resetModalState = useCallback(() => {
     setAccountName('');
     setAccountType('checking');
     setAccountIcon('bank');
@@ -156,14 +159,22 @@ export default function ConfigureAccounts({ navigation }: any) {
     setShowTooltip(false);
     setShowIncludeTooltip(false);
     setFocusedField(null);
-  }
+  }, []);
 
   // Abrir modal para criar conta
-  function openCreateModal() {
+  const openCreateModal = useCallback(() => {
     resetModalState();
     setIsCreateMode(true);
     setModalVisible(true);
-  }
+  }, [resetModalState]);
+
+  // Registrar ação do FAB quando a tela estiver em foco
+  useFocusEffect(
+    useCallback(() => {
+      setFabAction(() => openCreateModal());
+      return () => clearFabAction();
+    }, [setFabAction, clearFabAction, openCreateModal])
+  );
 
   // Abrir modal para editar conta
   function openEditModal(account: Account) {
@@ -678,57 +689,48 @@ export default function ConfigureAccounts({ navigation }: any) {
           </View>
         )}
 
-        {/* Botão para cadastrar nova conta */}
-        <Pressable
-          onPress={openCreateModal}
-          style={({ pressed }) => [
-            styles.actionRow,
-            { backgroundColor: colors.card },
-            getShadow(colors),
-            pressed && { opacity: 0.9 },
-          ]}
-        >
-          <View style={[styles.actionIconCircle, { backgroundColor: colors.primaryBg }]}>
-            <MaterialCommunityIcons name="plus" size={20} color={colors.primary} />
-          </View>
-          <Text style={[styles.actionText, { color: colors.primary }]}>Cadastrar nova conta</Text>
-          <MaterialCommunityIcons name="chevron-right" size={22} color={colors.textMuted} />
-        </Pressable>
           </View>
         </View>
       </ScrollView>
 
-      {/* Modal Fullscreen de Criar/Editar */}
+      {/* Modal de Criar/Editar (padrão visual da modal de transação) */}
       <Modal
         visible={modalVisible}
-        animationType="slide"
-        transparent={false}
+        animationType="fade"
+        transparent={true}
         onRequestClose={() => setModalVisible(false)}
         statusBarTranslucent
       >
-        <View style={[styles.fullscreenModal, { backgroundColor: colors.bg, paddingTop: insets.top }]}>
-          {/* Header moderno */}
-          <View style={[styles.fullscreenHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              {isCreateMode ? 'Nova Conta' : 'Editar Conta'}
-            </Text>
-            <Pressable
-              onPress={() => setModalVisible(false)}
-              style={({ pressed }) => [
-                styles.closeButton,
-                { backgroundColor: colors.bg === '#FFFFFF' ? '#f0f0f0' : 'rgba(255,255,255,0.1)' },
-                pressed && { transform: [{ scale: 0.95 }] },
-              ]}
-            >
-              <MaterialCommunityIcons name="close" size={22} color={colors.text} />
-            </Pressable>
-          </View>
-
-          <ScrollView 
-            style={styles.modalBody} 
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: spacing.xl }}
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setModalVisible(false)}
+        >
+          <Pressable
+            style={[styles.accountModalCard, { backgroundColor: colors.card }, getShadow(colors)]}
+            onPress={(e) => e.stopPropagation()}
           >
+            {/* Header */}
+            <View style={[styles.fullscreenHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                {isCreateMode ? 'Nova Conta' : 'Editar Conta'}
+              </Text>
+              <Pressable
+                onPress={() => setModalVisible(false)}
+                style={({ pressed }) => [
+                  styles.closeButton,
+                  { backgroundColor: colors.bg === '#FFFFFF' ? '#f0f0f0' : 'rgba(255,255,255,0.1)' },
+                  pressed && { transform: [{ scale: 0.95 }] },
+                ]}
+              >
+                <MaterialCommunityIcons name="close" size={22} color={colors.text} />
+              </Pressable>
+            </View>
+
+            <ScrollView 
+              style={[styles.modalBody, styles.accountModalScroll]} 
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: spacing.xl }}
+            >
             {/* Nome */}
             <View style={styles.formGroup}>
               <Text style={[styles.label, { color: colors.text }]}>Nome da conta</Text>
@@ -978,15 +980,14 @@ export default function ConfigureAccounts({ navigation }: any) {
                   {!editingAccount?.isDefault && (
                     <Pressable
                       onPress={handleDeleteFromModal}
+                      disabled={saving}
                       style={({ pressed }) => [
-                        styles.actionButton,
                         styles.deleteButton,
-                        { borderColor: colors.expense },
-                        pressed && { opacity: 0.7 },
+                        { borderColor: colors.border, backgroundColor: colors.bg },
+                        (pressed || saving) && { opacity: 0.7 },
                       ]}
                     >
-                      <MaterialCommunityIcons name="delete-outline" size={20} color={colors.expense} />
-                      <Text style={[styles.actionButtonText, { color: colors.expense }]}>Excluir</Text>
+                      <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.text} />
                     </Pressable>
                   )}
 
@@ -1027,8 +1028,9 @@ export default function ConfigureAccounts({ navigation }: any) {
                 </Text>
               </Pressable>
             )}
-          </ScrollView>
-        </View>
+            </ScrollView>
+          </Pressable>
+        </Pressable>
       </Modal>
 
       {/* Modal de Ajuste de Saldo */}
@@ -1124,7 +1126,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 120,
+    paddingBottom: 12,
   },
   centeredContainer: {
     maxWidth: 1200,
@@ -1255,6 +1257,16 @@ const styles = StyleSheet.create({
   fullscreenModal: {
     flex: 1,
     overflow: 'hidden',
+  },
+  accountModalCard: {
+    width: '100%',
+    maxWidth: 520,
+    maxHeight: '90%',
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+  },
+  accountModalScroll: {
+    maxHeight: 520,
   },
   fullscreenHeader: {
     flexDirection: 'row',
@@ -1535,7 +1547,12 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   deleteButton: {
-    backgroundColor: 'transparent',
+    width: 48,
+    height: 48,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
   },
   actionButtonText: {
     fontSize: 14,

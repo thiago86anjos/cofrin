@@ -347,9 +347,6 @@ export default function CreateMonthlyGoalModal({ visible, onClose, onSave, exist
                 ]}
               >
                 <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.text} />
-                <Text style={[styles.deleteButtonText, { color: colors.text }]}>
-                  {deleting ? 'Excluindo...' : 'Excluir'}
-                </Text>
               </Pressable>
             )}
 
