@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Modal, Platform } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { useAppTheme } from "../contexts/themeContext";
 import { useAuth } from "../contexts/authContext";
+import { useFab } from "../contexts/fabContext";
 import { spacing, borderRadius, getShadow } from "../theme";
 import { useCategories } from "../hooks/useCategories";
 import { useCustomAlert, useSnackbar } from "../hooks";
@@ -16,6 +18,7 @@ import SimpleHeader from "../components/SimpleHeader";
 export default function Categories({ navigation }: any) {
   const { colors } = useAppTheme();
   const { user } = useAuth();
+  const { setFabAction, clearFabAction } = useFab();
   const { alertState, showAlert, hideAlert } = useCustomAlert();
   const { snackbarState, showSnackbar, hideSnackbar } = useSnackbar();
   const insets = useSafeAreaInsets();
@@ -113,6 +116,13 @@ export default function Categories({ navigation }: any) {
     setModalVisible(true);
   }
 
+  // Registrar ação do FAB quando a tela estiver em foco
+  useFocusEffect(
+    useCallback(() => {
+      setFabAction(() => openCreateModal());
+      return () => clearFabAction();
+    }, [setFabAction, clearFabAction])
+  );
 
   // Abrir modal para editar categoria
   async function openEditModal(category: Category) {
@@ -954,23 +964,6 @@ export default function Categories({ navigation }: any) {
                 </View>
               </View>
             )}
-
-            {/* Botão para criar nova categoria */}
-            <Pressable
-              onPress={openCreateModal}
-              style={({ pressed }) => [
-                styles.actionRow,
-                { backgroundColor: colors.card },
-                getShadow(colors),
-                pressed && { opacity: 0.9 },
-              ]}
-            >
-              <View style={[styles.actionIconCircle, { backgroundColor: colors.primaryBg }]}>
-                <MaterialCommunityIcons name="plus" size={20} color={colors.primary} />
-              </View>
-              <Text style={[styles.actionText, { color: colors.primary }]}>Criar nova categoria</Text>
-              <MaterialCommunityIcons name="chevron-right" size={22} color={colors.textMuted} />
-            </Pressable>
           </View>
         </View>
       </ScrollView>
