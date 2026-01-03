@@ -76,7 +76,7 @@ export default function AppFooter({ onHome, onAdd, onLaunches, onCategories, onS
             </View>
 
             <View style={styles.slot}>
-              <IconButton icon="swap-horizontal" onPress={onLaunches} routeName="Lançamentos" />
+              <IconButton icon="target" onPress={onLaunches} routeName="Metas do ano" />
             </View>
 
             <View style={styles.centerSlot}>

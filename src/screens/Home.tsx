@@ -8,19 +8,17 @@ import { useAppTheme } from "../contexts/themeContext";
 import { useHomeData } from "../hooks/useHomeData";
 import { useMonthlyGoals } from "../hooks/useMonthlyGoals";
 import { useAllGoals } from "../hooks/useAllGoals";
-import React, { useCallback, useState, useEffect, useDeferredValue } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MainLayout from "../components/MainLayout";
 import {
-  UpcomingFlowsCardShimmer,
-  AccountsCardShimmer,
-  CreditCardsCardShimmer, CategoryCardShimmer
+    UpcomingFlowsCardShimmer,
+    AccountsCardShimmer,
+    CreditCardsCardShimmer
 } from "../components/home/HomeShimmer";
 import BalanceOverviewCard from "../components/home/BalanceOverviewCard";
 import { UpcomingFlowsCard } from "../components/home";
-import TopCategoriesCard from "../components/TopCategoriesCard";
 import CreditCardsCard from "../components/home/CreditCardsCard";
-import GoalCard from "../components/home/GoalCard";
 import NotificationModal from "../components/home/NotificationModal";
 import { DS_COLORS } from "../theme/designSystem";
 
@@ -57,6 +55,16 @@ export default function Home() {
   const allGoals = React.useMemo(() => {
     return [...monthlyGoals, ...longTermGoals];
   }, [monthlyGoals, longTermGoals]);
+
+  // IDs das contas visíveis (para filtrar transações pendentes)
+  const visibleAccountIds = React.useMemo(() => {
+    if (!accounts) return new Set<string>();
+    return new Set(
+      accounts
+        .filter(acc => acc.includeInTotal !== false)
+        .map(acc => acc.id)
+    );
+  }, [accounts]);
 
   // Verificar tipo de alerta
   const alertType = React.useMemo(() => {
@@ -129,10 +137,6 @@ export default function Home() {
     totalIncome,
     totalExpense,
     
-    // Categorias
-    expensesByCategory: categoryExpenses,
-    incomesByCategory: categoryIncomes,
-    
     // Contas
     accounts,
     totalAccountsBalance,
@@ -144,17 +148,12 @@ export default function Home() {
     loadingPending,
     loadingAccounts,
     loadingCards,
-    loadingCategories,
     
     // Refresh functions
     refresh,
     refreshAccounts,
     refreshCards: refreshCreditCards,
   } = useHomeData(currentMonth, currentYear);
-
-  // Usar useDeferredValue para dados não críticos (evita bloquear UI)
-  const deferredCategoryExpenses = useDeferredValue(categoryExpenses);
-  const deferredCategoryIncomes = useDeferredValue(categoryIncomes);
 
   // Retry automático para novos usuários (dados iniciais podem estar sendo criados)
   const [retryCount, setRetryCount] = useState(0);
@@ -197,7 +196,6 @@ export default function Home() {
   }, [navigation]);
 
   // Callbacks memoizados para evitar re-renders dos componentes filhos
-  const navigateToGoals = useCallback(() => navigation.navigate('Metas do ano'), [navigation]);
   const navigateToConfigureAccounts = useCallback(() => navigation.navigate('ConfigureAccounts'), [navigation]);
 
   // Refresh quando a tela ganhar foco (ex: voltar de Lançamentos)
@@ -277,6 +275,7 @@ export default function Home() {
                 incomeTransactions={pendingIncomes}
                 expenseTransactions={pendingExpenses}
                 loading={loadingPending}
+                visibleAccountIds={visibleAccountIds}
               />
             )}
 
@@ -311,23 +310,6 @@ export default function Home() {
             )}
 
             <View style={{ height: 24 }} />
-
-            {/* 3. Meta Financeira - card fixo de navegação */}
-            <GoalCard onPress={navigateToGoals} />
-
-            <View style={{ height: 24 }} />
-
-            {/* 4. Resumo por Categoria - carrega independente */}
-            {loadingCategories ? (
-              <CategoryCardShimmer />
-            ) : (
-              <TopCategoriesCard
-                expenses={deferredCategoryExpenses}
-                incomes={deferredCategoryIncomes}
-                totalExpenses={totalExpense}
-                totalIncomes={totalIncome}
-              />
-            )}
 
             {/* <View style={{ height: 24 }} /> */}
 

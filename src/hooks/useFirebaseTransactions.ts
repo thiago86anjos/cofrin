@@ -12,6 +12,7 @@ import {
     TransactionType,
 } from '../types/firebase';
 import * as transactionService from '../services/transactionService';
+import { getAccounts } from '../services/accountService';
 
 interface UseTransactionsOptions {
   month?: number;
