@@ -1485,7 +1485,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   modalBody: {
-    flex: 1,
     paddingHorizontal: spacing.md,
   },
   modalActionsColumn: {
