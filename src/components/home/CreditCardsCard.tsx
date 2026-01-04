@@ -1,8 +1,7 @@
 import { View, StyleSheet, Pressable, Modal, Animated } from 'react-native';
-import { ActivityIndicator, Text } from 'react-native-paper';
+import { Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useState, useMemo, memo, useEffect, useRef } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { formatCurrencyBRL } from '../../utils/format';
 import { CreditCard } from '../../types/firebase';
 import { getCreditCardTransactionsByMonth, calculateBillTotal, isBillPaid } from '../../services/creditCardBillService';
@@ -10,7 +9,7 @@ import { useAuth } from '../../contexts/authContext';
 import { useTransactionRefresh } from '../../contexts/transactionRefreshContext';
 import { DS_COLORS, DS_TYPOGRAPHY, DS_ICONS, DS_CARD, DS_SPACING } from '../../theme/designSystem';
 
-const SHOW_FUTURE_BILLS_STORAGE_KEY = '@cofrin:home_show_future_bills';
+// UX: seções colapsáveis (não persistido por enquanto)
 
 function ShimmerBlock({
   width,
@@ -175,9 +174,12 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
   const [openBills, setOpenBills] = useState<Record<string, OpenBillSummary>>({});
   const [currentMonthBills, setCurrentMonthBills] = useState<Record<string, number>>({});
   const [currentMonthPaidBills, setCurrentMonthPaidBills] = useState<Record<string, boolean>>({});
-  const [showFutureBills, setShowFutureBills] = useState(false);
   const [isLoadingBills, setIsLoadingBills] = useState(false);
   const [hasFutureBillsAvailable, setHasFutureBillsAvailable] = useState<boolean>(false);
+
+  const [showPaidBills, setShowPaidBills] = useState(true);
+  const [showFutureBills, setShowFutureBills] = useState(false);
+  const didToggleSectionsRef = useRef(false);
 
   // Mês atual
   const currentDate = new Date();
@@ -195,27 +197,7 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
     return `Faturas de ${getMonthNamePtBrLower(currentMonth)}`;
   }, [currentMonth]);
 
-  // Carregar preferência (cache) do usuário para ver faturas futuras
-  useEffect(() => {
-    const loadPreference = async () => {
-      try {
-        const saved = await AsyncStorage.getItem(SHOW_FUTURE_BILLS_STORAGE_KEY);
-        if (saved === 'true') setShowFutureBills(true);
-        if (saved === 'false') setShowFutureBills(false);
-      } catch {
-        // Sem persistência disponível (não bloqueia UI)
-      }
-    };
-
-    loadPreference();
-  }, []);
-
-  // Persistir preferência ao alternar
-  useEffect(() => {
-    AsyncStorage.setItem(SHOW_FUTURE_BILLS_STORAGE_KEY, showFutureBills ? 'true' : 'false').catch(() => {
-      // Ignorar falhas de persistência
-    });
-  }, [showFutureBills]);
+  // Seções: por default (se usuário não interagiu): pagas abertas, futuras fechadas
 
   const currentMonthCardsToShow = useMemo(() => {
     return cards.filter(card => (currentMonthBills[card.id] || 0) > 0);
@@ -250,8 +232,9 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
       try {
         for (const card of cards) {
           try {
-            // Regra antiga: tenta mês atual; se não houver fatura pendente, tenta mês seguinte.
-            const candidates: Array<{ month: number; year: number }> = showFutureBills && allCurrentBillsPaid
+            // Tenta mês atual; se todas as faturas do mês atual estiverem pagas,
+            // também verifica mês seguinte (para exibir seção "faturas futuras").
+            const candidates: Array<{ month: number; year: number }> = allCurrentBillsPaid
               ? [
                   { month: currentMonth, year: currentYear },
                   { month: nextMonth, year: nextYear },
@@ -297,15 +280,13 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
     };
     
     fetchOpenBills();
-  }, [cards, user?.uid, currentMonth, currentYear, nextMonth, nextYear, refreshKey, showFutureBills, allCurrentBillsPaid]);
+  }, [cards, user?.uid, currentMonth, currentYear, nextMonth, nextYear, refreshKey, allCurrentBillsPaid]);
 
   // Detectar se existem faturas futuras (para só então mostrar o toggle)
   useEffect(() => {
     const checkFutureBills = async () => {
       if (!user?.uid || cards.length === 0) {
         setHasFutureBillsAvailable(false);
-        // Se não há cartões/usuário, resetar showFutureBills
-        if (showFutureBills) setShowFutureBills(false);
         return;
       }
 
@@ -327,15 +308,9 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
         }
 
         setHasFutureBillsAvailable(foundFutureBills);
-        
-        // Se o usuário estava vendo futuras mas não há mais, resetar
-        if (!foundFutureBills && showFutureBills) {
-          setShowFutureBills(false);
-        }
       } catch (error) {
         console.error('[CreditCardsCard] Error checking future bills:', error);
         setHasFutureBillsAvailable(false);
-        if (showFutureBills) setShowFutureBills(false);
       }
     };
 
@@ -408,15 +383,7 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
     return (monthTotalUsed / totalIncome) * 100;
   }, [monthTotalUsed, totalIncome]);
 
-  // Se houver qualquer pendência no mês atual, forçar ocultar futuras
-  useEffect(() => {
-    if (showFutureBills && !allCurrentBillsPaid) {
-      setShowFutureBills(false);
-    }
-  }, [showFutureBills, allCurrentBillsPaid]);
-
-  // Só mostrar toggle de faturas futuras se houver faturas futuras E todas as do mês atual estiverem pagas
-  const canShowFutureBillsToggle = hasFutureBillsAvailable && allCurrentBillsPaid;
+  const canShowFutureBillsSection = hasFutureBillsAvailable && allCurrentBillsPaid;
 
   const futurePendingCards = useMemo(() => {
     return cards.filter(card => {
@@ -429,10 +396,19 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
     return futurePendingCards.reduce((sum, card) => sum + (openBills[card.id]?.amount || 0), 0);
   }, [futurePendingCards, openBills]);
 
-  const hasFutureBills = showFutureBills && allCurrentBillsPaid && futurePendingCards.length > 0;
+  const hasFutureBills = canShowFutureBillsSection && futurePendingCards.length > 0;
   const hasAnyBillsToShow = currentMonthCardsToShow.length > 0 || hasFutureBills;
 
-  const isLoadingFutureBills = showFutureBills && allCurrentBillsPaid && isLoadingBills;
+  const isLoadingFutureBills = canShowFutureBillsSection && isLoadingBills;
+
+  const canCollapseSections = allCurrentBillsPaid && hasFutureBills;
+
+  useEffect(() => {
+    if (!canCollapseSections) return;
+    if (didToggleSectionsRef.current) return;
+    setShowPaidBills(true);
+    setShowFutureBills(false);
+  }, [canCollapseSections]);
 
   const buildCurrentMonthBill = (card: CreditCard): CardBillViewModel => {
     const pendingBill = openBills[card.id];
@@ -657,35 +633,6 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
               {currentMonthBillsLabel}
             </Text>
           )}
-
-          {canShowFutureBillsToggle && (
-            <Pressable
-              onPress={() => {
-                if (isLoadingBills) return;
-                setShowFutureBills((prev) => !prev);
-              }}
-              style={({ pressed }) => [
-                styles.futureToggleRow,
-                pressed && !isLoadingBills && styles.futureTogglePressed,
-                isLoadingBills && styles.futureToggleDisabled,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={showFutureBills ? 'Ocultar faturas futuras' : 'Ver faturas futuras'}
-            >
-              <Text style={[styles.futureToggleText, { color: DS_COLORS.textMuted }]}>
-                {showFutureBills ? 'Ocultar faturas futuras' : 'Ver faturas futuras'}
-              </Text>
-              {isLoadingFutureBills ? (
-                <ActivityIndicator size={14} color={DS_COLORS.textMuted} />
-              ) : (
-                <MaterialCommunityIcons
-                  name={showFutureBills ? 'chevron-up' : 'chevron-down'}
-                  size={18}
-                  color={DS_COLORS.textMuted}
-                />
-              )}
-            </Pressable>
-          )}
         </View>
       </View>
 
@@ -700,60 +647,100 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
 
       {currentMonthPaidViewModels.length > 0 && (
         <View style={styles.paidSection}>
-          <Text style={[styles.paidDividerText, { color: DS_COLORS.textMuted }]}>
-            -------- faturas pagas ------
-          </Text>
-          <View style={styles.paidCardsList}>
-            {currentMonthPaidViewModels.map(({ card, bill }) => (
-              <CardItem key={card.id} card={card} bill={bill} />
-            ))}
-          </View>
+          <Pressable
+            onPress={() => {
+              if (!canCollapseSections) return;
+              didToggleSectionsRef.current = true;
+              setShowPaidBills((v) => !v);
+            }}
+            style={({ pressed }) => [
+              styles.sectionHeaderRow,
+              pressed && canCollapseSections && { opacity: 0.8 },
+            ]}
+            accessibilityRole={canCollapseSections ? 'button' : undefined}
+            accessibilityLabel={canCollapseSections ? (showPaidBills ? 'Minimizar faturas pagas' : 'Expandir faturas pagas') : undefined}
+          >
+            <View style={styles.sectionHeaderContent}>
+              <Text style={[styles.sectionDividerText, { color: DS_COLORS.textMuted }]}>
+                ----- faturas pagas ------
+              </Text>
+              {canCollapseSections && (
+                <MaterialCommunityIcons
+                  name={showPaidBills ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color={DS_COLORS.textMuted}
+                />
+              )}
+            </View>
+          </Pressable>
+
+          {showPaidBills && (
+            <View style={styles.paidCardsList}>
+              {currentMonthPaidViewModels.map(({ card, bill }) => (
+                <CardItem key={card.id} card={card} bill={bill} />
+              ))}
+            </View>
+          )}
         </View>
       )}
 
-      {isLoadingFutureBills && (
+      {canShowFutureBillsSection && (
         <View style={styles.futureSection}>
-          <View style={styles.dottedDivider} />
-          <View style={styles.futureHeaderRow}>
-            <Text style={[styles.futureTitle, { color: DS_COLORS.textMuted }]}>Faturas futuras</Text>
-            <ShimmerBlock width={90} height={16} borderRadius={8} />
-          </View>
+          <Pressable
+            onPress={() => {
+              if (!hasFutureBills) return;
+              didToggleSectionsRef.current = true;
+              setShowFutureBills((v) => !v);
+            }}
+            style={({ pressed }) => [
+              styles.sectionHeaderRow,
+              pressed && hasFutureBills && { opacity: 0.8 },
+            ]}
+            accessibilityRole={hasFutureBills ? 'button' : undefined}
+            accessibilityLabel={hasFutureBills ? (showFutureBills ? 'Minimizar faturas futuras' : 'Expandir faturas futuras') : undefined}
+          >
+            <View style={styles.sectionHeaderContent}>
+              <Text style={[styles.sectionDividerText, { color: DS_COLORS.textMuted }]}>
+                ----- faturas futuras ------
+              </Text>
+              {hasFutureBills && (
+                <MaterialCommunityIcons
+                  name={showFutureBills ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color={DS_COLORS.textMuted}
+                />
+              )}
+            </View>
+          </Pressable>
 
-          <View style={styles.cardsGrid}>
-            {[1, 2].map((i) => (
-              <View key={i} style={[styles.skeletonCard, { borderColor: DS_COLORS.border }]}>
-                <View style={styles.skeletonRow}>
-                  <ShimmerBlock width={40} height={40} borderRadius={12} />
-                  <View style={styles.skeletonCol}>
-                    <ShimmerBlock width={140} height={14} borderRadius={8} />
-                    <ShimmerBlock width={110} height={12} borderRadius={8} />
+          {isLoadingFutureBills && showFutureBills && (
+            <View style={styles.cardsGrid}>
+              {[1, 2].map((i) => (
+                <View key={i} style={[styles.skeletonCard, { borderColor: DS_COLORS.border }]}>
+                  <View style={styles.skeletonRow}>
+                    <ShimmerBlock width={40} height={40} borderRadius={12} />
+                    <View style={styles.skeletonCol}>
+                      <ShimmerBlock width={140} height={14} borderRadius={8} />
+                      <ShimmerBlock width={110} height={12} borderRadius={8} />
+                    </View>
+                    <ShimmerBlock width={70} height={20} borderRadius={10} />
                   </View>
-                  <ShimmerBlock width={70} height={20} borderRadius={10} />
+                  <View style={styles.skeletonBottom}>
+                    <ShimmerBlock width={90} height={12} borderRadius={8} />
+                    <ShimmerBlock width={120} height={18} borderRadius={8} />
+                  </View>
                 </View>
-                <View style={styles.skeletonBottom}>
-                  <ShimmerBlock width={90} height={12} borderRadius={8} />
-                  <ShimmerBlock width={120} height={18} borderRadius={8} />
-                </View>
-              </View>
-            ))}
-          </View>
-        </View>
-      )}
+              ))}
+            </View>
+          )}
 
-      {!isLoadingFutureBills && hasFutureBills && (
-        <View style={styles.futureSection}>
-          <View style={styles.dottedDivider} />
-          <View style={styles.futureHeaderRow}>
-            <Text style={[styles.futureTitle, { color: DS_COLORS.textMuted }]}>Faturas futuras</Text>
-            <Text style={[styles.futureValue, { color: DS_COLORS.textMuted }]}>
-              {formatCurrencyBRL(futureTotalBills)}
-            </Text>
-          </View>
-          <View style={styles.cardsGrid}>
-            {futurePendingCards.map((card) => (
-              <CardItem key={card.id} card={card} bill={{ ...openBills[card.id], isPaid: false }} />
-            ))}
-          </View>
+          {!isLoadingFutureBills && hasFutureBills && showFutureBills && (
+            <View style={styles.cardsGrid}>
+              {futurePendingCards.map((card) => (
+                <CardItem key={card.id} card={card} bill={{ ...openBills[card.id], isPaid: false }} />
+              ))}
+            </View>
+          )}
         </View>
       )}
 
@@ -967,12 +954,20 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   paidSection: {
-    marginTop: 12,
+    marginTop: 16,
   },
-  paidDividerText: {
+  sectionHeaderRow: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  sectionHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  sectionDividerText: {
     ...DS_TYPOGRAPHY.styles.label,
-    textAlign: 'center',
-    marginBottom: 10,
   },
   paidCardsList: {
     gap: 12,
@@ -984,24 +979,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  futureToggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    gap: 4,
-    paddingTop: 2,
-  },
-  futureTogglePressed: {
-    opacity: 0.85,
-  },
-  futureToggleDisabled: {
-    opacity: 0.6,
-  },
-  futureToggleText: {
-    ...DS_TYPOGRAPHY.styles.label,
-  },
   futureSection: {
-    marginTop: 12,
+    marginTop: 16,
   },
   dottedDivider: {
     borderBottomWidth: 1,
@@ -1009,20 +988,7 @@ const styles = StyleSheet.create({
     borderColor: DS_COLORS.divider,
     marginBottom: 10,
   },
-  futureHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  futureTitle: {
-    ...DS_TYPOGRAPHY.styles.label,
-  },
-  futureValue: {
-    fontSize: DS_TYPOGRAPHY.size.valueSecondary,
-    fontWeight: DS_TYPOGRAPHY.weight.semibold,
-    lineHeight: 20,
-  },
+
   cardItemContainer: {
     borderRadius: 20,
     borderWidth: 1,
