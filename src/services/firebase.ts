@@ -1,6 +1,12 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
+import {
+    getFirestore,
+    initializeFirestore,
+    memoryLocalCache,
+    persistentLocalCache,
+    persistentMultipleTabManager,
+} from "firebase/firestore";
 import { Platform } from "react-native";
 
 const firebaseConfig = {
@@ -20,21 +26,28 @@ const app = initializeApp(firebaseConfig);
 // Use default auth instance; react-native-specific persistence isn't configured here.
 export const auth = getAuth(app);
 
-export const db = getFirestore(app);
+// Firestore
+// No SDK atual, enableIndexedDbPersistence() será depreciado.
+// Para web, usamos cache local persistente (IndexedDB). Para mobile, getFirestore padrão.
+export const db = (() => {
+  if (Platform.OS !== 'web') {
+    return getFirestore(app);
+  }
 
-// Habilitar persistência offline do Firestore
-// Isso faz cache local dos dados, reduzindo queries ao servidor
-if (Platform.OS === 'web') {
-  enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code === 'failed-precondition') {
-      // Múltiplas abas abertas, persistência só funciona em uma
-      console.log('Firestore persistence failed: multiple tabs open');
-    } else if (err.code === 'unimplemented') {
-      // Browser não suporta
-      console.log('Firestore persistence not available');
-    }
-  });
-}
+  try {
+    return initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager(),
+      }),
+    });
+  } catch (err) {
+    // Fallback seguro (ex.: IndexedDB indisponível)
+    console.log('Firestore persistence not available, falling back to memory cache');
+    return initializeFirestore(app, {
+      localCache: memoryLocalCache(),
+    });
+  }
+})();
 
 // Nomes das coleções
 export const COLLECTIONS = {

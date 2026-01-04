@@ -14,7 +14,7 @@ type Props = {
 };
 
 // Compact bar height for all platforms (row height only; paddings are added separately)
-export const FOOTER_HEIGHT = 56;
+export const FOOTER_HEIGHT = 68;
 
 export default function AppFooter({ onHome, onAdd, onLaunches, onCategories, onSettings }: Props) {
   const { colors } = useAppTheme();
