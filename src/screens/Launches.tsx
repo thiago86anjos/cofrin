@@ -457,9 +457,9 @@ export default function Launches() {
       };
     }) : [];
 
-    // Combinar e ordenar por data (mais antigo primeiro)
+    // Combinar e ordenar por data (mais recente primeiro)
     return [...transactionItems, ...billItems].sort((a, b) => {
-      return new Date(a.date).getTime() - new Date(b.date).getTime();
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
     });
   }, [transactions, creditCardBills, filterCategoryIds, filterType, filterStatus, isCategoryContext, pendingBillsMap]) as Array<{
     id: string;
