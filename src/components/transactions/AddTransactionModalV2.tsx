@@ -874,6 +874,7 @@ export default function AddTransactionModalV2({
                     accountName={accountName}
                     useCreditCard={useCreditCard}
                     creditCardName={creditCardName}
+                    creditCardColor={activeCards.find(c => c.id === creditCardId)?.color}
                     sourceAccount={sourceAccount}
                     toAccountId={toAccountId}
                     toAccountName={toAccountName}
