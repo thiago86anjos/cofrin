@@ -394,56 +394,50 @@ export default function CreateGoalModal({
           {error ? (
             <Text style={[styles.errorText, { color: colors.expense }]}>{error}</Text>
           ) : null}
-
-          {/* Botões */}
-          <View style={styles.buttonContainer}>
-            {/* Botão Excluir (só aparece ao editar) - à esquerda */}
-            {existingGoal && onDelete && (
-              <Pressable
-                onPress={handleDelete}
-                disabled={deleting}
-                style={[
-                  styles.deleteButton,
-                  { borderColor: colors.border, backgroundColor: colors.bg },
-                  deleting && { opacity: 0.6 }
-                ]}
-              >
-                <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.text} />
-                <Text style={[styles.deleteButtonText, { color: colors.text }]}>
-                  {deleting ? 'Excluindo...' : 'Excluir'}
-                </Text>
-              </Pressable>
-            )}
-
-            {/* Botão Cancelar - no meio */}
-            <Pressable
-              onPress={onClose}
-              style={[
-                styles.cancelButton,
-                { borderColor: colors.border, backgroundColor: colors.bg }
-              ]}
-            >
-              <Text style={[styles.cancelButtonText, { color: colors.text }]}>
-                Cancelar
-              </Text>
-            </Pressable>
-
-            {/* Botão Salvar - à direita (principal) */}
-            <Pressable
-              onPress={handleSave}
-              disabled={saving || (existingGoal && !hasChanges())}
-              style={[
-                styles.saveButton, 
-                { backgroundColor: colors.primary },
-                (saving || (existingGoal && !hasChanges())) && { opacity: 0.6 }
-              ]}
-            >
-              <Text style={styles.saveButtonText}>
-                {saving ? 'Salvando...' : existingGoal ? 'Salvar' : 'Criar'}
-              </Text>
-            </Pressable>
-          </View>
         </ScrollView>
+
+        {/* Footer (padrão modal de transação) */}
+        <View style={[styles.footerContainer, { borderTopColor: colors.border }]}>
+          {existingGoal && onDelete && (
+            <Pressable
+              onPress={handleDelete}
+              disabled={deleting}
+              style={[
+                styles.deleteIconButton,
+                { borderColor: colors.border, backgroundColor: colors.bg },
+                deleting && { opacity: 0.6 },
+              ]}
+            >
+              <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.text} />
+            </Pressable>
+          )}
+
+          <Pressable
+            onPress={onClose}
+            disabled={saving}
+            style={[
+              styles.cancelButton,
+              { borderColor: colors.border, backgroundColor: colors.bg },
+              saving && { opacity: 0.6 },
+            ]}
+          >
+            <Text style={[styles.cancelButtonText, { color: colors.text }]}>Cancelar</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={handleSave}
+            disabled={saving || (existingGoal && !hasChanges())}
+            style={[
+              styles.saveButton,
+              { backgroundColor: colors.primary },
+              (saving || (existingGoal && !hasChanges())) && { opacity: 0.6 },
+            ]}
+          >
+            <Text style={styles.saveButtonText}>
+              {saving ? 'Salvando...' : existingGoal ? 'Salvar' : 'Criar'}
+            </Text>
+          </Pressable>
+        </View>
         </Pressable>
       </Pressable>
 
@@ -546,29 +540,26 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     textAlign: 'center',
   },
-  deleteButton: {
-    flex: 1,
+  footerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    borderWidth: 1,
-    borderRadius: borderRadius.md,
-    paddingVertical: 16,
-  },
-  deleteButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderTopWidth: 1,
     gap: spacing.md,
-    marginTop: spacing.lg,
+  },
+  deleteIconButton: {
+    width: 48,
+    height: 48,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
   },
   cancelButton: {
     flex: 1,
     borderRadius: borderRadius.md,
-    paddingVertical: 16,
+    paddingVertical: 14,
     alignItems: 'center',
     borderWidth: 1,
   },
@@ -579,7 +570,7 @@ const styles = StyleSheet.create({
   saveButton: {
     flex: 1,
     borderRadius: borderRadius.md,
-    paddingVertical: 16,
+    paddingVertical: 14,
     alignItems: 'center',
   },
   saveButtonText: {

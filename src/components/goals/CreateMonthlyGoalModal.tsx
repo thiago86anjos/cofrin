@@ -331,54 +331,44 @@ export default function CreateMonthlyGoalModal({ visible, onClose, onSave, exist
             <Text style={[styles.helperText, { color: colors.textMuted }]}>
               Limite para {type === 'expense' ? 'gastar' : 'receber'} neste mês
             </Text>
-          </View>
+            </View>
+        </ScrollView>
 
-          {/* Botões */}
-          <View style={styles.buttonContainer}>
-            {/* Botão Excluir (só aparece ao editar) - à esquerda */}
+          {/* Footer (padrão modal de transação) */}
+          <View style={[styles.footerContainer, { borderTopColor: colors.border }]}>
             {existingGoal && onDelete && (
               <Pressable
                 onPress={handleDelete}
                 disabled={deleting}
                 style={[
-                  styles.deleteButton,
+                  styles.deleteIconButton,
                   { borderColor: colors.border, backgroundColor: colors.card },
-                  deleting && { opacity: 0.6 }
+                  deleting && { opacity: 0.6 },
                 ]}
               >
                 <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.text} />
               </Pressable>
             )}
 
-            {/* Botão Cancelar - no meio */}
             <Pressable
               onPress={onClose}
-              style={[
-                styles.cancelButton,
-                { borderColor: colors.border, backgroundColor: colors.card }
-              ]}
+              style={[styles.cancelButton, { borderColor: colors.border, backgroundColor: colors.card }]}
             >
-              <Text style={[styles.cancelButtonText, { color: colors.text }]}>
-                Cancelar
-              </Text>
+              <Text style={[styles.cancelButtonText, { color: colors.text }]}>Cancelar</Text>
             </Pressable>
 
-            {/* Botão Criar/Salvar - à direita (principal) */}
             <Pressable
               onPress={handleSave}
               disabled={!canSave}
               style={[
                 styles.createButton,
                 { backgroundColor: colors.primary },
-                !canSave && { opacity: 0.6 }
+                !canSave && { opacity: 0.6 },
               ]}
             >
-              <Text style={styles.createButtonText}>
-                {existingGoal ? 'Salvar' : 'Criar'}
-              </Text>
+              <Text style={styles.createButtonText}>{existingGoal ? 'Salvar' : 'Criar'}</Text>
             </Pressable>
           </View>
-        </ScrollView>
         </Pressable>
       </Pressable>
     </Modal>
@@ -510,28 +500,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: spacing.xs,
   },
-  deleteButton: {
-    flex: 1,
+  footerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.md + 2,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-  },
-  deleteButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderTopWidth: 1,
     gap: spacing.md,
-    marginTop: spacing.lg,
+  },
+  deleteIconButton: {
+    width: 48,
+    height: 48,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
   },
   cancelButton: {
     flex: 1,
-    paddingVertical: spacing.md + 2,
+    paddingVertical: 14,
     borderRadius: borderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -543,7 +530,7 @@ const styles = StyleSheet.create({
   },
   createButton: {
     flex: 1,
-    paddingVertical: spacing.md + 2,
+    paddingVertical: 14,
     borderRadius: borderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
