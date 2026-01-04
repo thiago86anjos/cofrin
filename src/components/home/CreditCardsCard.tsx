@@ -610,11 +610,11 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
               accessibilityRole="button"
               accessibilityLabel="Editar cartões de crédito"
             >
-              <View style={[styles.headerIconCircle, { backgroundColor: DS_COLORS.primaryLight }]}>
+              <View style={[styles.headerIconCircle, { backgroundColor: DS_COLORS.grayLight }]}>
                 <MaterialCommunityIcons
                   name="cog"
                   size={DS_ICONS.size.small}
-                  color={DS_COLORS.primary}
+                  color={DS_COLORS.textMuted}
                 />
               </View>
             </Pressable>

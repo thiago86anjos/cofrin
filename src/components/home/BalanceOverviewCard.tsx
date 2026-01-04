@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useAppTheme } from '../../contexts/themeContext';
 import { formatCurrencyBRL } from '../../utils/format';
 import { Account } from '../../types/firebase';
@@ -46,6 +47,11 @@ export default memo(function BalanceOverviewCard({
   showGreeting = true,
 }: Props) {
   const { colors } = useAppTheme();
+  const navigation = useNavigation<any>();
+
+  const openConfigureAccounts = () => {
+    navigation.navigate('ConfigureAccounts');
+  };
 
   // Filtrar apenas contas visíveis (includeInTotal !== false)
   const visibleAccounts = accounts.filter(account => account.includeInTotal !== false);
@@ -182,9 +188,23 @@ export default memo(function BalanceOverviewCard({
         )}
 
         <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardTitle, { color: colors.textMuted }]}>
-            Seu dinheiro
-          </Text>
+          <View style={styles.headerRow}>
+            <Text style={[styles.cardTitle, { color: colors.textMuted }]}>
+              Seu dinheiro
+            </Text>
+            <Pressable
+              onPress={openConfigureAccounts}
+              hitSlop={10}
+              style={({ pressed }) => [styles.headerIconButton, pressed && { opacity: 0.7 }]}
+              accessibilityRole="button"
+              accessibilityLabel="Configurar contas"
+            >
+              <View style={[styles.headerIconCircle, { backgroundColor: `${colors.textMuted}15` }]}
+              >
+                <MaterialCommunityIcons name="cog" size={16} color={colors.textMuted} />
+              </View>
+            </Pressable>
+          </View>
 
           <View style={styles.emptyState}>
             <MaterialCommunityIcons name="wallet-outline" size={64} color={colors.textMuted} />
@@ -231,9 +251,22 @@ export default memo(function BalanceOverviewCard({
       {/* Card Principal */}
       <View style={[styles.card, { backgroundColor: colors.card }]}>
         {/* Header do card */}
-        <Text style={[styles.cardTitle, { color: colors.textMuted }]}>
-          Seu dinheiro
-        </Text>
+        <View style={styles.headerRow}>
+          <Text style={[styles.cardTitle, { color: colors.textMuted }]}>
+            Seu dinheiro
+          </Text>
+          <Pressable
+            onPress={openConfigureAccounts}
+            hitSlop={10}
+            style={({ pressed }) => [styles.headerIconButton, pressed && { opacity: 0.7 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Configurar contas"
+          >
+            <View style={[styles.headerIconCircle, { backgroundColor: `${colors.textMuted}15` }]}>
+              <MaterialCommunityIcons name="cog" size={16} color={colors.textMuted} />
+            </View>
+          </Pressable>
+        </View>
 
         {/* Valor principal (protagonista) */}
         <View style={styles.mainValueSection}>
@@ -255,6 +288,21 @@ export default memo(function BalanceOverviewCard({
 const styles = StyleSheet.create({
   container: {
     gap: 16,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerIconButton: {
+    marginLeft: 12,
+  },
+  headerIconCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   greetingSection: {
     gap: 4,
