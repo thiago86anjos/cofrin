@@ -71,6 +71,7 @@ interface Props {
   totalIncome?: number; // Receita do mês para calcular porcentagem
   onCardPress?: (card: CreditCard) => void;
   onAddPress?: () => void;
+  onSettingsPress?: () => void;
 }
 
 
@@ -167,7 +168,7 @@ function isSameDay(a: Date, b: Date) {
   );
 }
 
-export default memo(function CreditCardsCard({ cards = [], totalBills = 0, totalIncome = 0, onCardPress, onAddPress }: Props) {
+export default memo(function CreditCardsCard({ cards = [], totalBills = 0, totalIncome = 0, onCardPress, onAddPress, onSettingsPress }: Props) {
   const { user } = useAuth();
   const { refreshKey } = useTransactionRefresh();
   const [showStatusModal, setShowStatusModal] = useState(false);
@@ -538,20 +539,22 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
           <Text style={[styles.cardLabel, { color: DS_COLORS.textMuted }]} numberOfLines={1}>
             {creditCardsLabel}
           </Text>
-          {monthTotalUsed > 0 && (
-            <Pressable 
-              onPress={() => setShowStatusModal(true)}
+          {cards.length > 0 && onSettingsPress && (
+            <Pressable
+              onPress={onSettingsPress}
               hitSlop={12}
               style={({ pressed }) => [
-                styles.statusIconButton,
-                { opacity: pressed ? 0.7 : 1 }
+                styles.headerIconButton,
+                pressed && { opacity: 0.7 },
               ]}
+              accessibilityRole="button"
+              accessibilityLabel="Editar cartões de crédito"
             >
-              <View style={[styles.infoIconCircle, { backgroundColor: `${usageStatus.color}15` }]}>
-                <MaterialCommunityIcons 
-                  name="information" 
-                  size={DS_ICONS.size.small} 
-                  color={usageStatus.color} 
+              <View style={[styles.headerIconCircle, { backgroundColor: DS_COLORS.primaryLight }]}>
+                <MaterialCommunityIcons
+                  name="cog"
+                  size={DS_ICONS.size.small}
+                  color={DS_COLORS.primary}
                 />
               </View>
             </Pressable>
@@ -559,9 +562,30 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
         </View>
 
         <View style={styles.mainValueSection}>
-          <Text style={[styles.mainValue, { color: mainValueColor }]}>
-            {cards.length === 0 ? '—' : formatCurrencyBRL(monthTotalUsed)}
-          </Text>
+          <View style={styles.mainValueRow}>
+            <Text style={[styles.mainValue, { color: mainValueColor }]}>
+              {cards.length === 0 ? '—' : formatCurrencyBRL(monthTotalUsed)}
+            </Text>
+
+            {monthTotalUsed > 0 && (
+              <Pressable
+                onPress={() => setShowStatusModal(true)}
+                hitSlop={10}
+                style={({ pressed }) => [
+                  styles.valueInfoButton,
+                  pressed && { opacity: 0.7 },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Ver detalhes de comprometimento"
+              >
+                <MaterialCommunityIcons
+                  name="information"
+                  size={16}
+                  color={usageStatus.color}
+                />
+              </Pressable>
+            )}
+          </View>
           {monthTotalUsed > 0 && (
             <Text style={[styles.billsMonthLabel, { color: DS_COLORS.textMuted }]}>
               {currentMonthBillsLabel}
@@ -828,6 +852,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
     gap: 4,
   },
+  mainValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   mainValue: {
     fontSize: DS_TYPOGRAPHY.size.valueMain,
     fontWeight: DS_TYPOGRAPHY.weight.bold,
@@ -836,13 +865,19 @@ const styles = StyleSheet.create({
   billsMonthLabel: {
     ...DS_TYPOGRAPHY.styles.label,
   },
-  statusIconButton: {
+  headerIconButton: {
     marginLeft: DS_SPACING.sm,
   },
-  infoIconCircle: {
+  headerIconCircle: {
     width: 24,
     height: 24,
     borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  valueInfoButton: {
+    width: 20,
+    height: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },

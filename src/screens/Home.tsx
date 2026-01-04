@@ -306,6 +306,7 @@ export default function Home() {
                 totalIncome={totalIncome}
                 onCardPress={handleCreditCardPress}
                 onAddPress={handleAddCreditCard}
+                onSettingsPress={() => navigation.navigate('CreditCards')}
               />
             )}
 
