@@ -13,12 +13,14 @@
  * 5. Recorrência (toggle colapsável)
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, TextInput, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { spacing, borderRadius } from '../../theme';
 import { RecurrenceType, Category } from '../../types/firebase';
 import { formatCurrency } from '../../utils/transactionHelpers';
+import { normalizeText } from '../../utils/normalizeText';
+import { getSuggestionForNormalizedDescription } from '../../services/suggestions.service';
 
 export type LocalTransactionType = 'despesa' | 'receita' | 'transfer';
 export type PickerType = 'none' | 'category' | 'account' | 'toAccount' | 'recurrence' | 'recurrenceType' | 'repetitions' | 'date';
@@ -32,6 +34,9 @@ interface Account {
 }
 
 interface TransactionFormV2Props {
+  // User (suggestions)
+  userId?: string;
+
   // Type
   type: LocalTransactionType;
   
@@ -131,6 +136,7 @@ const formatDateFriendly = (date: Date): string => {
 };
 
 export default function TransactionFormV2({
+  userId,
   type,
   description,
   onDescriptionChange,
@@ -188,6 +194,98 @@ export default function TransactionFormV2({
   
   const typeColor = type === 'despesa' ? colors.expense : type === 'receita' ? colors.income : colors.primary;
 
+  const rawDescription = useMemo(() => description.trim(), [description]);
+  const normalizedDescription = useMemo(() => normalizeText(description), [description]);
+  const [suggestedCategoryId, setSuggestedCategoryId] = useState<string | null>(null);
+  const [ignoredSuggestionKey, setIgnoredSuggestionKey] = useState<string | null>(null);
+  const lastCategoryIdRef = useRef<string>(categoryId);
+  const lastAppliedRef = useRef<{ key: string; categoryId: string } | null>(null);
+  const requestIdRef = useRef(0);
+
+  const suggestedCategory = useMemo(() => {
+    if (!suggestedCategoryId) return null;
+    return categories.find((c) => c.id === suggestedCategoryId) || null;
+  }, [categories, suggestedCategoryId]);
+
+  useEffect(() => {
+    const previousCategoryId = lastCategoryIdRef.current;
+    if (previousCategoryId === categoryId) return;
+
+    const applied = lastAppliedRef.current;
+    const wasAppliedNow =
+      applied && applied.key === normalizedDescription && applied.categoryId === categoryId;
+
+    if (!wasAppliedNow) {
+      setSuggestedCategoryId(null);
+    }
+
+    lastCategoryIdRef.current = categoryId;
+  }, [categoryId, normalizedDescription]);
+
+  useEffect(() => {
+    if (!userId) {
+      setSuggestedCategoryId(null);
+      return;
+    }
+
+    if (type === 'transfer' || !showCategory || disableCategoryChange) {
+      setSuggestedCategoryId(null);
+      return;
+    }
+
+    // Start only after the 3rd character typed (UX)
+    if (!rawDescription || rawDescription.length < 3) {
+      setSuggestedCategoryId(null);
+      return;
+    }
+
+    if (ignoredSuggestionKey === normalizedDescription) {
+      setSuggestedCategoryId(null);
+      return;
+    }
+
+    // Clear any previous suggestion while we debounce the next lookup
+    setSuggestedCategoryId(null);
+
+    const currentRequestId = ++requestIdRef.current;
+    const timer = setTimeout(async () => {
+      try {
+        const suggestion = await getSuggestionForNormalizedDescription({
+          userId,
+          normalizedDescription,
+        });
+
+        if (requestIdRef.current !== currentRequestId) return;
+
+        if (!suggestion) {
+          const candidates = categories.filter((c) =>
+            normalizeText(c.name || '').startsWith(normalizedDescription)
+          );
+
+          if (candidates.length === 1 && candidates[0]?.id && candidates[0].id !== categoryId) {
+            setSuggestedCategoryId(candidates[0].id);
+          } else {
+            setSuggestedCategoryId(null);
+          }
+          return;
+        }
+
+        if (suggestion.categoryId === categoryId) {
+          setSuggestedCategoryId(null);
+          return;
+        }
+
+        setSuggestedCategoryId(suggestion.categoryId);
+      } catch (err) {
+        console.warn('[TransactionFormV2] suggestion fetch failed:', err);
+        if (requestIdRef.current !== currentRequestId) return;
+        setSuggestedCategoryId(null);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [userId, type, showCategory, disableCategoryChange, rawDescription, normalizedDescription, ignoredSuggestionKey, categoryId, categories]);
+
   // Quick date options
   const setToday = () => {
     const today = new Date();
@@ -232,6 +330,46 @@ export default function TransactionFormV2({
             editable={hasAmount}
           />
         </View>
+
+        {!!suggestedCategory && type !== 'transfer' && showCategory && !disableCategoryChange && (
+          <View style={[styles.suggestionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.suggestionHeader}>
+              <MaterialCommunityIcons name="lightbulb-on-outline" size={18} color={colors.primary} />
+              <Text style={[styles.suggestionText, { color: colors.text }]} numberOfLines={2}>
+                Sugestão: {suggestedCategory.name}
+              </Text>
+            </View>
+            <View style={styles.suggestionActions}>
+              <Pressable
+                onPress={() => {
+                  if (!suggestedCategoryId || !suggestedCategory) return;
+                  lastAppliedRef.current = { key: normalizedDescription, categoryId: suggestedCategoryId };
+                  setSuggestedCategoryId(null);
+                  onSelectCategory(suggestedCategory.id, suggestedCategory.name);
+                }}
+                style={[
+                  styles.suggestionPrimaryButton,
+                  {
+                    backgroundColor: colors.primaryBg,
+                    borderColor: colors.primary,
+                  },
+                ]}
+              >
+                <Text style={[styles.suggestionPrimaryButtonText, { color: colors.primary }]}>Aplicar</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  setIgnoredSuggestionKey(normalizedDescription);
+                  setSuggestedCategoryId(null);
+                }}
+                style={[styles.suggestionSecondaryButton, { borderColor: colors.border }]}
+              >
+                <Text style={[styles.suggestionSecondaryButtonText, { color: colors.text }]}>Ignorar</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         {/* Categoria */}
         {type !== 'transfer' && showCategory && (
@@ -624,6 +762,50 @@ const styles = StyleSheet.create({
   fieldContent: {
     flex: 1,
     gap: 2,
+  },
+  suggestionCard: {
+    padding: spacing.md,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    gap: spacing.sm,
+  },
+  suggestionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  suggestionText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  suggestionActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  suggestionPrimaryButton: {
+    flex: 1,
+    height: 40,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  suggestionPrimaryButtonText: {
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  suggestionSecondaryButton: {
+    flex: 1,
+    height: 40,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  suggestionSecondaryButtonText: {
+    fontWeight: '700',
+    fontSize: 13,
   },
   fieldLabel: {
     fontSize: 11,

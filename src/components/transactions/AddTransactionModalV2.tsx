@@ -35,6 +35,7 @@ import { TransactionType, RecurrenceType, CreateTransactionInput } from '../../t
 import { useTransactionRefresh } from '../../contexts/transactionRefreshContext';
 import { useAuth } from '../../contexts/authContext';
 import { moveSeriesMonth, anticipateInstallment } from '../../services/transactionService';
+import { learnSuggestionPattern } from '../../services/suggestions.service';
 
 // Componentes extraídos
 import TransactionHeader from './TransactionHeader';
@@ -545,12 +546,33 @@ export default function AddTransactionModalV2({
       }
 
       if (success) {
-        onSave?.();
-        onClose();
+        if (!isEditMode && user?.uid && type !== 'transfer' && categoryId) {
+          const effectiveDescription = (description.trim() || categoryName).trim();
+          learnSuggestionPattern({
+            userId: user.uid,
+            description: effectiveDescription,
+            categoryId,
+          }).catch((err) => {
+            console.warn('[AddTransactionModalV2] learnSuggestionPattern failed:', err);
+          });
+        }
+
+        try {
+          onSave?.();
+        } catch (callbackError) {
+          console.warn('[AddTransactionModalV2] onSave callback error:', callbackError);
+        }
+
+        try {
+          onClose();
+        } catch (callbackError) {
+          console.warn('[AddTransactionModalV2] onClose callback error:', callbackError);
+        }
       } else {
         showAlert('Erro', `Não foi possível ${isEditMode ? 'atualizar' : 'salvar'} o lançamento`, [{ text: 'OK' }]);
       }
     } catch (error) {
+      console.error('[AddTransactionModalV2] handleSave error:', error);
       showAlert('Erro', 'Ocorreu um erro ao salvar', [{ text: 'OK' }]);
     } finally {
       setSaving(false);
@@ -860,6 +882,7 @@ export default function AddTransactionModalV2({
               >
                 {!isAnticipationDiscount && (
                   <TransactionFormV2
+                    userId={user?.uid}
                     type={type}
                     description={description}
                     onDescriptionChange={setDescription}
