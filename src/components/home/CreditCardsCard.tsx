@@ -540,7 +540,7 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
       {/* Header */}
       <View style={styles.headerSection}>
         <View style={styles.titleRow}>
-          <Text style={[styles.cardLabel, { color: DS_COLORS.textMuted }]}>
+          <Text style={[styles.cardLabel, { color: DS_COLORS.textMuted }]} numberOfLines={1}>
             {creditCardsLabel}
           </Text>
           {monthTotalUsed > 0 && (
@@ -552,11 +552,11 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
                 { opacity: pressed ? 0.7 : 1 }
               ]}
             >
-              <View style={[styles.infoIconCircle, { backgroundColor: usageStatus.color }]}>
+              <View style={[styles.infoIconCircle, { backgroundColor: `${usageStatus.color}15` }]}>
                 <MaterialCommunityIcons 
                   name="information" 
-                  size={26} 
-                  color={DS_COLORS.textInverse} 
+                  size={DS_ICONS.size.small} 
+                  color={usageStatus.color} 
                 />
               </View>
             </Pressable>
@@ -699,9 +699,6 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
 
             {/* Resumo dos compromissos */}
             <View style={styles.modalDetails}>
-              <Text style={[styles.modalSubtitle, { color: DS_COLORS.textMuted }]}>
-                Resumo do mês atual
-              </Text>
               <View style={styles.modalRow}>
                 <Text style={[styles.modalLabel, { color: DS_COLORS.textMuted }]}>Gastos no cartão (mês):</Text>
                 <Text style={[styles.modalValue, { color: DS_COLORS.error }]}>
@@ -806,10 +803,11 @@ const styles = StyleSheet.create({
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
   },
   cardLabel: {
     ...DS_TYPOGRAPHY.styles.body,
+    flex: 1,
+    flexShrink: 1,
   },
   mainValueSection: {
     marginTop: 8,
@@ -824,12 +822,12 @@ const styles = StyleSheet.create({
     ...DS_TYPOGRAPHY.styles.label,
   },
   statusIconButton: {
-    padding: 0,
+    marginLeft: DS_SPACING.sm,
   },
   infoIconCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
