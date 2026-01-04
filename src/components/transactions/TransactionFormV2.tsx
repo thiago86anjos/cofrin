@@ -33,6 +33,13 @@ interface Account {
   color?: string;
 }
 
+type SimpleAccount = { id: string; name: string };
+type SimpleCreditCard = { id: string; name: string; color?: string };
+
+type SuggestedPayment =
+  | { method: 'account'; accountId: string }
+  | { method: 'creditCard'; creditCardId: string };
+
 interface TransactionFormV2Props {
   // User (suggestions)
   userId?: string;
@@ -57,9 +64,15 @@ interface TransactionFormV2Props {
   accountId: string;
   accountName: string;
   useCreditCard: boolean;
+  creditCardId: string;
   creditCardName: string;
   creditCardColor?: string;
   sourceAccount?: Account | null;
+
+  // Payment suggestions helpers
+  accountsForSuggestion?: SimpleAccount[];
+  creditCardsForSuggestion?: SimpleCreditCard[];
+  onApplyPaymentSuggestion?: (payment: SuggestedPayment) => void;
   
   // Transfer
   toAccountId: string;
@@ -150,9 +163,13 @@ export default function TransactionFormV2({
   accountId,
   accountName,
   useCreditCard,
+  creditCardId,
   creditCardName,
   creditCardColor,
   sourceAccount,
+  accountsForSuggestion,
+  creditCardsForSuggestion,
+  onApplyPaymentSuggestion,
   toAccountId,
   toAccountName,
   date,
@@ -197,9 +214,15 @@ export default function TransactionFormV2({
   const rawDescription = useMemo(() => description.trim(), [description]);
   const normalizedDescription = useMemo(() => normalizeText(description), [description]);
   const [suggestedCategoryId, setSuggestedCategoryId] = useState<string | null>(null);
+  const [suggestedPayment, setSuggestedPayment] = useState<SuggestedPayment | null>(null);
   const [ignoredSuggestionKey, setIgnoredSuggestionKey] = useState<string | null>(null);
   const lastCategoryIdRef = useRef<string>(categoryId);
   const lastAppliedRef = useRef<{ key: string; categoryId: string } | null>(null);
+  const lastPaymentRef = useRef<{ useCreditCard: boolean; accountId: string; creditCardId: string }>({
+    useCreditCard,
+    accountId,
+    creditCardId,
+  });
   const requestIdRef = useRef(0);
 
   const suggestedCategory = useMemo(() => {
@@ -223,29 +246,50 @@ export default function TransactionFormV2({
   }, [categoryId, normalizedDescription]);
 
   useEffect(() => {
+    const previous = lastPaymentRef.current;
+    const current = { useCreditCard, accountId, creditCardId };
+
+    // If user changed payment manually, clear payment suggestion.
+    if (
+      previous.useCreditCard !== current.useCreditCard ||
+      previous.accountId !== current.accountId ||
+      previous.creditCardId !== current.creditCardId
+    ) {
+      setSuggestedPayment(null);
+    }
+
+    lastPaymentRef.current = current;
+  }, [useCreditCard, accountId, creditCardId]);
+
+  useEffect(() => {
     if (!userId) {
       setSuggestedCategoryId(null);
+      setSuggestedPayment(null);
       return;
     }
 
     if (type === 'transfer' || !showCategory || disableCategoryChange) {
       setSuggestedCategoryId(null);
+      setSuggestedPayment(null);
       return;
     }
 
     // Start only after the 3rd character typed (UX)
     if (!rawDescription || rawDescription.length < 3) {
       setSuggestedCategoryId(null);
+      setSuggestedPayment(null);
       return;
     }
 
     if (ignoredSuggestionKey === normalizedDescription) {
       setSuggestedCategoryId(null);
+      setSuggestedPayment(null);
       return;
     }
 
     // Clear any previous suggestion while we debounce the next lookup
     setSuggestedCategoryId(null);
+    setSuggestedPayment(null);
 
     const currentRequestId = ++requestIdRef.current;
     const timer = setTimeout(async () => {
@@ -272,19 +316,107 @@ export default function TransactionFormV2({
 
         if (suggestion.categoryId === categoryId) {
           setSuggestedCategoryId(null);
-          return;
+        } else {
+          setSuggestedCategoryId(suggestion.categoryId);
         }
 
-        setSuggestedCategoryId(suggestion.categoryId);
+        // Payment suggestion (only if we have apply handler + reference data)
+        if (onApplyPaymentSuggestion) {
+          const paymentMethod = suggestion.paymentMethod;
+          const suggestedAccountId = suggestion.accountId || undefined;
+          const suggestedCreditCardId = suggestion.creditCardId || undefined;
+
+          if (paymentMethod === 'account' && suggestedAccountId) {
+            const exists = (accountsForSuggestion || []).some((a) => a.id === suggestedAccountId);
+            if (!exists) {
+              setSuggestedPayment(null);
+              return;
+            }
+
+            if (!useCreditCard && accountId === suggestedAccountId) {
+              setSuggestedPayment(null);
+              return;
+            }
+
+            setSuggestedPayment({ method: 'account', accountId: suggestedAccountId });
+            return;
+          }
+
+          if (paymentMethod === 'creditCard' && suggestedCreditCardId) {
+            // Only suggest credit card for expenses
+            if (type !== 'despesa') {
+              setSuggestedPayment(null);
+              return;
+            }
+
+            const exists = (creditCardsForSuggestion || []).some((c) => c.id === suggestedCreditCardId);
+            if (!exists) {
+              setSuggestedPayment(null);
+              return;
+            }
+
+            if (useCreditCard && creditCardId === suggestedCreditCardId) {
+              setSuggestedPayment(null);
+              return;
+            }
+
+            setSuggestedPayment({ method: 'creditCard', creditCardId: suggestedCreditCardId });
+            return;
+          }
+
+          setSuggestedPayment(null);
+        }
       } catch (err) {
         console.warn('[TransactionFormV2] suggestion fetch failed:', err);
         if (requestIdRef.current !== currentRequestId) return;
         setSuggestedCategoryId(null);
+        setSuggestedPayment(null);
       }
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [userId, type, showCategory, disableCategoryChange, rawDescription, normalizedDescription, ignoredSuggestionKey, categoryId, categories]);
+  }, [
+    userId,
+    type,
+    showCategory,
+    disableCategoryChange,
+    rawDescription,
+    normalizedDescription,
+    ignoredSuggestionKey,
+    categoryId,
+    categories,
+    onApplyPaymentSuggestion,
+    accountsForSuggestion,
+    creditCardsForSuggestion,
+    useCreditCard,
+    accountId,
+    creditCardName,
+  ]);
+
+  const suggestedPaymentLabel = useMemo(() => {
+    if (!suggestedPayment) return null;
+    if (suggestedPayment.method === 'account') {
+      const acc = (accountsForSuggestion || []).find((a) => a.id === suggestedPayment.accountId);
+      return acc ? `Conta: ${acc.name}` : null;
+    }
+    const card = (creditCardsForSuggestion || []).find((c) => c.id === suggestedPayment.creditCardId);
+    return card ? `Cartão: ${card.name}` : null;
+  }, [suggestedPayment, accountsForSuggestion, creditCardsForSuggestion]);
+
+  const suggestionText = useMemo(() => {
+    const categoryText = suggestedCategory?.name || null;
+
+    if (categoryText && suggestedPaymentLabel) {
+      return `Sugestão: ${categoryText} • ${suggestedPaymentLabel}`;
+    }
+    if (categoryText) {
+      return `Sugestão: ${categoryText}`;
+    }
+    if (suggestedPaymentLabel) {
+      return `Sugestão: ${suggestedPaymentLabel}`;
+    }
+    return null;
+  }, [suggestedCategory, suggestedPaymentLabel]);
 
   // Quick date options
   const setToday = () => {
@@ -331,21 +463,30 @@ export default function TransactionFormV2({
           />
         </View>
 
-        {!!suggestedCategory && type !== 'transfer' && showCategory && !disableCategoryChange && (
+        {!!suggestionText && type !== 'transfer' && showCategory && !disableCategoryChange && (
           <View style={[styles.suggestionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.suggestionHeader}>
               <MaterialCommunityIcons name="lightbulb-on-outline" size={18} color={colors.primary} />
               <Text style={[styles.suggestionText, { color: colors.text }]} numberOfLines={2}>
-                Sugestão: {suggestedCategory.name}
+                {suggestionText}
               </Text>
             </View>
             <View style={styles.suggestionActions}>
               <Pressable
                 onPress={() => {
-                  if (!suggestedCategoryId || !suggestedCategory) return;
-                  lastAppliedRef.current = { key: normalizedDescription, categoryId: suggestedCategoryId };
+                  if (!suggestedCategory && !suggestedPayment) return;
+
+                  if (suggestedCategoryId && suggestedCategory) {
+                    lastAppliedRef.current = { key: normalizedDescription, categoryId: suggestedCategoryId };
+                    onSelectCategory(suggestedCategory.id, suggestedCategory.name);
+                  }
+
+                  if (suggestedPayment && onApplyPaymentSuggestion) {
+                    onApplyPaymentSuggestion(suggestedPayment);
+                  }
+
                   setSuggestedCategoryId(null);
-                  onSelectCategory(suggestedCategory.id, suggestedCategory.name);
+                  setSuggestedPayment(null);
                 }}
                 style={[
                   styles.suggestionPrimaryButton,
@@ -362,6 +503,7 @@ export default function TransactionFormV2({
                 onPress={() => {
                   setIgnoredSuggestionKey(normalizedDescription);
                   setSuggestedCategoryId(null);
+                  setSuggestedPayment(null);
                 }}
                 style={[styles.suggestionSecondaryButton, { borderColor: colors.border }]}
               >

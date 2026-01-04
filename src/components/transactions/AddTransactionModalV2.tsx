@@ -585,10 +585,26 @@ export default function AddTransactionModalV2({
       if (success) {
         if (!isEditMode && user?.uid && type !== 'transfer' && categoryId) {
           const effectiveDescription = (description.trim() || categoryName).trim();
+
+          const paymentSuggestion: {
+            accountId?: string;
+            creditCardId?: string;
+            paymentMethod?: 'account' | 'creditCard';
+          } = {};
+
+          if (type === 'despesa' && useCreditCard && creditCardId) {
+            paymentSuggestion.paymentMethod = 'creditCard';
+            paymentSuggestion.creditCardId = creditCardId;
+          } else if (accountId) {
+            paymentSuggestion.paymentMethod = 'account';
+            paymentSuggestion.accountId = accountId;
+          }
+
           learnSuggestionPattern({
             userId: user.uid,
             description: effectiveDescription,
             categoryId,
+            ...paymentSuggestion,
           }).catch((err) => {
             console.warn('[AddTransactionModalV2] learnSuggestionPattern failed:', err);
           });
@@ -933,8 +949,31 @@ export default function AddTransactionModalV2({
                     accountId={accountId}
                     accountName={accountName}
                     useCreditCard={useCreditCard}
+                    creditCardId={creditCardId}
                     creditCardName={creditCardName}
                     creditCardColor={activeCards.find(c => c.id === creditCardId)?.color}
+                    accountsForSuggestion={selectableAccounts.map(a => ({ id: a.id, name: a.name }))}
+                    creditCardsForSuggestion={activeCards.map(c => ({ id: c.id, name: c.name, color: c.color }))}
+                    onApplyPaymentSuggestion={(payment) => {
+                      if (payment.method === 'account') {
+                        const acc = selectableAccounts.find(a => a.id === payment.accountId);
+                        if (!acc) return;
+                        setAccountId(acc.id);
+                        setAccountName(acc.name);
+                        setUseCreditCard(false);
+                        setCreditCardId('');
+                        setCreditCardName('');
+                        return;
+                      }
+
+                      const card = activeCards.find(c => c.id === payment.creditCardId);
+                      if (!card) return;
+                      setUseCreditCard(true);
+                      setCreditCardId(card.id);
+                      setCreditCardName(card.name);
+                      setAccountId('');
+                      setAccountName('');
+                    }}
                     sourceAccount={sourceAccount}
                     toAccountId={toAccountId}
                     toAccountName={toAccountName}
