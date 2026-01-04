@@ -377,6 +377,15 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
     return Object.values(currentMonthBills).reduce((sum, amount) => sum + amount, 0);
   }, [currentMonthBills]);
 
+  // Soma das faturas já pagas no mês atual ("Pago até hoje")
+  const paidToDateTotal = useMemo(() => {
+    if (cards.length === 0) return 0;
+    return cards.reduce((sum, card) => {
+      if (!currentMonthPaidBills[card.id]) return sum;
+      return sum + (currentMonthBills[card.id] || 0);
+    }, 0);
+  }, [cards, currentMonthBills, currentMonthPaidBills]);
+
   // Status do uso dos cartões
   const usageStatus = useMemo(() => {
     return getCardUsageStatus(monthTotalUsed, totalIncome);
@@ -440,12 +449,20 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
     };
   };
 
+  const currentMonthViewModels = currentMonthCardsToShow.map((card) => ({
+    card,
+    bill: buildCurrentMonthBill(card),
+  }));
+
+  const currentMonthPaidViewModels = currentMonthViewModels.filter((vm) => !!vm.bill.isPaid);
+  const currentMonthOpenViewModels = currentMonthViewModels.filter((vm) => !vm.bill.isPaid);
+
   // Componente de item do cartão (layout igual à imagem)
   const CardItem = ({ card, bill }: { card: CreditCard; bill: CardBillViewModel }) => {
     const billAmount = bill.amount || 0;
 
     // Usar cor personalizada ou fallback
-    const cardColor = card.color || '#6366F1';
+    const cardColor = card.color || DS_COLORS.primary;
 
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -480,6 +497,49 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
           : DS_COLORS.textMuted;
     
     const statusText = getStatusText();
+
+    if (isPaid) {
+      return (
+        <View
+          style={[
+            styles.cardItemContainer,
+            {
+              backgroundColor: DS_COLORS.card,
+              borderColor: DS_COLORS.border,
+            },
+          ]}
+        >
+          <Pressable
+            onPress={() => onCardPress?.(card)}
+            style={({ pressed }) => [
+              styles.cardItemContentPaid,
+              { opacity: pressed ? 0.7 : 1 },
+            ]}
+          >
+            <View style={styles.paidRow}>
+              <View style={[styles.cardIconCirclePaid, { backgroundColor: cardColor + '15' }]}>
+                <MaterialCommunityIcons
+                  name={(card.icon as any) || 'credit-card'}
+                  size={18}
+                  color={cardColor}
+                />
+              </View>
+              <Text style={[styles.cardItemName, { color: DS_COLORS.textTitle }]} numberOfLines={1}>
+                {card.name}
+              </Text>
+              <View style={styles.paidRight}>
+                <Text style={[styles.paidAmount, { color: DS_COLORS.textMuted }]}>
+                  {formatCurrencyBRL(billAmount)}
+                </Text>
+                <View style={[styles.paidCheckCircle, { backgroundColor: DS_COLORS.successLight }]}>
+                  <MaterialCommunityIcons name="check" size={12} color={DS_COLORS.success} />
+                </View>
+              </View>
+            </View>
+          </Pressable>
+        </View>
+      );
+    }
     
     return (
       <View
@@ -586,6 +646,12 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
               </Pressable>
             )}
           </View>
+          {monthTotalUsed > 0 && paidToDateTotal > 0 && (
+            <Text style={[styles.paidToDateLabel, { color: DS_COLORS.textMuted }]}>
+              {`Pago até hoje: ${formatCurrencyBRL(paidToDateTotal)}`}
+            </Text>
+          )}
+
           {monthTotalUsed > 0 && (
             <Text style={[styles.billsMonthLabel, { color: DS_COLORS.textMuted }]}>
               {currentMonthBillsLabel}
@@ -624,11 +690,24 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
       </View>
 
       {/* Lista de cartões */}
-      {currentMonthCardsToShow.length > 0 && (
+      {currentMonthOpenViewModels.length > 0 && (
         <View style={styles.cardsGrid}>
-          {currentMonthCardsToShow.map((card) => (
-            <CardItem key={card.id} card={card} bill={buildCurrentMonthBill(card)} />
+          {currentMonthOpenViewModels.map(({ card, bill }) => (
+            <CardItem key={card.id} card={card} bill={bill} />
           ))}
+        </View>
+      )}
+
+      {currentMonthPaidViewModels.length > 0 && (
+        <View style={styles.paidSection}>
+          <Text style={[styles.paidDividerText, { color: DS_COLORS.textMuted }]}>
+            -------- faturas pagas ------
+          </Text>
+          <View style={styles.paidCardsList}>
+            {currentMonthPaidViewModels.map(({ card, bill }) => (
+              <CardItem key={card.id} card={card} bill={bill} />
+            ))}
+          </View>
         </View>
       )}
 
@@ -804,7 +883,7 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
                     ? 'Continue assim! Manter os gastos no cartão abaixo de 30% das receitas é ideal.'
                     : usageStatus.level === 'warning'
                     ? 'Considere revisar seus gastos. O ideal é manter abaixo de 30% das receitas.'
-                    : 'Revise seus gastos no cartão para evitar comprometer seu orçamento.'}
+                    : 'Revise seus gastos no cartão.'}
                 </Text>
               </View>
             ) : (
@@ -865,6 +944,9 @@ const styles = StyleSheet.create({
   billsMonthLabel: {
     ...DS_TYPOGRAPHY.styles.label,
   },
+  paidToDateLabel: {
+    ...DS_TYPOGRAPHY.styles.label,
+  },
   headerIconButton: {
     marginLeft: DS_SPACING.sm,
   },
@@ -883,6 +965,24 @@ const styles = StyleSheet.create({
   },
   cardsGrid: {
     gap: 12,
+  },
+  paidSection: {
+    marginTop: 12,
+  },
+  paidDividerText: {
+    ...DS_TYPOGRAPHY.styles.label,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  paidCardsList: {
+    gap: 12,
+  },
+  cardIconCirclePaid: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   futureToggleRow: {
     flexDirection: 'row',
@@ -932,10 +1032,36 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 10,
   },
+  cardItemContentPaid: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
   cardItemHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  paidRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  paidRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  paidAmount: {
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  paidCheckCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cardIconCircle: {
     width: 40,
