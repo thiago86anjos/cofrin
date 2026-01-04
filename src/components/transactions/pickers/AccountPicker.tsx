@@ -13,11 +13,13 @@ interface Account {
   name: string;
   icon?: string;
   balance?: number;
+  color?: string;
 }
 
 interface CreditCard {
   id: string;
   name: string;
+  color?: string;
 }
 
 interface AccountPickerProps {
@@ -61,6 +63,13 @@ export default function AccountPicker({
   insets,
   title,
 }: AccountPickerProps) {
+  const toAlphaHex = (hexColor: string, alphaHex: string) => {
+    if (typeof hexColor !== 'string') return null;
+    // '#RRGGBB' -> '#RRGGBBAA'
+    if (hexColor.startsWith('#') && hexColor.length === 7) return `${hexColor}${alphaHex}`;
+    return null;
+  };
+
   const showCreditCards =
     transactionType === 'despesa' &&
     creditCards.length > 0 &&
@@ -91,6 +100,9 @@ export default function AccountPicker({
       >
         {accounts.map((acc) => {
           const isSelected = selectedAccountId === acc.id && !useCreditCard;
+          const accountTint = acc.color;
+          const accountIconColor = accountTint || (isSelected ? colors.primary : colors.textMuted);
+          const accountBg = (accountTint && (toAlphaHex(accountTint, '20') || colors.grayLight)) || colors.grayLight;
 
           return (
             <Pressable
@@ -106,15 +118,17 @@ export default function AccountPicker({
               ]}
             >
               <View style={styles.optionContent}>
-                <MaterialCommunityIcons
-                  name={(acc.icon || 'bank') as any}
-                  size={20}
-                  color={isSelected ? colors.primary : colors.textMuted}
-                />
+                <View style={[styles.iconCircle, { backgroundColor: accountBg }]}>
+                  <MaterialCommunityIcons
+                    name={(acc.icon || 'bank') as any}
+                    size={20}
+                    color={accountIconColor}
+                  />
+                </View>
                 <Text
                   style={[
                     styles.optionText,
-                    { color: colors.text, marginLeft: spacing.sm },
+                    { color: colors.text },
                     isSelected && { color: colors.primary, fontWeight: '600' },
                   ]}
                 >
@@ -135,6 +149,9 @@ export default function AccountPicker({
             </Text>
             {creditCards.map((card) => {
               const isSelected = selectedCreditCardId === card.id && useCreditCard;
+              const cardTint = card.color;
+              const cardIconColor = cardTint || (isSelected ? colors.primary : colors.textMuted);
+              const cardBg = (cardTint && (toAlphaHex(cardTint, '20') || colors.grayLight)) || colors.grayLight;
 
               return (
                 <Pressable
@@ -150,15 +167,17 @@ export default function AccountPicker({
                   ]}
                 >
                   <View style={styles.optionContent}>
-                    <MaterialCommunityIcons
-                      name="credit-card"
-                      size={20}
-                      color={isSelected ? colors.primary : colors.textMuted}
-                    />
+                    <View style={[styles.iconCircle, { backgroundColor: cardBg }]}>
+                      <MaterialCommunityIcons
+                        name="credit-card"
+                        size={20}
+                        color={cardIconColor}
+                      />
+                    </View>
                     <Text
                       style={[
                         styles.optionText,
-                        { color: colors.text, marginLeft: spacing.sm },
+                        { color: colors.text },
                         isSelected && { color: colors.primary, fontWeight: '600' },
                       ]}
                     >
@@ -210,6 +229,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+  },
+  iconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
   },
   optionText: {
     fontSize: 15,

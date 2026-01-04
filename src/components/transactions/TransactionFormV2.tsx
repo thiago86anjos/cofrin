@@ -28,6 +28,7 @@ interface Account {
   name: string;
   icon?: string;
   balance?: number;
+  color?: string;
 }
 
 interface TransactionFormV2Props {
@@ -52,6 +53,7 @@ interface TransactionFormV2Props {
   accountName: string;
   useCreditCard: boolean;
   creditCardName: string;
+  creditCardColor?: string;
   sourceAccount?: Account | null;
   
   // Transfer
@@ -143,6 +145,7 @@ export default function TransactionFormV2({
   accountName,
   useCreditCard,
   creditCardName,
+  creditCardColor,
   sourceAccount,
   toAccountId,
   toAccountName,
@@ -167,6 +170,12 @@ export default function TransactionFormV2({
   sameAccountError = false,
   colors,
 }: TransactionFormV2Props) {
+
+  const toAlphaHex = (hexColor: string, alphaHex: string) => {
+    if (typeof hexColor !== 'string') return null;
+    if (hexColor.startsWith('#') && hexColor.length === 7) return `${hexColor}${alphaHex}`;
+    return null;
+  };
   
   const [showRecurrenceOptions, setShowRecurrenceOptions] = useState(recurrence !== 'none');
   
@@ -271,11 +280,20 @@ export default function TransactionFormV2({
           onPress={() => onOpenPicker('account')}
           style={[styles.fieldRow, { backgroundColor: colors.card, borderColor: colors.border }]}
         >
-          <MaterialCommunityIcons 
-            name={useCreditCard ? 'credit-card' : 'bank-outline'} 
-            size={20} 
-            color={colors.textMuted} 
-          />
+          {(() => {
+            const tint = useCreditCard ? creditCardColor : sourceAccount?.color;
+            const bg = tint ? (toAlphaHex(tint, '20') || colors.grayLight) : colors.grayLight;
+            const iconColor = tint || colors.textMuted;
+            const iconName = useCreditCard
+              ? 'credit-card'
+              : ((sourceAccount?.icon || 'bank') as any);
+
+            return (
+              <View style={[styles.leadingIconCircle, { backgroundColor: bg }]}>
+                <MaterialCommunityIcons name={iconName} size={20} color={iconColor} />
+              </View>
+            );
+          })()}
           <View style={styles.fieldContent}>
             <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>
               {type === 'despesa' ? 'Pago com' : type === 'receita' ? 'Recebido em' : 'Conta origem'}
@@ -582,6 +600,13 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
+  },
+  leadingIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   fieldInput: {
     flex: 1,
