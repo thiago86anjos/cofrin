@@ -216,6 +216,24 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
     });
   }, [showFutureBills]);
 
+  const currentMonthCardsToShow = useMemo(() => {
+    return cards.filter(card => (currentMonthBills[card.id] || 0) > 0);
+  }, [cards, currentMonthBills]);
+
+  // Só permitir mostrar faturas futuras quando TODAS as faturas do mês atual estiverem pagas
+  // (sem pendentes e sem vencidas) para evitar poluir a tela.
+  const allCurrentBillsPaid = useMemo(() => {
+    for (const card of currentMonthCardsToShow) {
+      const billAmount = currentMonthBills[card.id] || 0;
+      if (billAmount <= 0) continue;
+
+      const isPaid = !!currentMonthPaidBills[card.id];
+      if (!isPaid) return false;
+    }
+
+    return true;
+  }, [currentMonthCardsToShow, currentMonthBills, currentMonthPaidBills]);
+
   // Buscar faturas do mês atual para cada cartão
   useEffect(() => {
     const fetchOpenBills = async () => {
@@ -232,7 +250,7 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
         for (const card of cards) {
           try {
             // Regra antiga: tenta mês atual; se não houver fatura pendente, tenta mês seguinte.
-            const candidates: Array<{ month: number; year: number }> = showFutureBills
+            const candidates: Array<{ month: number; year: number }> = showFutureBills && allCurrentBillsPaid
               ? [
                   { month: currentMonth, year: currentYear },
                   { month: nextMonth, year: nextYear },
@@ -278,7 +296,7 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
     };
     
     fetchOpenBills();
-  }, [cards, user?.uid, currentMonth, currentYear, nextMonth, nextYear, refreshKey, showFutureBills]);
+  }, [cards, user?.uid, currentMonth, currentYear, nextMonth, nextYear, refreshKey, showFutureBills, allCurrentBillsPaid]);
 
   // Detectar se existem faturas futuras (para só então mostrar o toggle)
   useEffect(() => {
@@ -379,39 +397,15 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
     return (monthTotalUsed / totalIncome) * 100;
   }, [monthTotalUsed, totalIncome]);
 
-  const currentMonthCardsToShow = useMemo(() => {
-    return cards.filter(card => (currentMonthBills[card.id] || 0) > 0);
-  }, [cards, currentMonthBills]);
-
-  // Verificar se todas as faturas do mês atual estão resolvidas (pagas ou atrasadas)
-  // Só mostrar botão de faturas futuras se o usuário não tiver pendências abertas do mês atual
-  const allCurrentBillsResolved = useMemo(() => {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
-    for (const card of currentMonthCardsToShow) {
-      const billAmount = currentMonthBills[card.id] || 0;
-      if (billAmount <= 0) continue;
-      
-      const isPaid = !!currentMonthPaidBills[card.id];
-      if (isPaid) continue;
-      
-      // Verificar se está atrasada (vencimento < hoje)
-      const dueDate = buildDueDate(currentYear, currentMonth, card.dueDay);
-      const dueDateStart = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
-      const isOverdue = dueDateStart.getTime() < todayStart.getTime();
-      
-      // Se não está paga E não está atrasada, ainda é pendente do mês atual
-      if (!isOverdue) {
-        return false;
-      }
+  // Se houver qualquer pendência no mês atual, forçar ocultar futuras
+  useEffect(() => {
+    if (showFutureBills && !allCurrentBillsPaid) {
+      setShowFutureBills(false);
     }
-    
-    return true;
-  }, [currentMonthCardsToShow, currentMonthBills, currentMonthPaidBills, currentMonth, currentYear]);
+  }, [showFutureBills, allCurrentBillsPaid]);
 
-  // Só mostrar toggle de faturas futuras se houver faturas futuras E as do mês atual estiverem resolvidas
-  const canShowFutureBillsToggle = hasFutureBillsAvailable && allCurrentBillsResolved;
+  // Só mostrar toggle de faturas futuras se houver faturas futuras E todas as do mês atual estiverem pagas
+  const canShowFutureBillsToggle = hasFutureBillsAvailable && allCurrentBillsPaid;
 
   const futurePendingCards = useMemo(() => {
     return cards.filter(card => {
@@ -424,10 +418,10 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
     return futurePendingCards.reduce((sum, card) => sum + (openBills[card.id]?.amount || 0), 0);
   }, [futurePendingCards, openBills]);
 
-  const hasFutureBills = showFutureBills && futurePendingCards.length > 0;
+  const hasFutureBills = showFutureBills && allCurrentBillsPaid && futurePendingCards.length > 0;
   const hasAnyBillsToShow = currentMonthCardsToShow.length > 0 || hasFutureBills;
 
-  const isLoadingFutureBills = showFutureBills && isLoadingBills;
+  const isLoadingFutureBills = showFutureBills && allCurrentBillsPaid && isLoadingBills;
 
   const buildCurrentMonthBill = (card: CreditCard): CardBillViewModel => {
     const pendingBill = openBills[card.id];
