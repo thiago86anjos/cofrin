@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, RefreshControl, TextInput, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCustomAlert } from "../hooks/useCustomAlert";
 import { useSnackbar } from "../hooks/useSnackbar";
@@ -16,6 +16,7 @@ import AddTransactionModalV2, { EditableTransaction } from '../components/transa
 import TransactionItem from '../components/transactions/TransactionItem';
 import SimpleHeader from '../components/SimpleHeader';
 import MainLayout from '../components/MainLayout';
+import CreateCreditCardModal from '../components/CreateCreditCardModal';
 import { spacing, borderRadius, getShadow } from '../theme';
 import { formatCurrencyBRL } from '../utils/format';
 import {
@@ -46,6 +47,12 @@ export default function CreditCardBillDetails() {
   
   const { activeAccounts } = useAccounts();
   const { deleteTransaction, deleteTransactionSeries } = useTransactions();
+
+  // Contas visíveis (contas ocultas não devem aparecer/ser usadas aqui)
+  const visibleAccounts = useMemo(
+    () => activeAccounts.filter(a => a.includeInTotal !== false),
+    [activeAccounts]
+  );
   
   // Estado para mês e ano navegáveis
   const [selectedMonth, setSelectedMonth] = useState(params.month);
@@ -67,13 +74,17 @@ export default function CreditCardBillDetails() {
   const [payModalVisible, setPayModalVisible] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [selectedAccountName, setSelectedAccountName] = useState('');
+
+  // Modal de edição do cartão (para trocar conta padrão de pagamento)
+  const [editCardModalVisible, setEditCardModalVisible] = useState(false);
+  const [reopenPayModalAfterCardEdit, setReopenPayModalAfterCardEdit] = useState(false);
   
   // Modal de edição de transação
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<EditableTransaction | null>(null);
 
   // Carregar detalhes da fatura
-  const loadBillDetails = async () => {
+  const loadBillDetails = async (): Promise<CreditCardBillWithTransactions | null | undefined> => {
     if (!user) return;
     
     setLoading(true);
@@ -92,12 +103,14 @@ export default function CreditCardBillDetails() {
           'Este cartão/fatura não está mais disponível (pode ter sido removido).',
           [{ text: 'Voltar', onPress: () => (navigation as any).goBack() }]
         );
-        return;
+        return null;
       }
       setBill(billData);
+      return billData;
     } catch (error) {
       console.error('Erro ao carregar fatura:', error);
       showAlert('Erro', 'Não foi possível carregar os detalhes da fatura', [{ text: 'OK' }]);
+      return null;
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -183,23 +196,24 @@ export default function CreditCardBillDetails() {
 
   // Abrir modal de pagamento
   const handlePayBill = () => {
-    if (!bill?.creditCard?.paymentAccountId) {
-      showAlert(
-        'Conta não configurada',
-        'Este cartão não tem uma conta de pagamento configurada. Edite o cartão para definir uma conta.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-    
-    // Pré-selecionar a conta de pagamento do cartão
-    const paymentAccount = activeAccounts.find(a => a.id === bill.creditCard?.paymentAccountId);
-    if (paymentAccount) {
-      setSelectedAccountId(paymentAccount.id);
-      setSelectedAccountName(paymentAccount.name);
-    }
+    const paymentAccountId = bill?.creditCard?.paymentAccountId;
+
+    // Pré-preencher somente se a conta estiver visível
+    const paymentAccount = paymentAccountId
+      ? visibleAccounts.find(a => a.id === paymentAccountId)
+      : undefined;
+
+    setSelectedAccountId(paymentAccount?.id || '');
+    setSelectedAccountName(paymentAccount?.name || '');
     
     setPayModalVisible(true);
+  };
+
+  const openEditCardFromPayModal = () => {
+    if (!bill?.creditCard) return;
+    setPayModalVisible(false);
+    setReopenPayModalAfterCardEdit(true);
+    setEditCardModalVisible(true);
   };
 
   // Confirmar pagamento
@@ -530,51 +544,47 @@ export default function CreditCardBillDetails() {
       <Modal
         visible={payModalVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setPayModalVisible(false)}
       >
-        <Pressable 
+        <Pressable
           style={styles.modalOverlay}
           onPress={() => setPayModalVisible(false)}
         >
-          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+          <Pressable
+            style={[styles.modalContent, { backgroundColor: colors.card, ...getShadow(colors) }]}
+            onPress={(e) => e.stopPropagation()}
+          >
             <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Selecione a conta de pagamento
+              Conta de pagamento
             </Text>
-            
-            <ScrollView style={styles.accountList}>
-              {activeAccounts.map((account) => (
-                <Pressable
-                  key={account.id}
-                  style={[
-                    styles.accountOption,
-                    { 
-                      borderColor: selectedAccountId === account.id ? colors.primary : colors.border,
-                      backgroundColor: selectedAccountId === account.id ? colors.primary + '10' : 'transparent',
-                    }
-                  ]}
-                  onPress={() => {
-                    setSelectedAccountId(account.id);
-                    setSelectedAccountName(account.name);
-                  }}
-                >
-                  <MaterialCommunityIcons 
-                    name={account.icon as any || 'bank'} 
-                    size={24} 
-                    color={selectedAccountId === account.id ? colors.primary : colors.text} 
-                  />
-                  <View style={styles.accountInfo}>
-                    <Text style={[styles.accountName, { color: colors.text }]}>{account.name}</Text>
-                    <Text style={[styles.accountBalance, { color: colors.textMuted }]}>
-                      Saldo: {formatCurrencyBRL(account.balance)}
-                    </Text>
-                  </View>
-                  {selectedAccountId === account.id && (
-                    <MaterialCommunityIcons name="check-circle" size={24} color={colors.primary} />
-                  )}
-                </Pressable>
-              ))}
-            </ScrollView>
+
+            <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Conta configurada no cartão</Text>
+            <TextInput
+              value={selectedAccountName || 'Não configurada'}
+              editable={false}
+              style={[
+                styles.readonlyInput,
+                {
+                  backgroundColor: colors.bg,
+                  borderColor: colors.border,
+                  color: colors.text,
+                },
+                Platform.select({ web: { outlineStyle: 'none' } as any }),
+              ]}
+            />
+
+            <Pressable
+              onPress={openEditCardFromPayModal}
+              style={({ pressed }) => [
+                styles.changePaymentAccountButton,
+                { borderColor: colors.border, backgroundColor: colors.bg },
+                pressed && { opacity: 0.85 },
+              ]}
+            >
+              <MaterialCommunityIcons name="pencil" size={18} color={colors.text} />
+              <Text style={[styles.changePaymentAccountButtonText, { color: colors.text }]}>Deseja alterar a conta de pagamento?</Text>
+            </Pressable>
             
             <View style={styles.modalButtons}>
               <Pressable
@@ -597,9 +607,31 @@ export default function CreditCardBillDetails() {
                 </Text>
               </Pressable>
             </View>
-          </View>
+          </Pressable>
         </Pressable>
       </Modal>
+
+      <CreateCreditCardModal
+        visible={editCardModalVisible}
+        onClose={() => {
+          setEditCardModalVisible(false);
+          const shouldReopen = reopenPayModalAfterCardEdit;
+          setReopenPayModalAfterCardEdit(false);
+          if (shouldReopen) setPayModalVisible(true);
+        }}
+        onSave={() => {
+          // Recarregar fatura para refletir a nova conta padrão do cartão
+          loadBillDetails().then((billData) => {
+            const paymentAccountId = billData?.creditCard?.paymentAccountId;
+            if (!paymentAccountId) return;
+            const paymentAccount = activeAccounts.find(a => a.id === paymentAccountId);
+            if (!paymentAccount) return;
+            setSelectedAccountId(paymentAccount.id);
+            setSelectedAccountName(paymentAccount.name);
+          });
+        }}
+        editCard={bill?.creditCard || null}
+      />
       <CustomAlert
         visible={alertState.visible}
         title={alertState.title}
@@ -876,13 +908,16 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.md,
   },
   modalContent: {
-    borderTopLeftRadius: borderRadius.lg,
-    borderTopRightRadius: borderRadius.lg,
+    width: '100%',
+    maxWidth: 500,
+    maxHeight: '90%',
+    borderRadius: borderRadius.xl,
     padding: spacing.lg,
-    maxHeight: '70%',
   },
   modalTitle: {
     fontSize: 18,
@@ -890,28 +925,31 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     textAlign: 'center',
   },
-  accountList: {
-    maxHeight: 300,
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: spacing.xs,
   },
-  accountOption: {
+  readonlyInput: {
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    fontSize: 15,
+  },
+  changePaymentAccountButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.md,
+    justifyContent: 'center',
+    gap: spacing.xs,
     borderRadius: borderRadius.md,
-    borderWidth: 2,
-    marginBottom: spacing.sm,
+    borderWidth: 1,
+    paddingVertical: spacing.md,
+    marginTop: spacing.md,
   },
-  accountInfo: {
-    flex: 1,
-    marginLeft: spacing.md,
-  },
-  accountName: {
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  accountBalance: {
-    fontSize: 13,
-    marginTop: 2,
+  changePaymentAccountButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   modalButtons: {
     flexDirection: 'row',
