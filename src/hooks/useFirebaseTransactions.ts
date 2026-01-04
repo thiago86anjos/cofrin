@@ -14,6 +14,32 @@ import {
 import * as transactionService from '../services/transactionService';
 import { getAccounts } from '../services/accountService';
 
+// Cache global de contas visíveis (compartilhado entre instâncias do hook)
+let visibleAccountsCache: { userId: string; ids: Set<string>; timestamp: number } | null = null;
+const CACHE_TTL_MS = 30_000; // 30 segundos
+
+async function getVisibleAccountIds(userId: string): Promise<Set<string>> {
+  const now = Date.now();
+  
+  // Retorna cache se válido
+  if (visibleAccountsCache && 
+      visibleAccountsCache.userId === userId && 
+      now - visibleAccountsCache.timestamp < CACHE_TTL_MS) {
+    return visibleAccountsCache.ids;
+  }
+  
+  // Busca e atualiza cache
+  const accounts = await getAccounts(userId);
+  const ids = new Set(accounts.filter(acc => acc.includeInTotal).map(acc => acc.id));
+  visibleAccountsCache = { userId, ids, timestamp: now };
+  return ids;
+}
+
+// Função para invalidar cache quando contas são modificadas
+export function invalidateVisibleAccountsCache() {
+  visibleAccountsCache = null;
+}
+
 interface UseTransactionsOptions {
   month?: number;
   year?: number;
@@ -85,10 +111,7 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
 
       // Filtrar transações de contas ocultas (se onlyVisibleAccounts ativado)
       if (onlyVisibleAccounts && !accountId) {
-        const accounts = await getAccounts(user.uid);
-        const visibleAccountIds = new Set(
-          accounts.filter(acc => acc.includeInTotal).map(acc => acc.id)
-        );
+        const visibleAccountIds = await getVisibleAccountIds(user.uid);
         data = data.filter(t => {
           // Transações sem conta específica (ex: cartão) são incluídas
           if (!t.accountId) return true;

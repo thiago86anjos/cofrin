@@ -50,15 +50,15 @@ export async function createTransaction(
   let month = transactionDate.getMonth() + 1;
   let year = transactionDate.getFullYear();
 
-  // Buscar dados desnormalizados
-  let categoryName: string | undefined;
-  let categoryIcon: string | undefined;
-  let accountName: string | undefined;
-  let toAccountName: string | undefined;
-  let creditCardName: string | undefined;
+  // Usar nomes fornecidos OU buscar do banco (otimização: evita queries se já tem os nomes)
+  let categoryName = data.categoryName;
+  let categoryIcon = data.categoryIcon;
+  let accountName = data.accountName;
+  let toAccountName = data.toAccountName;
+  let creditCardName = data.creditCardName;
 
-  // Categoria
-  if (data.categoryId) {
+  // Categoria - só busca se não foi fornecido o nome
+  if (data.categoryId && !categoryName) {
     const category = await getCategoryById(data.categoryId);
     if (category) {
       categoryName = category.name;
@@ -70,7 +70,7 @@ export async function createTransaction(
   if (data.creditCardId) {
     const card = await getCreditCardById(data.creditCardId);
     if (card) {
-      creditCardName = card.name;
+      if (!creditCardName) creditCardName = card.name;
       // Usar validação completa que verifica fechamento e se a fatura está paga
       const billInfo = await getCorrectBillForTransaction(
         userId,
@@ -83,16 +83,16 @@ export async function createTransaction(
     }
   }
 
-  // Conta origem - só buscar se tiver accountId válido
-  if (data.accountId) {
+  // Conta origem - só buscar se tiver accountId válido e não tiver nome
+  if (data.accountId && !accountName) {
     const account = await getAccountById(data.accountId);
     if (account) {
       accountName = account.name;
     }
   }
 
-  // Conta destino (transferência)
-  if (data.toAccountId) {
+  // Conta destino (transferência) - só buscar se não tiver nome
+  if (data.toAccountId && !toAccountName) {
     const toAccount = await getAccountById(data.toAccountId);
     if (toAccount) {
       toAccountName = toAccount.name;

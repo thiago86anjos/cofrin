@@ -160,8 +160,15 @@ export interface Transaction extends BaseDocument {
 
 export type CreateTransactionInput = Omit<
   Transaction, 
-  'id' | 'userId' | 'createdAt' | 'updatedAt' | 'month' | 'year' | 'categoryName' | 'categoryIcon' | 'accountName' | 'toAccountName' | 'creditCardName'
->;
+  'id' | 'userId' | 'createdAt' | 'updatedAt' | 'month' | 'year'
+> & {
+  // Nomes opcionais - se fornecidos, evitam queries de denormalização
+  categoryName?: string;
+  categoryIcon?: string;
+  accountName?: string;
+  toAccountName?: string;
+  creditCardName?: string;
+};
 export type UpdateTransactionInput = Partial<CreateTransactionInput>;
 
 // ==========================================

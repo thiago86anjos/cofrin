@@ -4,7 +4,11 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useState, useMemo, memo, useEffect, useRef } from 'react';
 import { formatCurrencyBRL } from '../../utils/format';
 import { CreditCard } from '../../types/firebase';
-import { getCreditCardTransactionsByMonth, calculateBillTotal, isBillPaid } from '../../services/creditCardBillService';
+import {
+  getCreditCardTransactionsByMonth,
+  calculateBillTotal,
+  getAllBillsStatusMap,
+} from '../../services/creditCardBillService';
 import { useAuth } from '../../contexts/authContext';
 import { useTransactionRefresh } from '../../contexts/transactionRefreshContext';
 import { DS_COLORS, DS_TYPOGRAPHY, DS_ICONS, DS_CARD, DS_SPACING } from '../../theme/designSystem';
@@ -217,135 +221,114 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
     return true;
   }, [currentMonthCardsToShow, currentMonthBills, currentMonthPaidBills]);
 
-  // Buscar faturas do mês atual para cada cartão
+  // ==========================================
+  // CARREGAMENTO OTIMIZADO - Uma única função com Promise.all
+  // ==========================================
   useEffect(() => {
-    const fetchOpenBills = async () => {
+    const fetchAllBillsData = async () => {
       if (!user?.uid || cards.length === 0) {
         setOpenBills({});
+        setCurrentMonthBills({});
+        setCurrentMonthPaidBills({});
+        setHasFutureBillsAvailable(false);
+        setIsLoadingBills(false);
         return;
       }
 
       setIsLoadingBills(true);
-      
-      const billsMap: Record<string, OpenBillSummary> = {};
 
       try {
+        // 1) Buscar status de TODAS as faturas em uma única query
+        const billsStatusMap = await getAllBillsStatusMap(user.uid);
+
+        // 2) Buscar transações de todos os cartões para mês atual e próximo em paralelo
+        const transactionPromises: Promise<{ cardId: string; month: number; year: number; transactions: any[] }>[] = [];
+        
         for (const card of cards) {
-          try {
-            // Tenta mês atual; se todas as faturas do mês atual estiverem pagas,
-            // também verifica mês seguinte (para exibir seção "faturas futuras").
-            const candidates: Array<{ month: number; year: number }> = allCurrentBillsPaid
-              ? [
-                  { month: currentMonth, year: currentYear },
-                  { month: nextMonth, year: nextYear },
-                ]
-              : [{ month: currentMonth, year: currentYear }];
+          // Mês atual
+          transactionPromises.push(
+            getCreditCardTransactionsByMonth(user.uid, card.id, currentMonth, currentYear)
+              .then(transactions => ({ cardId: card.id, month: currentMonth, year: currentYear, transactions }))
+          );
+          // Próximo mês
+          transactionPromises.push(
+            getCreditCardTransactionsByMonth(user.uid, card.id, nextMonth, nextYear)
+              .then(transactions => ({ cardId: card.id, month: nextMonth, year: nextYear, transactions }))
+          );
+        }
 
-            let chosen: OpenBillSummary | undefined;
-            for (const candidate of candidates) {
-              const transactions = await getCreditCardTransactionsByMonth(
-                user.uid,
-                card.id,
-                candidate.month,
-                candidate.year
-              );
+        const allTransactionResults = await Promise.all(transactionPromises);
 
-              const totalAmount = calculateBillTotal(transactions);
-              if (totalAmount <= 0) continue;
+        // Organizar resultados por cardId e mês
+        const txByCardMonth = new Map<string, { transactions: any[]; total: number }>();
+        for (const result of allTransactionResults) {
+          const key = `${result.cardId}-${result.month}-${result.year}`;
+          txByCardMonth.set(key, {
+            transactions: result.transactions,
+            total: calculateBillTotal(result.transactions),
+          });
+        }
 
-              const paid = await isBillPaid(user.uid, card.id, candidate.month, candidate.year);
-              if (paid) continue;
+        // 3) Processar dados para cada cartão
+        const newCurrentMonthBills: Record<string, number> = {};
+        const newCurrentMonthPaidBills: Record<string, boolean> = {};
+        const newOpenBills: Record<string, OpenBillSummary> = {};
+        let foundFutureBills = false;
 
-              chosen = {
-                amount: totalAmount,
-                billMonth: candidate.month,
-                billYear: candidate.year,
-                dueDate: buildDueDate(candidate.year, candidate.month, card.dueDay),
-              };
-              break;
-            }
+        for (const card of cards) {
+          // Mês atual
+          const currentKey = `${card.id}-${currentMonth}-${currentYear}`;
+          const currentData = txByCardMonth.get(currentKey);
+          const currentTotal = currentData?.total || 0;
+          const currentIsPaid = billsStatusMap.get(currentKey)?.isPaid ?? false;
 
-            if (chosen) {
-              billsMap[card.id] = chosen;
-            }
-          } catch (error) {
-            console.error(`Erro ao buscar fatura do cartão ${card.id}:`, error);
+          newCurrentMonthBills[card.id] = currentTotal;
+          newCurrentMonthPaidBills[card.id] = currentIsPaid;
+
+          // Próximo mês
+          const nextKey = `${card.id}-${nextMonth}-${nextYear}`;
+          const nextData = txByCardMonth.get(nextKey);
+          const nextTotal = nextData?.total || 0;
+          const nextIsPaid = billsStatusMap.get(nextKey)?.isPaid ?? false;
+
+          // Determinar fatura aberta (para openBills)
+          // Prioriza mês atual se não pago, senão próximo mês
+          if (currentTotal > 0 && !currentIsPaid) {
+            newOpenBills[card.id] = {
+              amount: currentTotal,
+              billMonth: currentMonth,
+              billYear: currentYear,
+              dueDate: buildDueDate(currentYear, currentMonth, card.dueDay),
+            };
+          } else if (nextTotal > 0 && !nextIsPaid) {
+            newOpenBills[card.id] = {
+              amount: nextTotal,
+              billMonth: nextMonth,
+              billYear: nextYear,
+              dueDate: buildDueDate(nextYear, nextMonth, card.dueDay),
+            };
+            foundFutureBills = true;
+          }
+
+          // Detectar faturas futuras pendentes (separado de openBills)
+          if (nextTotal > 0 && !nextIsPaid) {
+            foundFutureBills = true;
           }
         }
 
-        setOpenBills(billsMap);
+        setCurrentMonthBills(newCurrentMonthBills);
+        setCurrentMonthPaidBills(newCurrentMonthPaidBills);
+        setOpenBills(newOpenBills);
+        setHasFutureBillsAvailable(foundFutureBills);
+      } catch (error) {
+        console.error('[CreditCardsCard] Erro ao carregar dados de faturas:', error);
       } finally {
         setIsLoadingBills(false);
       }
     };
-    
-    fetchOpenBills();
-  }, [cards, user?.uid, currentMonth, currentYear, nextMonth, nextYear, refreshKey, allCurrentBillsPaid]);
 
-  // Detectar se existem faturas futuras (para só então mostrar o toggle)
-  useEffect(() => {
-    const checkFutureBills = async () => {
-      if (!user?.uid || cards.length === 0) {
-        setHasFutureBillsAvailable(false);
-        return;
-      }
-
-      try {
-        let foundFutureBills = false;
-        
-        for (const card of cards) {
-          const transactions = await getCreditCardTransactionsByMonth(user.uid, card.id, nextMonth, nextYear);
-          const totalAmount = calculateBillTotal(transactions);
-          
-          if (totalAmount <= 0) continue;
-
-          const paid = await isBillPaid(user.uid, card.id, nextMonth, nextYear);
-          
-          if (paid) continue;
-
-          foundFutureBills = true;
-          break;
-        }
-
-        setHasFutureBillsAvailable(foundFutureBills);
-      } catch (error) {
-        console.error('[CreditCardsCard] Error checking future bills:', error);
-        setHasFutureBillsAvailable(false);
-      }
-    };
-
-    checkFutureBills();
-  }, [cards, user?.uid, nextMonth, nextYear, refreshKey]);
-
-  // Buscar totais de gastos do mês atual (independente de fatura paga/pendente/vencida)
-  useEffect(() => {
-    const fetchCurrentMonthBills = async () => {
-      if (!user?.uid || cards.length === 0) {
-        setCurrentMonthBills({});
-        setCurrentMonthPaidBills({});
-        return;
-      }
-
-      const billsMap: Record<string, number> = {};
-      const paidMap: Record<string, boolean> = {};
-      for (const card of cards) {
-        try {
-          const transactions = await getCreditCardTransactionsByMonth(user.uid, card.id, currentMonth, currentYear);
-          billsMap[card.id] = calculateBillTotal(transactions);
-          paidMap[card.id] = await isBillPaid(user.uid, card.id, currentMonth, currentYear);
-        } catch (error) {
-          console.error(`Erro ao buscar gastos do mês do cartão ${card.id}:`, error);
-          billsMap[card.id] = 0;
-          paidMap[card.id] = false;
-        }
-      }
-
-      setCurrentMonthBills(billsMap);
-      setCurrentMonthPaidBills(paidMap);
-    };
-
-    fetchCurrentMonthBills();
-  }, [cards, user?.uid, currentMonth, currentYear, refreshKey]);
+    fetchAllBillsData();
+  }, [cards, user?.uid, currentMonth, currentYear, nextMonth, nextYear, refreshKey]);
 
   // Total de gastos em cartões no mês atual (base da modal)
   const monthTotalUsed = useMemo(() => {

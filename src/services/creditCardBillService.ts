@@ -434,6 +434,34 @@ export async function getPendingBillsMap(
 }
 
 // ==========================================
+// BUSCAR STATUS DE TODAS FATURAS DO USUÁRIO (OTIMIZAÇÃO)
+// ==========================================
+
+/**
+ * Retorna um Map com chave "creditCardId-month-year" e valor { isPaid: boolean }
+ * Busca TODAS as faturas em uma única query, ao invés de N queries separadas
+ */
+export async function getAllBillsStatusMap(
+  userId: string
+): Promise<Map<string, { isPaid: boolean }>> {
+  const q = query(
+    billsRef,
+    where('userId', '==', userId)
+  );
+
+  const snapshot = await getDocs(q);
+  const statusMap = new Map<string, { isPaid: boolean }>();
+
+  snapshot.docs.forEach(doc => {
+    const bill = doc.data() as CreditCardBill;
+    const key = `${bill.creditCardId}-${bill.month}-${bill.year}`;
+    statusMap.set(key, { isPaid: !!bill.isPaid });
+  });
+
+  return statusMap;
+}
+
+// ==========================================
 // ATUALIZAR NOME DO CARTÃO NAS FATURAS
 // ==========================================
 

@@ -23,9 +23,9 @@ import { spacing, borderRadius, getShadow } from '../theme';
 import type { Transaction, TransactionStatus } from '../types/firebase';
 import { getAccountById } from '../services/accountService';
 import {
-  generateBillsForMonth,
-  CreditCardBillWithTransactions,
-  getPendingBillsMap
+    generateBillsForMonth,
+    CreditCardBillWithTransactions,
+    getPendingBillsMap
 } from '../services/creditCardBillService';
 
 // Tipos dos parâmetros de navegação
@@ -164,36 +164,103 @@ export default function Launches() {
   const [accountBalanceFromDoc, setAccountBalanceFromDoc] = useState<number | null>(null);
   const [accountBalanceLoading, setAccountBalanceLoading] = useState(false);
   const lastLoggedMismatchKeyRef = useRef<string | null>(null);
+  
+  // Import function for deleting series from installment
+  const { deleteSeriesFromInstallment } = require('../services/transactionService');
 
+  // ==========================================
+  // CARREGAMENTO CONSOLIDADO - Tudo em paralelo
+  // ==========================================
   useEffect(() => {
     let cancelled = false;
 
-    const loadAccountBalance = async () => {
-      if (!filterAccountId || isCategoryContext) {
+    const loadAllData = async () => {
+      if (!user?.uid) {
+        setCreditCardBills([]);
+        setPendingBillsMap(null);
         setAccountBalanceFromDoc(null);
-        setAccountBalanceLoading(false);
         return;
       }
 
-      setAccountBalanceLoading(true);
-      try {
-        const account = await getAccountById(filterAccountId);
-        if (cancelled) return;
-        setAccountBalanceFromDoc(typeof account?.balance === 'number' ? account.balance : null);
-      } catch (err) {
-        console.warn('[Launches] failed to load account balance:', err);
-        if (cancelled) return;
-        setAccountBalanceFromDoc(null);
-      } finally {
-        if (!cancelled) setAccountBalanceLoading(false);
+      // Preparar promises para execução paralela
+      const promises: Promise<void>[] = [];
+
+      // 1) Carregar faturas de cartão (se tiver cartões ativos)
+      if (activeCards.length > 0) {
+        setBillsLoading(true);
+        promises.push(
+          generateBillsForMonth(user.uid, selectedMonth, selectedYear, activeCards)
+            .then((bills) => {
+              if (cancelled) return;
+              // Se há filtro de conta, mostrar apenas faturas dos cartões dessa conta
+              if (filterAccountId) {
+                const filtered = bills.filter((bill) => bill.creditCard?.paymentAccountId === filterAccountId);
+                setCreditCardBills(filtered);
+              } else {
+                setCreditCardBills(bills);
+              }
+            })
+            .catch((err) => {
+              console.error('Erro ao carregar faturas:', err);
+              if (!cancelled) setCreditCardBills([]);
+            })
+            .finally(() => {
+              if (!cancelled) setBillsLoading(false);
+            })
+        );
+      } else {
+        setCreditCardBills([]);
       }
+
+      // 2) Carregar mapa de faturas pendentes (apenas no modo categoria)
+      if (isCategoryContext) {
+        promises.push(
+          getPendingBillsMap(user.uid)
+            .then((map) => {
+              if (!cancelled) setPendingBillsMap(map);
+            })
+            .catch((err) => {
+              console.error('Erro ao carregar faturas pendentes:', err);
+              if (!cancelled) setPendingBillsMap(null);
+            })
+        );
+      } else {
+        setPendingBillsMap(null);
+      }
+
+      // 3) Carregar saldo da conta (quando filtrado por conta, fora do modo categoria)
+      if (filterAccountId && !isCategoryContext) {
+        setAccountBalanceLoading(true);
+        promises.push(
+          getAccountById(filterAccountId)
+            .then((account) => {
+              if (!cancelled) {
+                setAccountBalanceFromDoc(typeof account?.balance === 'number' ? account.balance : null);
+              }
+            })
+            .catch((err) => {
+              console.warn('[Launches] failed to load account balance:', err);
+              if (!cancelled) setAccountBalanceFromDoc(null);
+            })
+            .finally(() => {
+              if (!cancelled) setAccountBalanceLoading(false);
+            })
+        );
+      } else {
+        setAccountBalanceFromDoc(null);
+        setAccountBalanceLoading(false);
+      }
+
+      // Executar tudo em paralelo
+      await Promise.all(promises);
     };
 
-    loadAccountBalance();
+    loadAllData();
+
     return () => {
       cancelled = true;
     };
-  }, [filterAccountId, isCategoryContext, refreshKey]);
+  }, [user?.uid, selectedMonth, selectedYear, activeCards.length, filterAccountId, isCategoryContext, refreshKey]);
 
   const footerUsesAccountDocBalance = !!filterAccountId && !isCategoryContext && accountBalanceFromDoc !== null;
   const displayBalance = footerUsesAccountDocBalance ? accountBalanceFromDoc! : balance;
@@ -222,78 +289,6 @@ export default function Launches() {
       });
     }
   }, [filterAccountId, isCategoryContext, loading, accountBalanceFromDoc, balance, selectedMonth, selectedYear]);
-  
-  // Import function for deleting series from installment
-  const { deleteSeriesFromInstallment } = require('../services/transactionService');
-  
-  // Carregar faturas de cartão de crédito
-  const loadCreditCardBills = async () => {
-    if (!user || activeCards.length === 0) {
-      setCreditCardBills([]);
-      return;
-    }
-
-    setBillsLoading(true);
-    try {
-      const bills = await generateBillsForMonth(
-        user.uid,
-        selectedMonth,
-        selectedYear,
-        activeCards
-      );
-
-      // Se há filtro de conta ativo, mostrar apenas faturas de cartões
-      // cuja conta de pagamento seja a conta filtrada
-      if (filterAccountId) {
-        const filtered = bills.filter((bill) => {
-          return bill.creditCard?.paymentAccountId === filterAccountId;
-        });
-        setCreditCardBills(filtered);
-      } else {
-        setCreditCardBills(bills);
-      }
-    } catch (error) {
-      console.error('Erro ao carregar faturas:', error);
-    } finally {
-      setBillsLoading(false);
-    }
-  };
-  
-  // Recarregar faturas quando mudar mês/ano ou cartões
-  useEffect(() => {
-    loadCreditCardBills();
-  }, [user, selectedMonth, selectedYear, activeCards.length, filterAccountId]);
-  
-  // Recarregar faturas junto com transações
-  useEffect(() => {
-    if (refreshKey > 0) {
-      loadCreditCardBills();
-    }
-  }, [refreshKey]);
-
-  // Carregar mapa de faturas pendentes (consistência no modo categoria)
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadPendingBills = async () => {
-      if (!user || !isCategoryContext) {
-        setPendingBillsMap(null);
-        return;
-      }
-      try {
-        const map = await getPendingBillsMap(user.uid);
-        if (!cancelled) setPendingBillsMap(map);
-      } catch (error) {
-        console.error('Erro ao carregar faturas pendentes:', error);
-        if (!cancelled) setPendingBillsMap(null);
-      }
-    };
-
-    loadPendingBills();
-    return () => {
-      cancelled = true;
-    };
-  }, [user, isCategoryContext, refreshKey]);
   
   // Limpar filtro de conta
   const clearAccountFilter = () => {

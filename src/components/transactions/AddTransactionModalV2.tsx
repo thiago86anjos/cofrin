@@ -525,6 +525,9 @@ export default function AddTransactionModalV2({
         const localDate = new Date(transactionDate);
         const dateWithNoon = new Date(localDate.getFullYear(), localDate.getMonth(), localDate.getDate(), 12, 0, 0, 0);
 
+        // Buscar dados da categoria selecionada
+        const selectedCategory = categoryId ? categories.find(c => c.id === categoryId) : undefined;
+
         const data: CreateTransactionInput = {
           type: firebaseType,
           amount: transactionAmount,
@@ -537,12 +540,25 @@ export default function AddTransactionModalV2({
         if (recurrence !== 'none' && repetitions > 1) data.recurrenceType = recurrenceType;
         if (useCreditCard && type === 'despesa' && creditCardId) {
           data.creditCardId = creditCardId;
+          data.creditCardName = creditCardName; // Passa nome para evitar query
           data.accountId = accountId || undefined;
+          if (accountId && accountName) data.accountName = accountName;
         } else {
           data.accountId = accountId;
+          if (accountName) data.accountName = accountName; // Passa nome para evitar query
         }
-        if (type !== 'transfer' && categoryId) data.categoryId = categoryId;
-        if (type === 'transfer' && toAccountId) data.toAccountId = toAccountId;
+        if (type !== 'transfer' && categoryId) {
+          data.categoryId = categoryId;
+          // Passa nome e ícone para evitar query
+          if (selectedCategory) {
+            data.categoryName = selectedCategory.name;
+            data.categoryIcon = selectedCategory.icon;
+          }
+        }
+        if (type === 'transfer' && toAccountId) {
+          data.toAccountId = toAccountId;
+          if (toAccountName) data.toAccountName = toAccountName; // Passa nome para evitar query
+        }
         if (seriesId) data.seriesId = seriesId;
         if (recurrence !== 'none' && repetitions > 1 && recurrenceType === 'installment' && installmentIndex !== undefined) {
           data.installmentCurrent = installmentIndex + 1;
@@ -561,24 +577,42 @@ export default function AddTransactionModalV2({
       } else {
         const totalToCreate = recurrence === 'none' ? 1 : repetitions;
         const amountPerInstallment = recurrence === 'none' ? parsed : (recurrenceType === 'installment' ? parsed / totalToCreate : parsed);
-        let createdCount = 0;
 
-        for (let i = 0; i < totalToCreate; i++) {
-          if (totalToCreate > 1) setSavingProgress({ current: i + 1, total: totalToCreate });
-          const transactionDate = getNextDate(date, i);
-          const transactionData = buildTransactionData(transactionDate, amountPerInstallment, i);
+        if (totalToCreate === 1) {
+          // Transação única
+          const transactionData = buildTransactionData(date, amountPerInstallment, 0);
           const result = await createTransaction(transactionData);
-          if (result) createdCount++;
-        }
-        setSavingProgress(null);
-
-        success = createdCount === totalToCreate;
-        if (success) {
-          if (totalToCreate > 1) {
-            showSnackbar(`${createdCount} lançamentos criados! ${totalToCreate}x de ${formatCurrency(Math.round(amountPerInstallment * 100).toString())}`);
-          } else {
-            showSnackbar('Lançamento salvo!');
+          success = !!result;
+        } else {
+          // Parcelamentos: criar em lotes paralelos para performance
+          // Dividir em lotes de 5 para não sobrecarregar
+          const BATCH_SIZE = 5;
+          let createdCount = 0;
+          
+          for (let batchStart = 0; batchStart < totalToCreate; batchStart += BATCH_SIZE) {
+            const batchEnd = Math.min(batchStart + BATCH_SIZE, totalToCreate);
+            setSavingProgress({ current: batchEnd, total: totalToCreate });
+            
+            const batchPromises: Promise<any>[] = [];
+            for (let i = batchStart; i < batchEnd; i++) {
+              const transactionDate = getNextDate(date, i);
+              const transactionData = buildTransactionData(transactionDate, amountPerInstallment, i);
+              batchPromises.push(createTransaction(transactionData));
+            }
+            
+            const results = await Promise.all(batchPromises);
+            createdCount += results.filter(Boolean).length;
           }
+          setSavingProgress(null);
+
+          success = createdCount === totalToCreate;
+          if (success) {
+            showSnackbar(`${createdCount} lançamentos criados! ${totalToCreate}x de ${formatCurrency(Math.round(amountPerInstallment * 100).toString())}`);
+          }
+        }
+
+        if (success && totalToCreate === 1) {
+          showSnackbar('Lançamento salvo!');
         }
       }
 
@@ -630,7 +664,7 @@ export default function AddTransactionModalV2({
     } finally {
       setSaving(false);
     }
-  }, [type, amount, description, categoryId, categoryName, accountId, toAccountId, creditCardId, useCreditCard, date, recurrence, repetitions, recurrenceType, createTransaction, updateTransaction, isEditMode, editTransaction, onSave, onClose, showAlert, showSnackbar, selectableAccounts, confirmUseHiddenAccount, updateAccount, refreshAccounts]);
+  }, [type, amount, description, categoryId, categoryName, accountId, accountName, toAccountId, toAccountName, creditCardId, creditCardName, useCreditCard, date, recurrence, repetitions, recurrenceType, categories, createTransaction, updateTransaction, isEditMode, editTransaction, onSave, onClose, showAlert, showSnackbar, selectableAccounts, confirmUseHiddenAccount, updateAccount, refreshAccounts]);
 
   // Delete handler
   const handleDelete = useCallback(() => {
