@@ -228,9 +228,9 @@ export async function setInitialBalance(
     updatedAt: Timestamp.now(),
   });
 }
-// Recalcular saldo da conta com base nas transações reais
-// Esta função deve ser chamada quando houver suspeita de inconsistência
-export async function recalculateAccountBalance(
+
+// Calcular saldo da conta com base nas transações reais (sem atualizar o doc)
+export async function calculateAccountBalanceFromTransactions(
   userId: string,
   accountId: string
 ): Promise<number> {
@@ -241,7 +241,7 @@ export async function recalculateAccountBalance(
 
   // Buscar todas as transações completed da conta
   const transactionsRef = collection(db, COLLECTIONS.TRANSACTIONS);
-  
+
   // Transações onde a conta é origem (accountId)
   const q1 = query(
     transactionsRef,
@@ -270,7 +270,7 @@ export async function recalculateAccountBalance(
     const transaction = doc.data();
     // Pular transações de cartão de crédito (não afetam saldo da conta)
     if (transaction.creditCardId) return;
-    
+
     if (transaction.type === 'expense') {
       // Despesa: subtrai
       calculatedBalance -= transaction.amount;
@@ -291,6 +291,17 @@ export async function recalculateAccountBalance(
       calculatedBalance += transaction.amount;
     }
   });
+
+  return calculatedBalance;
+}
+
+// Recalcular saldo da conta com base nas transações reais
+// Esta função deve ser chamada quando houver suspeita de inconsistência
+export async function recalculateAccountBalance(
+  userId: string,
+  accountId: string
+): Promise<number> {
+  const calculatedBalance = await calculateAccountBalanceFromTransactions(userId, accountId);
 
   // Atualizar o saldo da conta no banco
   const accountDocRef = doc(db, COLLECTIONS.ACCOUNTS, accountId);

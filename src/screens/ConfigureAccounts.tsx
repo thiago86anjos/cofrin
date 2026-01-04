@@ -318,11 +318,14 @@ export default function ConfigureAccounts({ navigation }: any) {
     if (!editingAccount || !user?.uid) return;
     
     const newBalance = parseBalance(adjustBalanceValue);
-    const currentBalance = editingAccount.balance;
-    const difference = newBalance - currentBalance;
+    // Basear o ajuste no saldo calculado (initialBalance + transações completed)
+    // para evitar "diferença 0" quando o doc da conta está desatualizado.
+    const { calculateAccountBalanceFromTransactions } = await import('../services/accountService');
+    const computedCurrentBalance = await calculateAccountBalanceFromTransactions(user.uid, editingAccount.id);
+    const difference = newBalance - computedCurrentBalance;
     
     if (difference === 0) {
-      showAlert('Aviso', 'O saldo informado é igual ao saldo atual.', [{ text: 'OK', style: 'default' }]);
+      showAlert('Aviso', 'O saldo informado é igual ao saldo calculado da conta.', [{ text: 'OK', style: 'default' }]);
       return;
     }
     
@@ -334,7 +337,7 @@ export default function ConfigureAccounts({ navigation }: any) {
         user.uid,
         editingAccount.id,
         editingAccount.name,
-        currentBalance,
+        computedCurrentBalance,
         newBalance
       );
       

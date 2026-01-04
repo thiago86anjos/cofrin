@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -21,10 +21,11 @@ import SimpleHeader from '../components/SimpleHeader';
 import { FOOTER_HEIGHT } from '../components/AppFooter';
 import { spacing, borderRadius, getShadow } from '../theme';
 import type { Transaction, TransactionStatus } from '../types/firebase';
+import { getAccountById } from '../services/accountService';
 import {
-    generateBillsForMonth,
-    CreditCardBillWithTransactions,
-    getPendingBillsMap
+  generateBillsForMonth,
+  CreditCardBillWithTransactions,
+  getPendingBillsMap
 } from '../services/creditCardBillService';
 
 // Tipos dos parâmetros de navegação
@@ -129,7 +130,7 @@ export default function Launches() {
   const [pendingBillsMap, setPendingBillsMap] = useState<Map<string, boolean> | null>(null);
   
   // Hook de cartões de crédito
-  const { activeCards, refresh: refreshCreditCards } = useCreditCards();
+  const { activeCards, loading: creditCardsLoading, refresh: refreshCreditCards } = useCreditCards();
 
   const isCategoryContext = screenContext === 'category';
 
@@ -156,6 +157,71 @@ export default function Launches() {
     deleteTransactionSeries,
     updateTransaction 
   } = useTransactions(transactionsOptions);
+
+  // Quando filtrado por conta, o saldo "oficial" exibido na Home vem do campo account.balance.
+  // A tela de lançamentos calcula saldo via transações, o que pode divergir após ajustes manuais.
+  // Para consistência visual, buscamos o balance do doc e usamos no footer.
+  const [accountBalanceFromDoc, setAccountBalanceFromDoc] = useState<number | null>(null);
+  const [accountBalanceLoading, setAccountBalanceLoading] = useState(false);
+  const lastLoggedMismatchKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAccountBalance = async () => {
+      if (!filterAccountId || isCategoryContext) {
+        setAccountBalanceFromDoc(null);
+        setAccountBalanceLoading(false);
+        return;
+      }
+
+      setAccountBalanceLoading(true);
+      try {
+        const account = await getAccountById(filterAccountId);
+        if (cancelled) return;
+        setAccountBalanceFromDoc(typeof account?.balance === 'number' ? account.balance : null);
+      } catch (err) {
+        console.warn('[Launches] failed to load account balance:', err);
+        if (cancelled) return;
+        setAccountBalanceFromDoc(null);
+      } finally {
+        if (!cancelled) setAccountBalanceLoading(false);
+      }
+    };
+
+    loadAccountBalance();
+    return () => {
+      cancelled = true;
+    };
+  }, [filterAccountId, isCategoryContext, refreshKey]);
+
+  const footerUsesAccountDocBalance = !!filterAccountId && !isCategoryContext && accountBalanceFromDoc !== null;
+  const displayBalance = footerUsesAccountDocBalance ? accountBalanceFromDoc! : balance;
+
+  // Evita flicker do saldo (0 -> parcial -> final) enquanto carrega
+  const footerLoading = loading || (!!filterAccountId && !isCategoryContext && accountBalanceLoading);
+
+  useEffect(() => {
+    if (!filterAccountId || isCategoryContext) return;
+    if (loading) return;
+    if (accountBalanceFromDoc === null) return;
+
+    const key = `${filterAccountId}-${selectedMonth}-${selectedYear}`;
+    if (lastLoggedMismatchKeyRef.current === key) return;
+
+    const delta = accountBalanceFromDoc - balance;
+    if (Math.abs(delta) > 0.009) {
+      lastLoggedMismatchKeyRef.current = key;
+      console.warn('[Launches] balance mismatch (account doc vs computed):', {
+        accountId: filterAccountId,
+        month: selectedMonth,
+        year: selectedYear,
+        accountBalance: accountBalanceFromDoc,
+        computedBalance: balance,
+        delta,
+      });
+    }
+  }, [filterAccountId, isCategoryContext, loading, accountBalanceFromDoc, balance, selectedMonth, selectedYear]);
   
   // Import function for deleting series from installment
   const { deleteSeriesFromInstallment } = require('../services/transactionService');
@@ -944,17 +1010,28 @@ export default function Launches() {
               <>
                 <View style={styles.summaryPrimary}>
                   <Text style={[styles.summaryLabelMain, { color: colors.textMuted }]}>saldo atual</Text>
-                  <Text style={[styles.summaryAmountMain, { color: balance >= 0 ? colors.primary : expenseColor }]}>
-                    {formatCurrencyBRL(balance)}
-                  </Text>
+                  {footerLoading ? (
+                    <Text style={[styles.summaryAmountMain, { color: colors.textMuted }]}>
+                      Carregando...
+                    </Text>
+                  ) : (
+                    <Text style={[styles.summaryAmountMain, { color: displayBalance >= 0 ? colors.primary : expenseColor }]}>
+                      {formatCurrencyBRL(displayBalance)}
+                    </Text>
+                  )}
                 </View>
 
                 <Pressable
-                  onPress={() => setShowForecastTooltip(true)}
+                  onPress={() => {
+                    if (footerLoading) return;
+                    setShowForecastTooltip(true);
+                  }}
+                  disabled={footerLoading}
                   style={({ pressed }) => [
                     styles.understandButton,
                     { backgroundColor: colors.primaryBg, borderColor: colors.primary },
-                    pressed && { opacity: 0.7 }
+                    (pressed && !footerLoading) && { opacity: 0.7 },
+                    footerLoading && { opacity: 0.6 }
                   ]}
                 >
                   <MaterialCommunityIcons name="chart-line" size={16} color={colors.primary} />

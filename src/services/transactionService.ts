@@ -3,22 +3,22 @@
 // ==========================================
 
 import {
-  collection,
-  doc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  getDocs,
-  getDoc,
-  query,
-  where, Timestamp
+    collection,
+    doc,
+    addDoc,
+    updateDoc,
+    deleteDoc,
+    getDocs,
+    getDoc,
+    query,
+    where, Timestamp
 } from 'firebase/firestore';
 import { db, COLLECTIONS } from './firebase';
 import {
-  Transaction,
-  CreateTransactionInput,
-  UpdateTransactionInput,
-  TransactionType,
+    Transaction,
+    CreateTransactionInput,
+    UpdateTransactionInput,
+    TransactionType,
 } from '../types/firebase';
 import { updateAccountBalance, getAccounts } from './accountService';
 import { getCategoryById } from './categoryService';
@@ -27,10 +27,10 @@ import { getCreditCardById, updateCreditCardUsage, recalculateCreditCardUsage } 
 import { addToGoalProgress, removeFromGoalProgress } from './goalService';
 import { getPendingBillsMap, getCorrectBillForTransaction } from './creditCardBillService';
 import {
-  carryOverCache,
-  accountCarryOverCache,
-  CACHE_TTL,
-  invalidateCachePartial,
+    carryOverCache,
+    accountCarryOverCache,
+    CACHE_TTL,
+    invalidateCachePartial,
 } from './cacheService';
 
 const transactionsRef = collection(db, COLLECTIONS.TRANSACTIONS);
@@ -1738,6 +1738,9 @@ export async function createBalanceAdjustment(
     createdAt: now,
     updatedAt: now,
   });
+
+  // Limpar cache de saldos (carryOver) para refletir o ajuste imediatamente
+  invalidateCachePartial(userId, accountId);
 
   return {
     id: docRef.id,
