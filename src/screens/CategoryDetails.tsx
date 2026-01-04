@@ -55,16 +55,14 @@ export default function CategoryDetails() {
   const [historicalLoaded, setHistoricalLoaded] = useState(false);
   const [loadingHistorical, setLoadingHistorical] = useState(false);
 
-  // Carregar dados do mês/ano selecionado (rápido)
+  // Carregar dados do mês/ano selecionado (otimizado - 1 query ao invés de 4)
   const loadCurrentPeriodData = useCallback(async () => {
     if (!user) return;
 
     try {
-      // Buscar apenas o mês atual - muito mais rápido!
-      const [expenseCategories, incomeCategories] = await Promise.all([
-        transactionService.getExpensesByCategory(user.uid, selectedMonth, selectedYear),
-        transactionService.getIncomesByCategory(user.uid, selectedMonth, selectedYear),
-      ]);
+      // Buscar despesas E receitas de uma vez (1 query de transações + 1 de pending bills)
+      const { expenses: expenseCategories, incomes: incomeCategories } = 
+        await transactionService.getCategoriesDataForMonth(user.uid, selectedMonth, selectedYear);
 
       // Estrutura compatível com o formato anterior
       const expenseMonthData = {

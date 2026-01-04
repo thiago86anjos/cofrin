@@ -1233,6 +1233,67 @@ export async function getIncomesByCategory(
   return byCategory;
 }
 
+// ==========================================
+// FUNÇÃO OTIMIZADA: Buscar despesas E receitas por categoria de uma vez
+// ==========================================
+export async function getCategoriesDataForMonth(
+  userId: string,
+  month: number,
+  year: number
+): Promise<{
+  expenses: Map<string, { categoryId: string; categoryName: string; categoryIcon: string; total: number }>;
+  incomes: Map<string, { categoryId: string; categoryName: string; categoryIcon: string; total: number }>;
+}> {
+  // Buscar todas as transações do mês de uma vez (1 query ao invés de 2)
+  const transactions = await getTransactionsByMonth(userId, month, year);
+  
+  // Buscar faturas pendentes (1 query, reutilizada para todas as despesas)
+  const pendingBills = await getPendingBillsMap(userId);
+  
+  const expenses = new Map<string, { categoryId: string; categoryName: string; categoryIcon: string; total: number }>();
+  const incomes = new Map<string, { categoryId: string; categoryName: string; categoryIcon: string; total: number }>();
+
+  for (const t of transactions) {
+    if (t.status !== 'completed' || !t.categoryId) continue;
+
+    if (t.type === 'expense') {
+      // Ignorar transações de cartão com fatura pendente
+      if (t.creditCardId && t.month && t.year) {
+        const billKey = `${t.creditCardId}-${t.month}-${t.year}`;
+        if (pendingBills.has(billKey)) {
+          continue;
+        }
+      }
+
+      const existing = expenses.get(t.categoryId);
+      if (existing) {
+        existing.total += t.amount;
+      } else {
+        expenses.set(t.categoryId, {
+          categoryId: t.categoryId,
+          categoryName: t.categoryName || 'Sem categoria',
+          categoryIcon: t.categoryIcon || 'dots-horizontal',
+          total: t.amount,
+        });
+      }
+    } else if (t.type === 'income') {
+      const existing = incomes.get(t.categoryId);
+      if (existing) {
+        existing.total += t.amount;
+      } else {
+        incomes.set(t.categoryId, {
+          categoryId: t.categoryId,
+          categoryName: t.categoryName || 'Sem categoria',
+          categoryIcon: t.categoryIcon || 'dots-horizontal',
+          total: t.amount,
+        });
+      }
+    }
+  }
+
+  return { expenses, incomes };
+}
+
 // Contar transações por categoria
 export async function getTransactionCountByCategory(
   userId: string,
