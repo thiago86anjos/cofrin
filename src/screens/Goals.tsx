@@ -48,7 +48,7 @@ export default function Goals() {
   const { snackbarState, showSnackbar, hideSnackbar } = useSnackbar();
   const route = useRoute<RouteProp<GoalsRouteParams, 'Metas do ano'>>();
 
-  const [activeTab, setActiveTab] = useState<TabType>('longTerm');
+  const [activeTab, setActiveTab] = useState<TabType>('monthly');
   const [showChooseTypeModal, setShowChooseTypeModal] = useState(false);
   const [showMonthlyGoalModal, setShowMonthlyGoalModal] = useState(false);
   const [showLongTermGoalModal, setShowLongTermGoalModal] = useState(false);
@@ -283,27 +283,6 @@ export default function Goals() {
           <Pressable
             style={[
               styles.tab,
-              activeTab === 'longTerm' && styles.tabActive,
-              activeTab === 'longTerm' && { borderBottomColor: colors.primary }
-            ]}
-            onPress={() => setActiveTab('longTerm')}
-          >
-            <MaterialCommunityIcons 
-              name="target" 
-              size={20} 
-              color={activeTab === 'longTerm' ? colors.primary : colors.textMuted} 
-            />
-            <Text style={[
-              styles.tabText,
-              { color: activeTab === 'longTerm' ? colors.primary : colors.textMuted }
-            ]}>
-              Longo prazo
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={[
-              styles.tab,
               activeTab === 'monthly' && styles.tabActive,
               activeTab === 'monthly' && { borderBottomColor: colors.primary }
             ]}
@@ -319,6 +298,27 @@ export default function Goals() {
               { color: activeTab === 'monthly' ? colors.primary : colors.textMuted }
             ]}>
               Mensais
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[
+              styles.tab,
+              activeTab === 'longTerm' && styles.tabActive,
+              activeTab === 'longTerm' && { borderBottomColor: colors.primary }
+            ]}
+            onPress={() => setActiveTab('longTerm')}
+          >
+            <MaterialCommunityIcons 
+              name="target" 
+              size={20} 
+              color={activeTab === 'longTerm' ? colors.primary : colors.textMuted} 
+            />
+            <Text style={[
+              styles.tabText,
+              { color: activeTab === 'longTerm' ? colors.primary : colors.textMuted }
+            ]}>
+              Longo prazo
             </Text>
           </Pressable>
         </View>
