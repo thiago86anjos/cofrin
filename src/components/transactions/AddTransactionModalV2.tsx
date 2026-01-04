@@ -31,7 +31,7 @@ import { useSnackbar } from '../../hooks/useSnackbar';
 import CustomAlert from '../CustomAlert';
 import Snackbar from '../Snackbar';
 import LoadingOverlay from '../LoadingOverlay';
-import { TransactionType, RecurrenceType, CreateTransactionInput } from '../../types/firebase';
+import { TransactionType, RecurrenceType, CreateTransactionInput, Account } from '../../types/firebase';
 import { useTransactionRefresh } from '../../contexts/transactionRefreshContext';
 import { useAuth } from '../../contexts/authContext';
 import { moveSeriesMonth, anticipateInstallment } from '../../services/transactionService';
@@ -111,15 +111,12 @@ export default function AddTransactionModalV2({
 
   // Firebase hooks
   const { categories, refresh: refreshCategories, createCategory } = useCategories();
-  const { activeAccounts, refresh: refreshAccounts } = useAccounts();
+  const { activeAccounts, refresh: refreshAccounts, updateAccount } = useAccounts();
   const { activeCards, refresh: refreshCreditCards } = useCreditCards();
   const { createTransaction, updateTransaction } = useTransactions();
 
-  // Filtrar contas ocultas (includeInTotal !== false)
-  const visibleAccounts = useMemo(() => 
-    activeAccounts.filter(acc => acc.includeInTotal !== false),
-    [activeAccounts]
-  );
+  // Contas selecionáveis (inclui contas ocultas; o picker exibirá label)
+  const selectableAccounts = useMemo(() => activeAccounts, [activeAccounts]);
 
   // Mode
   const isEditMode = !!editTransaction;
@@ -163,6 +160,22 @@ export default function AddTransactionModalV2({
   const { alertState, showAlert, hideAlert } = useCustomAlert();
   const { snackbarState, showSnackbar, hideSnackbar } = useSnackbar();
 
+  const confirmUseHiddenAccount = useCallback(
+    (acc: Account) => {
+      return new Promise<'keep' | 'reveal'>((resolve) => {
+        showAlert(
+          'Conta oculta',
+          `Você está fazendo o lançamento na conta "${acc.name}", que está oculta no painel geral de contas.\n\nDeseja torná-la visível no painel geral?`,
+          [
+            { text: 'Manter oculta', style: 'cancel', onPress: () => resolve('keep') },
+            { text: 'Tornar visível', style: 'default', onPress: () => resolve('reveal') },
+          ]
+        );
+      });
+    },
+    [showAlert]
+  );
+
   // Computed values
   const hasAmount = React.useMemo(() => parseCurrency(amount) > 0, [amount]);
   
@@ -176,10 +189,10 @@ export default function AddTransactionModalV2({
 
   const sourceAccount = React.useMemo(() => {
     if (type === 'transfer' || (type === 'despesa' && !useCreditCard)) {
-      return visibleAccounts.find(acc => acc.id === accountId);
+      return selectableAccounts.find(acc => acc.id === accountId);
     }
     return null;
-  }, [type, accountId, useCreditCard, visibleAccounts]);
+  }, [type, accountId, useCreditCard, selectableAccounts]);
 
   const canConfirm = React.useMemo(() => {
     if (!hasAmount) return false;
@@ -298,36 +311,41 @@ export default function AddTransactionModalV2({
   // Definir conta inicial após carregar contas (separado para evitar loop)
   useEffect(() => {
     if (!visible || editTransaction) return;
-    if (visibleAccounts.length === 0) return;
+    if (selectableAccounts.length === 0) return;
     
     // Só definir se ainda não tem conta selecionada
     if (accountId) return;
     
-    // Aplicar conta pré-selecionada (initialAccountId) ou primeira conta visível
+    // Aplicar conta pré-selecionada (initialAccountId) ou primeira conta (preferindo as visíveis)
+    const preferredAccounts = selectableAccounts.filter((acc) => acc.includeInTotal !== false);
+    const accountsForDefault = preferredAccounts.length > 0 ? preferredAccounts : selectableAccounts;
+
     if (initialAccountId) {
-      const preselectedAccount = visibleAccounts.find(acc => acc.id === initialAccountId);
+      const preselectedAccount = selectableAccounts.find(acc => acc.id === initialAccountId);
       if (preselectedAccount) {
         setAccountId(preselectedAccount.id);
         setAccountName(preselectedAccount.name);
-      } else if (visibleAccounts.length > 0) {
-        setAccountId(visibleAccounts[0].id);
-        setAccountName(visibleAccounts[0].name);
+      } else if (accountsForDefault.length > 0) {
+        setAccountId(accountsForDefault[0].id);
+        setAccountName(accountsForDefault[0].name);
       }
     } else {
-      setAccountId(visibleAccounts[0].id);
-      setAccountName(visibleAccounts[0].name);
+      setAccountId(accountsForDefault[0].id);
+      setAccountName(accountsForDefault[0].name);
     }
     
     // Para transferência, definir conta destino
-    if (visibleAccounts.length > 1 && !toAccountId) {
-      const sourceId = initialAccountId || visibleAccounts[0]?.id;
-      const destAccount = visibleAccounts.find(acc => acc.id !== sourceId);
+    if (selectableAccounts.length > 1 && !toAccountId) {
+      const sourceId = initialAccountId || accountsForDefault[0]?.id;
+      const destPreferred = accountsForDefault.find(acc => acc.id !== sourceId);
+      const destFallback = selectableAccounts.find(acc => acc.id !== sourceId);
+      const destAccount = destPreferred || destFallback;
       if (destAccount) {
         setToAccountId(destAccount.id);
         setToAccountName(destAccount.name);
       }
     }
-  }, [visible, editTransaction, visibleAccounts, initialAccountId, accountId, toAccountId]);
+  }, [visible, editTransaction, selectableAccounts, initialAccountId, accountId, toAccountId]);
 
   // Sync tempDate when opening date picker
   useEffect(() => {
@@ -460,6 +478,25 @@ export default function AddTransactionModalV2({
       return;
     }
 
+    // Se o usuário está lançando em conta(s) ocultas, avisar e oferecer tornar visível
+    const accountIdsToCheck: string[] = [];
+    if (accountId) accountIdsToCheck.push(accountId);
+    if (type === 'transfer' && toAccountId) accountIdsToCheck.push(toAccountId);
+
+    for (const id of accountIdsToCheck) {
+      const acc = selectableAccounts.find((a) => a.id === id);
+      if (!acc) continue;
+      if (acc.includeInTotal === false) {
+        const choice = await confirmUseHiddenAccount(acc);
+        if (choice === 'reveal') {
+          const ok = await updateAccount(acc.id, { includeInTotal: true });
+          if (ok) {
+            await refreshAccounts();
+          }
+        }
+      }
+    }
+
     setSaving(true);
     try {
       const firebaseType: TransactionType = type === 'despesa' ? 'expense' : type === 'receita' ? 'income' : 'transfer';
@@ -577,7 +614,7 @@ export default function AddTransactionModalV2({
     } finally {
       setSaving(false);
     }
-  }, [type, amount, description, categoryId, categoryName, accountId, toAccountId, creditCardId, useCreditCard, date, recurrence, repetitions, recurrenceType, createTransaction, updateTransaction, isEditMode, editTransaction, onSave, onClose, showAlert, showSnackbar]);
+  }, [type, amount, description, categoryId, categoryName, accountId, toAccountId, creditCardId, useCreditCard, date, recurrence, repetitions, recurrenceType, createTransaction, updateTransaction, isEditMode, editTransaction, onSave, onClose, showAlert, showSnackbar, selectableAccounts, confirmUseHiddenAccount, updateAccount, refreshAccounts]);
 
   // Delete handler
   const handleDelete = useCallback(() => {
@@ -733,7 +770,7 @@ export default function AddTransactionModalV2({
 
     if (activePicker === 'account' || activePicker === 'toAccount') {
       const isToAccount = activePicker === 'toAccount';
-      const accountsList = isToAccount ? visibleAccounts.filter(a => a.id !== accountId) : visibleAccounts;
+      const accountsList = isToAccount ? selectableAccounts.filter(a => a.id !== accountId) : selectableAccounts;
       
       return (
         <AccountPicker
@@ -815,7 +852,7 @@ export default function AddTransactionModalV2({
   };
 
   // No accounts message
-  if (visible && visibleAccounts.length === 0) {
+  if (visible && selectableAccounts.length === 0) {
     return (
       <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
         <Pressable style={styles.overlay} onPress={onClose}>
@@ -858,7 +895,7 @@ export default function AddTransactionModalV2({
                 amount={amount}
                 onAmountChange={handleAmountChange}
                 amountInputRef={amountInputRef}
-                disabled={visibleAccounts.length === 0 || !!isGoalTransaction}
+                disabled={selectableAccounts.length === 0 || !!isGoalTransaction}
                 hideTypeSelector={!!isGoalTransaction || !!isMetaCategoryTransaction || isAnticipationDiscount}
                 colors={{
                   text: colors.text,

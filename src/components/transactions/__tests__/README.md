@@ -1,8 +1,8 @@
-# Testes do AddTransactionModal
+# Testes do modal de transação (V2)
 
 ## 📋 Visão Geral
 
-Este arquivo contém testes unitários para o componente `AddTransactionModal`, garantindo que as funcionalidades críticas funcionem corretamente e prevenindo regressões.
+Este arquivo contém testes unitários de lógica do modal de transação, garantindo que as funcionalidades críticas funcionem corretamente e prevenindo regressões.
 
 ## 🎯 O que está sendo testado
 
@@ -52,7 +52,7 @@ npm run test:coverage
 
 ```
 Test Suites: 1 passed
-Tests:       11 passed
+Tests:       12 passed
 ```
 
 ### Testes incluídos:
@@ -62,11 +62,12 @@ Tests:       11 passed
 4. ✓ deve pré-preencher transferência com conta origem e destino
 5. ✓ NÃO deve setar conta padrão quando useCreditCard está ativo
 6. ✓ DEVE setar conta padrão quando useCreditCard está inativo e não há accountId
-7. ✓ deve formatar valores corretamente para exibição
-8. ✓ deve mapear tipos corretamente (local <-> Firebase)
-9. ✓ despesa e receita devem ter categoria
-10. ✓ transferência deve ter conta destino
-11. ✓ valor deve ser maior que zero
+7. ✓ NÃO deve setar conta padrão quando está em modo de edição
+8. ✓ deve formatar valores corretamente para exibição
+9. ✓ deve mapear tipos corretamente (local <-> Firebase)
+10. ✓ despesa e receita devem ter categoria
+11. ✓ transferência deve ter conta destino
+12. ✓ valor deve ser maior que zero
 
 ## 🐛 Bug Corrigido
 
@@ -122,7 +123,7 @@ Os testes devem ser executados:
 - ✅ Antes de fazer commits importantes
 - ✅ Antes de fazer push para o repositório
 - ✅ Antes de fazer deploy em produção
-- ✅ Sempre que modificar o AddTransactionModal
+- ✅ Sempre que modificar o modal de transação
 
 ## 📝 Adicionando novos testes
 
@@ -158,7 +159,7 @@ it('deve validar novo comportamento', () => {
 
 ## 🔗 Arquivos relacionados
 
-- `src/components/transactions/AddTransactionModal.tsx` - Componente principal
+- `src/components/transactions/AddTransactionModalV2.tsx` - Modal de transação (V2)
 - `src/services/transactionService.ts` - Serviço de transações
 - `jest.config.js` - Configuração do Jest
 - `package.json` - Scripts de teste

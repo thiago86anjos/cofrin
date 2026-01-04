@@ -10,7 +10,7 @@
  * Para rodar com coverage: npm run test:coverage
  */
 
-import { EditableTransaction } from '../AddTransactionModal';
+import { EditableTransaction } from '../AddTransactionModalV2';
 
 describe('AddTransactionModal - Lógica de Pré-preenchimento', () => {
   

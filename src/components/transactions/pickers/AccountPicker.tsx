@@ -14,6 +14,7 @@ interface Account {
   icon?: string;
   balance?: number;
   color?: string;
+  includeInTotal?: boolean;
 }
 
 interface CreditCard {
@@ -133,6 +134,9 @@ export default function AccountPicker({
                   ]}
                 >
                   {acc.name}
+                  {acc.includeInTotal === false ? (
+                    <Text style={[styles.hiddenLabel, { color: colors.textMuted }]}> (oculta)</Text>
+                  ) : null}
                 </Text>
               </View>
               {isSelected && <MaterialCommunityIcons name="check" size={20} color={colors.primary} />}
@@ -241,6 +245,10 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: 15,
     fontWeight: '500',
+  },
+  hiddenLabel: {
+    fontSize: 13,
+    fontWeight: '400',
   },
   divider: {
     height: 1,
