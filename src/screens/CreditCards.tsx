@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Modal } from "react-native";
+import { View, Text, Pressable, StyleSheet, ScrollView } from "react-native";
 import { useRoute, useFocusEffect } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppTheme } from "../contexts/themeContext";
 import { useFab } from "../contexts/fabContext";
@@ -12,7 +11,6 @@ import Snackbar from "../components/Snackbar";
 import LoadingOverlay from "../components/LoadingOverlay";
 import MainLayout from "../components/MainLayout";
 import SimpleHeader from "../components/SimpleHeader";
-import DayPicker from "../components/DayPicker";
 import CreateCreditCardModal from "../components/CreateCreditCardModal";
 import { useAuth } from "../contexts/authContext";
 import { spacing, borderRadius, getShadow } from "../theme";
@@ -20,8 +18,6 @@ import { useCreditCards } from "../hooks/useCreditCards";
 import { useAccounts } from "../hooks/useAccounts";
 import { CreditCard } from "../types/firebase";
 import { formatCurrencyBRL } from "../utils/format";
-import { deleteTransactionsByCreditCard, countTransactionsByCreditCard } from "../services/transactionService";
-import { updateCreditCard as updateCreditCardService } from "../services/creditCardService";
 import { useTransactionRefresh } from "../contexts/transactionRefreshContext";
 
 export default function CreditCards({ navigation }: any) {
@@ -32,9 +28,7 @@ export default function CreditCards({ navigation }: any) {
   const { alertState, showAlert, hideAlert } = useCustomAlert();
   const { snackbarState, showSnackbar, hideSnackbar } = useSnackbar();
   const { triggerRefresh } = useTransactionRefresh();
-  const insets = useSafeAreaInsets();
-  
-  const [saving, setSaving] = useState(false);
+
   
   // Estado para loading overlay (operações longas)
   const [loadingOverlay, setLoadingOverlay] = useState({
@@ -47,27 +41,10 @@ export default function CreditCards({ navigation }: any) {
   const [quickCreateVisible, setQuickCreateVisible] = useState(false);
   const [quickEditCard, setQuickEditCard] = useState<CreditCard | null>(null);
 
-  // Estado para modal unificada (criar/editar) - antiga, para operações complexas
-  const [modalVisible, setModalVisible] = useState(false);
-  const [isCreateMode, setIsCreateMode] = useState(false);
-  const [editingCard, setEditingCard] = useState<CreditCard | null>(null);
-  const [cardName, setCardName] = useState('');
-  const [cardLimit, setCardLimit] = useState('');
-  const [cardClosingDay, setCardClosingDay] = useState('');
-  const [cardDueDay, setCardDueDay] = useState('');
-  const [cardAccountId, setCardAccountId] = useState('');
-  const [cardAccountName, setCardAccountName] = useState('');
-  const [cardColor, setCardColor] = useState('#6366F1');
-  const [showAccountPicker, setShowAccountPicker] = useState(false);
-  const [focusedField, setFocusedField] = useState<string | null>(null);
-
   // Hooks do Firebase
   const { 
     activeCards, 
     loading, 
-    createCreditCard,
-    updateCreditCard,
-    archiveCreditCard,
     deleteCreditCard,
   } = useCreditCards();
   
@@ -125,123 +102,7 @@ export default function CreditCards({ navigation }: any) {
     }
   }, [route.params?.editCardId, activeCards.length, loading]);
 
-  // Converter string de valor para número
-  function parseValue(value: string): number {
-    // Remove tudo exceto dígitos, vírgula e ponto
-    let cleaned = value.replace(/[^\d,.]/g, '');
-    // Remove pontos (separador de milhares) e substitui vírgula por ponto (separador decimal)
-    cleaned = cleaned.replace(/\./g, '').replace(',', '.');
-    return parseFloat(cleaned) || 0;
-  }
-
-  // Formatar valor monetário para exibição
-  const formatCurrency = (value: string) => {
-    const numbers = value.replace(/\D/g, '');
-    if (!numbers) return '';
-    
-    const numValue = parseInt(numbers, 10) / 100;
-    return numValue.toLocaleString('pt-BR', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  };
-
-  async function handleCreate() {
-    // Verificar se há contas cadastradas
-    if (activeAccounts.length === 0) {
-      showAlert(
-        'Conta necessária',
-        'Para cadastrar um cartão de crédito, você precisa ter pelo menos uma conta cadastrada para pagamento da fatura.',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { 
-            text: 'Criar conta', 
-            onPress: () => {
-              setModalVisible(false);
-              navigation.navigate('ConfigureAccounts');
-            },
-          },
-        ]
-      );
-      return;
-    }
-
-    if (!cardName.trim()) {
-      showAlert('Erro', 'Informe o nome do cartão', [{ text: 'OK', style: 'default' }]);
-      return;
-    }
-
-    if (!cardLimit.trim() || parseValue(cardLimit) <= 0) {
-      showAlert('Erro', 'Informe o limite do cartão', [{ text: 'OK', style: 'default' }]);
-      return;
-    }
-
-    if (!cardAccountId) {
-      showAlert('Erro', 'Selecione a conta de pagamento da fatura', [{ text: 'OK', style: 'default' }]);
-      return;
-    }
-    
-    const closingDayNum = parseInt(cardClosingDay) || 1;
-    const dueDayNum = parseInt(cardDueDay) || 10;
-    
-    if (closingDayNum < 1 || closingDayNum > 31 || dueDayNum < 1 || dueDayNum > 31) {
-      showAlert('Erro', 'Os dias devem estar entre 1 e 31', [{ text: 'OK', style: 'default' }]);
-      return;
-    }
-    
-    // Verificar se já existe um cartão com o mesmo nome
-    const nameExists = activeCards.some(
-      card => card.name.toLowerCase() === cardName.trim().toLowerCase()
-    );
-    if (nameExists) {
-      showAlert('Nome duplicado', 'Já existe um cartão com esse nome.', [{ text: 'OK', style: 'default' }]);
-      return;
-    }
-    
-    setSaving(true);
-    try {
-      const cardData: any = {
-        name: cardName.trim(),
-        icon: 'credit-card',
-        color: cardColor,
-        limit: parseValue(cardLimit),
-        closingDay: closingDayNum,
-        dueDay: dueDayNum,
-        paymentAccountId: cardAccountId,
-        isArchived: false,
-      };
-
-      const result = await createCreditCard(cardData);
-
-      if (result) {
-        setModalVisible(false);
-        resetModalState();
-        triggerRefresh();
-        showSnackbar('Cartão cadastrado com sucesso!');
-      } else {
-        showAlert('Erro', 'Não foi possível cadastrar o cartão', [{ text: 'OK', style: 'default' }]);
-      }
-    } catch (error) {
-      showAlert('Erro', 'Ocorreu um erro ao cadastrar o cartão', [{ text: 'OK', style: 'default' }]);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  // Resetar estado do modal
-  function resetModalState() {
-    setCardName('');
-    setCardLimit('');
-    setCardClosingDay('');
-    setCardDueDay('');
-    setCardAccountId('');
-    setCardAccountName('');
-    setCardColor('#6366F1');
-    setEditingCard(null);
-    setIsCreateMode(false);
-  }
-
-  // Abrir modal para criar novo cartão
+  // Abrir modal compacta (90% da tela)
   function openCreateModal() {
     // Verificar se há contas cadastradas antes de abrir
     if (activeAccounts.length === 0) {
@@ -258,14 +119,8 @@ export default function CreditCards({ navigation }: any) {
       );
       return;
     }
-    resetModalState();
-    setIsCreateMode(true);
-    // Definir conta padrão se houver apenas uma
-    if (activeAccounts.length === 1) {
-      setCardAccountId(activeAccounts[0].id);
-      setCardAccountName(activeAccounts[0].name);
-    }
-    setModalVisible(true);
+    setQuickEditCard(null);
+    setQuickCreateVisible(true);
   }
 
   // Arquivar cartão foi removido do fluxo.
@@ -309,62 +164,6 @@ export default function CreditCards({ navigation }: any) {
         },
       ]
     );
-  }
-
-  // Salvar edição
-  async function handleSaveEdit() {
-    if (!editingCard || !cardName.trim() || !user?.uid) return;
-
-    const closingDayNum = parseInt(cardClosingDay) || 1;
-    const dueDayNum = parseInt(cardDueDay) || 10;
-    
-    if (closingDayNum < 1 || closingDayNum > 31 || dueDayNum < 1 || dueDayNum > 31) {
-      showAlert('Erro', 'Os dias devem estar entre 1 e 31', [{ text: 'OK', style: 'default' }]);
-      return;
-    }
-    
-    // Verificar se já existe outro cartão com o mesmo nome
-    const nameExists = activeCards.some(
-      card => card.id !== editingCard.id && 
-              card.name.toLowerCase() === cardName.trim().toLowerCase()
-    );
-    if (nameExists) {
-      showAlert('Nome duplicado', 'Já existe um cartão com esse nome.', [{ text: 'OK', style: 'default' }]);
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const updateData: any = {
-        name: cardName.trim(),
-        limit: parseValue(cardLimit),
-        closingDay: closingDayNum,
-        dueDay: dueDayNum,
-        color: cardColor,
-      };
-      
-      // Só adiciona paymentAccountId se tiver valor, senão remove
-      if (cardAccountId) {
-        updateData.paymentAccountId = cardAccountId;
-      } else {
-        updateData.paymentAccountId = null; // Remove do documento
-      }
-
-      const result = await updateCreditCard(editingCard.id, updateData);
-
-      if (result) {
-        setModalVisible(false);
-        resetModalState();
-        triggerRefresh();
-        showSnackbar('Cartão atualizado!');
-      } else {
-        showAlert('Erro', 'Não foi possível atualizar o cartão', [{ text: 'OK', style: 'default' }]);
-      }
-    } catch (error) {
-      showAlert('Erro', 'Ocorreu um erro ao atualizar o cartão', [{ text: 'OK', style: 'default' }]);
-    } finally {
-      setSaving(false);
-    }
   }
 
   // Resetar cartão (deletar todas as transações)
@@ -568,294 +367,6 @@ export default function CreditCards({ navigation }: any) {
         </View>
       </ScrollView>
 
-      {/* Modal unificada para Criar/Editar Cartão */}
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        transparent={false}
-        onRequestClose={() => setModalVisible(false)}
-        statusBarTranslucent
-      >
-        <View style={[styles.fullscreenModal, { backgroundColor: colors.bg, paddingTop: insets.top }]}>
-          {/* Header moderno com botão de fechar */}
-          <View style={[styles.fullscreenHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.fullscreenTitle, { color: colors.text }]}>
-              {isCreateMode ? 'Novo Cartão' : 'Editar Cartão'}
-            </Text>
-            <Pressable 
-              onPress={() => setModalVisible(false)} 
-              style={({ pressed }) => [
-                styles.closeButton,
-                { backgroundColor: colors.grayLight },
-                pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] },
-              ]}
-            >
-              <MaterialCommunityIcons name="close" size={22} color={colors.text} />
-            </Pressable>
-          </View>
-          
-          <ScrollView 
-            style={styles.fullscreenContent}
-            contentContainerStyle={styles.fullscreenContentContainer}
-            showsVerticalScrollIndicator={false}
-          >
-              {/* Nome */}
-              <View style={styles.formGroup}>
-                <Text style={[styles.label, { color: colors.text }]}>Nome do cartão</Text>
-                <View style={[
-                  styles.inputContainer, 
-                  { 
-                    borderColor: focusedField === 'name' ? colors.primary : colors.border, 
-                    backgroundColor: colors.card 
-                  }
-                ]}>
-                  <TextInput
-                    value={cardName}
-                    onChangeText={setCardName}
-                    onFocus={() => setFocusedField('name')}
-                    onBlur={() => setFocusedField(null)}
-                    placeholder="Ex: Nubank, Itaú..."
-                    placeholderTextColor={colors.textMuted}
-                    style={[styles.input, { color: colors.text }]}
-                  />
-                </View>
-              </View>
-
-              {/* Limite */}
-              <View style={styles.formGroup}>
-                <Text style={[styles.label, { color: colors.text }]}>Limite</Text>
-                <View style={[
-                  styles.inputContainer, 
-                  { 
-                    borderColor: focusedField === 'limit' ? colors.primary : colors.border, 
-                    backgroundColor: colors.card 
-                  }
-                ]}>
-                  <Text style={[styles.currency, { color: colors.textMuted }]}>R$</Text>
-                  <TextInput
-                    value={cardLimit}
-                    onChangeText={(v) => setCardLimit(formatCurrency(v))}
-                    onFocus={() => setFocusedField('limit')}
-                    onBlur={() => setFocusedField(null)}
-                    placeholder="0,00"
-                    placeholderTextColor={colors.textMuted}
-                    keyboardType="numeric"
-                    style={[styles.input, { color: colors.text }]}
-                  />
-                </View>
-              </View>
-
-              {/* Dias lado a lado */}
-              <View style={styles.daysRow}>
-                <DayPicker
-                  label="Fechamento da fatura"
-                  value={cardClosingDay}
-                  onChange={setCardClosingDay}
-                  placeholder="Dia"
-                  focused={focusedField === 'closingDay'}
-                  onFocus={() => setFocusedField('closingDay')}
-                  onBlur={() => setFocusedField(null)}
-                />
-
-                <DayPicker
-                  label="Vencimento da fatura"
-                  value={cardDueDay}
-                  onChange={setCardDueDay}
-                  placeholder="Dia"
-                  focused={focusedField === 'dueDay'}
-                  onFocus={() => setFocusedField('dueDay')}
-                  onBlur={() => setFocusedField(null)}
-                />
-              </View>
-
-              {/* Seletor de cor do ícone */}
-              <View style={styles.formGroup}>
-                <Text style={[styles.label, { color: colors.text }]}>Cor do ícone</Text>
-                <View style={styles.colorGrid}>
-                  {[
-                    { color: '#6366F1', label: 'Roxo' },
-                    { color: '#2FAF8E', label: 'Verde' },
-                    { color: '#E07A3F', label: 'Laranja' },
-                    { color: '#3B82F6', label: 'Azul' },
-                    { color: '#F59E0B', label: 'Amarelo' },
-                    { color: '#8B5CF6', label: 'Violeta' },
-                    { color: '#EF4444', label: 'Vermelho' },
-                    { color: '#6B7280', label: 'Cinza' },
-                  ].map((item) => {
-                    const isSelected = cardColor === item.color;
-                    return (
-                      <Pressable
-                        key={item.color}
-                        onPress={() => setCardColor(item.color)}
-                        style={[
-                          styles.colorOption,
-                          { 
-                            backgroundColor: item.color + '20',
-                            borderColor: isSelected ? item.color : colors.border,
-                            borderWidth: isSelected ? 2 : 1,
-                          },
-                        ]}
-                      >
-                        <View style={[styles.colorCircle, { backgroundColor: item.color }]}>
-                          {isSelected && (
-                            <MaterialCommunityIcons name="check" size={14} color="#fff" />
-                          )}
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-
-              {/* Conta de pagamento */}
-              <View style={styles.formGroup}>
-                <View style={styles.labelWithHelp}>
-                  <Text style={[styles.label, { color: colors.text }]}>Conta de pagamento</Text>
-                  <Pressable
-                    onPress={() => showAlert(
-                      'Conta de pagamento',
-                      'Quando você pagar a fatura deste cartão, o valor será debitado automaticamente desta conta.',
-                      [{ text: 'Entendi', style: 'default' }]
-                    )}
-                  >
-                    <Text style={[styles.helpLink, { color: colors.primary }]}>saiba mais</Text>
-                  </Pressable>
-                </View>
-                <Pressable 
-                  onPress={() => setShowAccountPicker(true)}
-                  style={[styles.selectButton, { borderColor: colors.border, backgroundColor: colors.card }]}
-                >
-                  <Text style={[
-                    styles.selectText, 
-                    { color: cardAccountName ? colors.text : colors.textMuted }
-                  ]}>
-                    {cardAccountName || 'Selecione a conta'}
-                  </Text>
-                  <MaterialCommunityIcons name="chevron-down" size={20} color={colors.textMuted} />
-                </Pressable>
-              </View>
-
-              {/* Ações */}
-              <View style={styles.modalActionsColumn}>
-                {/* Botão de Resetar - apenas no modo edição */}
-                {!isCreateMode && (
-                  <Pressable
-                    onPress={handleResetCard}
-                    style={({ pressed }) => [
-                      styles.resetButton,
-                      { backgroundColor: colors.warning + '15', borderColor: colors.warning },
-                      pressed && { opacity: 0.7 },
-                    ]}
-                  >
-                    <MaterialCommunityIcons name="refresh" size={20} color={colors.warning} />
-                    <View style={styles.resetButtonText}>
-                      <Text style={[styles.actionButtonText, { color: colors.warning }]}>Resetar cartão</Text>
-                      <Text style={[styles.resetHint, { color: colors.textMuted }]}>
-                        Exclui todos os lançamentos e zera a fatura
-                      </Text>
-                    </View>
-                  </Pressable>
-                )}
-
-                {/* Botões de Confirmar e Excluir/Cancelar */}
-                <View style={styles.modalActions}>
-                  {isCreateMode ? (
-                    <Pressable
-                      onPress={() => setModalVisible(false)}
-                      style={({ pressed }) => [
-                        styles.actionButton,
-                        styles.cancelButton,
-                        { borderColor: colors.border },
-                        pressed && { opacity: 0.7 },
-                      ]}
-                    >
-                      <Text style={[styles.actionButtonText, { color: colors.textSecondary }]}>Cancelar</Text>
-                    </Pressable>
-                  ) : (
-                    <Pressable
-                      onPress={handleDeleteFromModal}
-                      style={({ pressed }) => [
-                        styles.actionButton,
-                        styles.deleteButtonStyle,
-                        { borderColor: colors.expense },
-                        pressed && { opacity: 0.7 },
-                      ]}
-                    >
-                      <MaterialCommunityIcons name="delete-outline" size={20} color={colors.expense} />
-                      <Text style={[styles.actionButtonText, { color: colors.expense }]}>Excluir</Text>
-                    </Pressable>
-                  )}
-
-                  <Pressable
-                    onPress={isCreateMode ? handleCreate : handleSaveEdit}
-                    disabled={saving || !cardName.trim()}
-                    style={({ pressed }) => [
-                      styles.actionButton,
-                      { backgroundColor: colors.primary, borderColor: colors.primary },
-                      pressed && { opacity: 0.9 },
-                      (saving || !cardName.trim()) && { opacity: 0.6 },
-                    ]}
-                  >
-                    <MaterialCommunityIcons name="check" size={20} color="#fff" />
-                    <Text style={[styles.actionButtonText, { color: '#fff' }]}>
-                      {saving ? 'Salvando...' : (isCreateMode ? 'Cadastrar' : 'Confirmar')}
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-            </ScrollView>
-          </View>
-      </Modal>
-
-      {/* Modal de seleção de conta */}
-      <Modal
-        visible={showAccountPicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowAccountPicker(false)}
-      >
-        <Pressable 
-          style={styles.modalOverlay}
-          onPress={() => setShowAccountPicker(false)}
-        >
-          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Selecionar conta</Text>
-            {!isCreateMode && (
-              <Pressable
-                onPress={() => {
-                  setCardAccountId('');
-                  setCardAccountName('');
-                  setShowAccountPicker(false);
-                }}
-                style={[styles.modalOption, { borderBottomColor: colors.border }]}
-              >
-                <MaterialCommunityIcons name="close-circle-outline" size={20} color={colors.textMuted} />
-                <Text style={[styles.modalOptionText, { color: colors.textMuted }]}>Nenhuma conta</Text>
-                {cardAccountId === '' && (
-                  <MaterialCommunityIcons name="check" size={20} color={colors.primary} />
-                )}
-              </Pressable>
-            )}
-            {activeAccounts.map((account) => (
-              <Pressable
-                key={account.id}
-                onPress={() => {
-                  setCardAccountId(account.id);
-                  setCardAccountName(account.name);
-                  setShowAccountPicker(false);
-                }}
-                style={[styles.modalOption, { borderBottomColor: colors.border }]}
-              >
-                <MaterialCommunityIcons name="bank" size={20} color={colors.primary} />
-                <Text style={[styles.modalOptionText, { color: colors.text }]}>{account.name}</Text>
-                {cardAccountId === account.id && (
-                  <MaterialCommunityIcons name="check" size={20} color={colors.primary} />
-                )}
-              </Pressable>
-            ))}
-          </View>
-        </Pressable>
-      </Modal>
       <CustomAlert
         visible={alertState.visible}
         title={alertState.title}

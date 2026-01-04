@@ -382,6 +382,7 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
   }, [monthTotalUsed, totalIncome]);
 
   const mainValueColor = useMemo(() => {
+    if (cards.length === 0) return DS_COLORS.textMuted;
     if (monthTotalUsed <= 0) return DS_COLORS.textMuted;
 
     if (usageStatus.level === 'warning') return DS_COLORS.warning;
@@ -389,7 +390,7 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
 
     // controlled / no-income: usar cor padrão de valor (textTitle)
     return DS_COLORS.textTitle;
-  }, [monthTotalUsed, usageStatus.level]);
+  }, [cards.length, monthTotalUsed, usageStatus.level]);
 
   // Porcentagem de uso
   const usagePercentage = useMemo(() => {
@@ -559,7 +560,7 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
 
         <View style={styles.mainValueSection}>
           <Text style={[styles.mainValue, { color: mainValueColor }]}>
-            {formatCurrencyBRL(monthTotalUsed)}
+            {cards.length === 0 ? '—' : formatCurrencyBRL(monthTotalUsed)}
           </Text>
           {monthTotalUsed > 0 && (
             <Text style={[styles.billsMonthLabel, { color: DS_COLORS.textMuted }]}>
@@ -656,10 +657,30 @@ export default memo(function CreditCardsCard({ cards = [], totalBills = 0, total
       {/* Mensagem vazia */}
       {!hasAnyBillsToShow && (
         <View style={styles.emptyState}>
-          <MaterialCommunityIcons name="credit-card-check" size={64} color={DS_COLORS.textMuted} />
+          <MaterialCommunityIcons
+            name={cards.length === 0 ? 'credit-card-plus-outline' : 'credit-card-check'}
+            size={64}
+            color={DS_COLORS.textMuted}
+          />
           <Text style={[styles.emptyStateText, { color: DS_COLORS.textMuted }]}>
-            Nenhuma fatura em aberto
+            {cards.length === 0 ? 'Nenhum cartão cadastrado' : 'Nenhuma fatura em aberto'}
           </Text>
+
+          {cards.length === 0 && onAddPress && (
+            <Pressable
+              onPress={onAddPress}
+              style={({ pressed }) => [
+                styles.emptyCta,
+                { borderColor: DS_COLORS.border, backgroundColor: DS_COLORS.primaryLight },
+                pressed && { opacity: 0.85 },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Criar novo cartão de crédito"
+            >
+              <MaterialCommunityIcons name="plus" size={18} color={DS_COLORS.primary} />
+              <Text style={[styles.emptyCtaText, { color: DS_COLORS.primary }]}>Criar novo cartão</Text>
+            </Pressable>
+          )}
         </View>
       )}
 
@@ -940,6 +961,20 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '400',
     textAlign: 'center',
+  },
+  emptyCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  emptyCtaText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   skeletonCard: {
     borderRadius: 16,
