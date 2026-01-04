@@ -276,6 +276,7 @@ export default function Goals() {
     <MainLayout>
       <SimpleHeader title="Metas" />
       
+      <View style={styles.centeredContainer}>
       <View style={styles.container}>
         {/* Tabs */}
         <View style={[styles.tabs, { backgroundColor: colors.card }]}>
@@ -341,6 +342,7 @@ export default function Goals() {
             />
           )}
         </ScrollView>
+      </View>
       </View>
 
       <ChooseGoalTypeModal
@@ -741,6 +743,12 @@ function MonthlyGoalsContent({ goals, categories, loading, colors, getPercentage
 }
 
 const styles = StyleSheet.create({
+  centeredContainer: {
+    flex: 1,
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
+  },
   container: {
     flex: 1,
   },
